@@ -11,6 +11,7 @@ import os
 import ssl
 import uuid
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import NoReturn
 
 import pytest
@@ -18,10 +19,11 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.adapters.db import Database
-from app.api.deps import get_db, get_jwks_client
+from app.api.deps import get_db, get_gemini, get_jwks_client
 from app.config import get_settings
 from app.main import create_app
-from tests.tokens import TEST_JWKS, StaticJWKSClient
+from tests.fakes import FakeGemini
+from tests.tokens import TEST_JWKS, StaticJWKSClient, auth_header
 
 
 @pytest.fixture
@@ -120,3 +122,77 @@ async def auth_user(api_db: Database) -> AsyncIterator[uuid.UUID]:
     finally:
         async with api_db.acquire() as conn:
             await conn.execute(DELETE_AUTH_USER, user_id)
+
+
+# Seeded demo marketplace ------------------------------------------------------
+# These fixtures need the data from `scripts/seed.py`: 40 creators with packages, the
+# demo brand and the demo creators. Tests only read it; they never change seeded rows.
+
+NOT_SEEDED = "demo data not seeded: run `uv run python -m scripts.seed --reset`"
+DEMO_ARJUN_HANDLE = "arjuntech"
+
+
+@pytest.fixture
+def fake_gemini(app: FastAPI) -> FakeGemini:
+    """Serve embeddings from FakeGemini instead of the Gemini API."""
+    gemini = FakeGemini()
+    app.dependency_overrides[get_gemini] = lambda: gemini
+    return gemini
+
+
+async def _auth_user_id(db: Database, email: str) -> uuid.UUID:
+    """The seeded demo login with this email, or skip when the seed has not run."""
+    if not email:
+        _skip(f"{NOT_SEEDED} (a DEMO_* email is not set)")
+    async with db.acquire() as conn:
+        user_id = await conn.fetchval(
+            "select id from auth.users where lower(email) = lower($1)", email
+        )
+    if user_id is None:
+        _skip(NOT_SEEDED)
+    return user_id
+
+
+@asynccontextmanager
+async def _signed_in(app: FastAPI, user_id: uuid.UUID) -> AsyncIterator[AsyncClient]:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers=auth_header(user_id),
+    ) as c:
+        yield c
+
+
+@pytest.fixture
+async def brand_client(
+    app: FastAPI, fake_jwks: None, api_db: Database, fake_gemini: FakeGemini
+) -> AsyncIterator[AsyncClient]:
+    """A client signed in as the seeded demo brand (Lumen Audio)."""
+    user_id = await _auth_user_id(api_db, get_settings().demo_brand_email)
+    async with _signed_in(app, user_id) as c:
+        yield c
+
+
+@pytest.fixture
+async def creator_client(
+    app: FastAPI, fake_jwks: None, api_db: Database
+) -> AsyncIterator[AsyncClient]:
+    """A client signed in as the seeded demo creator Priya (`priyareviews`)."""
+    user_id = await _auth_user_id(api_db, get_settings().demo_helper_email)
+    async with _signed_in(app, user_id) as c:
+        yield c
+
+
+@pytest.fixture
+async def other_package_id(api_db: Database) -> uuid.UUID:
+    """Another creator's package, for ownership tests: Arjun's cheapest published one."""
+    async with api_db.acquire() as conn:
+        package_id = await conn.fetchval(
+            "select p.id from public.packages p join public.creators c on c.id = p.creator_id"
+            " where c.handle = $1 and p.status = 'published'"
+            " order by p.base_price_cents, p.name, p.id limit 1",
+            DEMO_ARJUN_HANDLE,
+        )
+    if package_id is None:
+        _skip(NOT_SEEDED)
+    return package_id
