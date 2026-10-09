@@ -175,6 +175,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A field the voice draft still needs: a pulsing ember outline. The outline stays when
+   the pulse is switched off, so reduced motion loses the movement and not the cue. */
+@keyframes voice-pulse {
+  0%,
+  100% {
+    outline-color: var(--voice);
+  }
+  50% {
+    outline-color: color-mix(in oklch, var(--voice) 30%, transparent);
+  }
+}
+
+@utility voice-missing {
+  outline: 2px solid var(--voice);
+  outline-offset: 6px;
+  animation: voice-pulse 1.8s ease-in-out infinite;
+}
+
 /* Motion only signals state change. Honour the OS setting for everything
    driven by CSS (tooltips, dialogs, transitions); JS-driven animation checks
    prefers-reduced-motion itself. */

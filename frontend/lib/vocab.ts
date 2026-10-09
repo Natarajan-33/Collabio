@@ -35,6 +35,15 @@ export const CONTENT_TYPES: readonly { value: ContentType; label: string }[] = [
   { value: "live", label: "Live" },
 ]
 
+/** What a package's video count is counted over. */
+export type VolumeBasis =
+  components["schemas"]["PackageSummary"]["volume_basis"]
+
+export const VOLUME_BASES: readonly { value: VolumeBasis; label: string }[] = [
+  { value: "per_week", label: "Per week" },
+  { value: "per_contract", label: "Per contract" },
+]
+
 /** How a creator likes to be reached first. */
 export type PreferredChannel =
   components["schemas"]["PackageSummary"]["preferred_channel"]

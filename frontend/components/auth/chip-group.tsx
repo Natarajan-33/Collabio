@@ -12,6 +12,8 @@ type ChipGroupProps<Value extends string> = {
   onValueChange: (value: Value[]) => void
   /** Several chips can be on at once. Otherwise at most one is. */
   multiple?: boolean
+  /** Id of the element that explains the group, such as an error message. */
+  describedBy?: string
 }
 
 /**
@@ -25,10 +27,12 @@ export function ChipGroup<Value extends string>({
   value,
   onValueChange,
   multiple = false,
+  describedBy,
 }: ChipGroupProps<Value>) {
   return (
     <ToggleGroup
       aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
       multiple={multiple}
       value={value}
       // The ui wrapper types the group's values as plain strings; they can only be the
