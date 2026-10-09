@@ -79,6 +79,9 @@ def test_profile_numbers_and_regions_are_realistic():
         assert creator["region"] in {"US", "IN", "UK", "CA", "AU"}, creator["handle"]
         assert creator["languages"], creator["handle"]
         assert creator["platforms"], creator["handle"]
+        per_platform = [p["followers"] for p in creator["platforms"]]
+        assert sum(per_platform) == creator["followers"], creator["handle"]
+        assert all(0 < n <= creator["followers"] for n in per_platform), creator["handle"]
 
 
 def test_handles_unique_and_valid():
