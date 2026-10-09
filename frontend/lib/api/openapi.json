@@ -1,0 +1,2066 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Collabio API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Api V1 Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Read Me",
+        "operationId": "read_me_api_v1_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/onboarding": {
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Onboard",
+        "description": "Choose a role (\"I sell products\" / \"I create content\") and set up the account.",
+        "operationId": "onboard_api_v1_onboarding_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/BrandOnboarding"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreatorOnboarding"
+                  }
+                ],
+                "title": "Onboarding",
+                "discriminator": {
+                  "propertyName": "role",
+                  "mapping": {
+                    "brand": "#/components/schemas/BrandOnboarding",
+                    "creator": "#/components/schemas/CreatorOnboarding"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`role_locked` or `handle_taken`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/discovery/search": {
+      "post": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Search Creators",
+        "description": "Find creators for a brand: filters narrow the marketplace, `query` ranks by meaning.",
+        "operationId": "search_creators_api_v1_discovery_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`search_unavailable`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/creators/{creator_id}": {
+      "get": {
+        "tags": [
+          "creators"
+        ],
+        "summary": "Read Creator",
+        "description": "A creator's public card with their published packages.",
+        "operationId": "read_creator_api_v1_creators__creator_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "creator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Creator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatorCard"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`creator_not_found`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/packages": {
+      "get": {
+        "tags": [
+          "packages"
+        ],
+        "summary": "List My Packages",
+        "description": "The creator's packages, drafts and published, with their private floors.",
+        "operationId": "list_my_packages_api_v1_me_packages_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MyPackage"
+                  },
+                  "type": "array",
+                  "title": "Response List My Packages Api V1 Me Packages Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "packages"
+        ],
+        "summary": "Create Package",
+        "description": "Save a complete draft as a new unpublished package.",
+        "operationId": "create_package_api_v1_me_packages_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackageDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyPackage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`detail` is `{error: draft_incomplete, missing: [...]}` or `{error: rules_violated, violations: [{field, message}]}`"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/packages/draft-from-speech": {
+      "post": {
+        "tags": [
+          "packages"
+        ],
+        "summary": "Draft From Speech",
+        "description": "Fold what the creator said into their open draft; nothing is saved.\n\nWhen the model's reply is unusable the response is still 200: the draft comes back\nunchanged and `heard` is the raw transcript.",
+        "operationId": "draft_from_speech_api_v1_me_packages_draft_from_speech_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftFromSpeechRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftResult"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`voice_unavailable`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/packages/{package_id}": {
+      "patch": {
+        "tags": [
+          "packages"
+        ],
+        "summary": "Update Package",
+        "description": "Change the fields sent; fields left out stay as they are. Lists are replaced.",
+        "operationId": "update_package_api_v1_me_packages__package_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Package Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackageDraft"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedPackage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`package_not_found`"
+          },
+          "422": {
+            "description": "`detail` is `{error: draft_incomplete, missing: [...]}` or `{error: rules_violated, violations: [{field, message}]}`"
+          }
+        }
+      }
+    },
+    "/api/v1/me/packages/{package_id}/publish": {
+      "post": {
+        "tags": [
+          "packages"
+        ],
+        "summary": "Publish Package",
+        "description": "Publish the package to brands and refresh the creator's search embedding.\n\nIf the embedding cannot be refreshed the package is still published and `warnings`\nsays the search index update is pending.",
+        "operationId": "publish_package_api_v1_me_packages__package_id__publish_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Package Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedPackage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`package_not_found`"
+          },
+          "422": {
+            "description": "`detail` is `{error: draft_incomplete, missing: [...]}` or `{error: rules_violated, violations: [{field, message}]}`"
+          }
+        }
+      }
+    },
+    "/api/v1/me/packages/{package_id}/floor": {
+      "put": {
+        "tags": [
+          "packages"
+        ],
+        "summary": "Set Package Floor",
+        "description": "Set the private lowest price the creator accepts; never shown to brands.",
+        "operationId": "set_package_floor_api_v1_me_packages__package_id__floor_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Package Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FloorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyPackage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`package_not_found`"
+          },
+          "422": {
+            "description": "`detail` is `{error: draft_incomplete, missing: [...]}` or `{error: rules_violated, violations: [{field, message}]}`"
+          }
+        }
+      }
+    },
+    "/api/v1/voice/scribe-token": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Scribe Token",
+        "description": "A single-use token the browser exchanges for a realtime speech-to-text session.",
+        "operationId": "scribe_token_api_v1_voice_scribe_token_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScribeToken"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`voice_unavailable`"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/voice/command": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Voice Command",
+        "description": "Turn what the user said into the one action the screen they are on should take.",
+        "operationId": "voice_command_api_v1_voice_command_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceCommandRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceIntent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`voice_unavailable`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Addon": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price_cents": {
+            "type": "integer",
+            "title": "Price Cents"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "video",
+              "item"
+            ],
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "price_cents",
+          "unit"
+        ],
+        "title": "Addon",
+        "description": "A priced add-on. `unit=\"video\"` means one more video at this price."
+      },
+      "BrandOnboarding": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "const": "brand",
+            "title": "Role"
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "company_name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Company Name"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "consumer_tech",
+              "beauty",
+              "fitness",
+              "food",
+              "gaming",
+              "b2b_saas"
+            ],
+            "title": "Category"
+          },
+          "product_name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Product Name"
+          },
+          "product_summary": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Product Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "display_name",
+          "company_name",
+          "category",
+          "product_name",
+          "product_summary"
+        ],
+        "title": "BrandOnboarding",
+        "description": "Onboarding as a brand (\"I sell products\"): the brand and the product it promotes."
+      },
+      "BrandSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "company_name": {
+            "type": "string",
+            "title": "Company Name"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "company_name",
+          "category"
+        ],
+        "title": "BrandSummary"
+      },
+      "CreatorCard": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "initials": {
+            "type": "string",
+            "title": "Initials"
+          },
+          "niches": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Niches"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "followers": {
+            "type": "integer",
+            "title": "Followers"
+          },
+          "engagement_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engagement Rate"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/components/schemas/PackageSummary"
+            },
+            "type": "array",
+            "title": "Packages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "handle",
+          "name",
+          "initials",
+          "niches",
+          "region",
+          "followers",
+          "engagement_rate",
+          "packages"
+        ],
+        "title": "CreatorCard",
+        "description": "A creator with their published packages, cheapest first.\n\n`engagement_rate` is in percentage points (5.8 means 5.8%)."
+      },
+      "CreatorOnboarding": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "const": "creator",
+            "title": "Role"
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          },
+          "niches": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "consumer_tech",
+                "beauty",
+                "fitness",
+                "food",
+                "gaming",
+                "b2b_saas"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Niches"
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Region"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "display_name",
+          "handle",
+          "niches",
+          "region"
+        ],
+        "title": "CreatorOnboarding",
+        "description": "Onboarding as a creator (\"I create content\"): the public creator profile."
+      },
+      "CreatorRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "handle"
+        ],
+        "title": "CreatorRef",
+        "description": "A creator on screen, so \"select Maya\" can be resolved to an id."
+      },
+      "CreatorSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "niches": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Niches"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "handle",
+          "name",
+          "niches",
+          "region"
+        ],
+        "title": "CreatorSummary"
+      },
+      "DraftFromSpeechRequest": {
+        "properties": {
+          "transcript": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Transcript"
+          },
+          "current": {
+            "$ref": "#/components/schemas/PackageDraft"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transcript"
+        ],
+        "title": "DraftFromSpeechRequest",
+        "description": "What the creator just said about a package, and the draft it is to be folded into."
+      },
+      "DraftResult": {
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/PackageDraft"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/RuleViolation"
+            },
+            "type": "array",
+            "title": "Violations"
+          },
+          "heard": {
+            "type": "string",
+            "title": "Heard"
+          }
+        },
+        "type": "object",
+        "required": [
+          "draft",
+          "missing",
+          "violations",
+          "heard"
+        ],
+        "title": "DraftResult",
+        "description": "The open draft after the latest dictation, what it still needs, and what it breaks.\n\n`missing` lists the required fields with no value yet, in the order the editor asks\nfor them. `violations` are the publishing rules already broken by the values present."
+      },
+      "Extra": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price_cents": {
+            "type": "integer",
+            "title": "Price Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "price_cents"
+        ],
+        "title": "Extra",
+        "description": "A priced extra that is not a deliverable (raw footage, a thumbnail pack)."
+      },
+      "FloorRequest": {
+        "properties": {
+          "floor_price_cents": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Floor Price Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "floor_price_cents"
+        ],
+        "title": "FloorRequest",
+        "description": "The lowest price (cents) the creator will accept for a package; never shown to brands."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MeResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "brand",
+                  "creator"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BrandSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreatorSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "email",
+          "role",
+          "display_name",
+          "brand",
+          "creator"
+        ],
+        "title": "MeResponse",
+        "description": "The signed-in user; `role` is null until onboarding."
+      },
+      "MyPackage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "short_video",
+              "long_video",
+              "story",
+              "live"
+            ],
+            "title": "Content Type"
+          },
+          "niche": {
+            "type": "string",
+            "enum": [
+              "consumer_tech",
+              "beauty",
+              "fitness",
+              "food",
+              "gaming",
+              "b2b_saas"
+            ],
+            "title": "Niche"
+          },
+          "volume_count": {
+            "type": "integer",
+            "title": "Volume Count"
+          },
+          "volume_basis": {
+            "type": "string",
+            "enum": [
+              "per_week",
+              "per_contract"
+            ],
+            "title": "Volume Basis"
+          },
+          "base_price_cents": {
+            "type": "integer",
+            "title": "Base Price Cents"
+          },
+          "per_video_cents": {
+            "type": "integer",
+            "title": "Per Video Cents"
+          },
+          "one_liner": {
+            "type": "string",
+            "title": "One Liner"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "preferred_channel": {
+            "type": "string",
+            "enum": [
+              "email_first",
+              "phone_ok",
+              "email_only"
+            ],
+            "title": "Preferred Channel"
+          },
+          "addons": {
+            "items": {
+              "$ref": "#/components/schemas/Addon"
+            },
+            "type": "array",
+            "title": "Addons"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "title": "Status"
+          },
+          "floor_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Price Cents"
+          },
+          "currency": {
+            "type": "string",
+            "const": "USD",
+            "title": "Currency"
+          },
+          "included": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Included"
+          },
+          "freebies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Freebies"
+          },
+          "extras": {
+            "items": {
+              "$ref": "#/components/schemas/Extra"
+            },
+            "type": "array",
+            "title": "Extras"
+          },
+          "slots_per_month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slots Per Month"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "content_type",
+          "niche",
+          "volume_count",
+          "volume_basis",
+          "base_price_cents",
+          "per_video_cents",
+          "one_liner",
+          "lead_time_days",
+          "preferred_channel",
+          "addons",
+          "status",
+          "floor_price_cents",
+          "currency",
+          "included",
+          "freebies",
+          "extras",
+          "slots_per_month"
+        ],
+        "title": "MyPackage",
+        "description": "A package card plus what only its creator sees or edits: status, private floor and\nthe terms a card leaves out (`included`, `freebies`, `extras`, `slots_per_month`)."
+      },
+      "PackageDraft": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "short_video",
+                  "long_video",
+                  "story",
+                  "live"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "niche": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "consumer_tech",
+                  "beauty",
+                  "fitness",
+                  "food",
+                  "gaming",
+                  "b2b_saas"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Niche"
+          },
+          "volume_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume Count"
+          },
+          "volume_basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "per_week",
+                  "per_contract"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume Basis"
+          },
+          "base_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Price Cents"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "USD"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "included": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Included",
+            "default": []
+          },
+          "freebies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Freebies",
+            "default": []
+          },
+          "addons": {
+            "items": {
+              "$ref": "#/components/schemas/Addon"
+            },
+            "type": "array",
+            "title": "Addons",
+            "default": []
+          },
+          "extras": {
+            "items": {
+              "$ref": "#/components/schemas/Extra"
+            },
+            "type": "array",
+            "title": "Extras",
+            "default": []
+          },
+          "slots_per_month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slots Per Month"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "preferred_channel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "email_first",
+                  "phone_ok",
+                  "email_only"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Channel"
+          }
+        },
+        "type": "object",
+        "title": "PackageDraft",
+        "description": "`PackageTerms` with every field optional, as filled in by speech and clicks."
+      },
+      "PackageSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "short_video",
+              "long_video",
+              "story",
+              "live"
+            ],
+            "title": "Content Type"
+          },
+          "niche": {
+            "type": "string",
+            "enum": [
+              "consumer_tech",
+              "beauty",
+              "fitness",
+              "food",
+              "gaming",
+              "b2b_saas"
+            ],
+            "title": "Niche"
+          },
+          "volume_count": {
+            "type": "integer",
+            "title": "Volume Count"
+          },
+          "volume_basis": {
+            "type": "string",
+            "enum": [
+              "per_week",
+              "per_contract"
+            ],
+            "title": "Volume Basis"
+          },
+          "base_price_cents": {
+            "type": "integer",
+            "title": "Base Price Cents"
+          },
+          "per_video_cents": {
+            "type": "integer",
+            "title": "Per Video Cents"
+          },
+          "one_liner": {
+            "type": "string",
+            "title": "One Liner"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "preferred_channel": {
+            "type": "string",
+            "enum": [
+              "email_first",
+              "phone_ok",
+              "email_only"
+            ],
+            "title": "Preferred Channel"
+          },
+          "addons": {
+            "items": {
+              "$ref": "#/components/schemas/Addon"
+            },
+            "type": "array",
+            "title": "Addons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "content_type",
+          "niche",
+          "volume_count",
+          "volume_basis",
+          "base_price_cents",
+          "per_video_cents",
+          "one_liner",
+          "lead_time_days",
+          "preferred_channel",
+          "addons"
+        ],
+        "title": "PackageSummary",
+        "description": "A published package as shown on a creator card. `one_liner` is its card text."
+      },
+      "RuleViolation": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "message"
+        ],
+        "title": "RuleViolation",
+        "description": "A package rule that fails, reported against the field the creator must change."
+      },
+      "SavedPackage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "short_video",
+              "long_video",
+              "story",
+              "live"
+            ],
+            "title": "Content Type"
+          },
+          "niche": {
+            "type": "string",
+            "enum": [
+              "consumer_tech",
+              "beauty",
+              "fitness",
+              "food",
+              "gaming",
+              "b2b_saas"
+            ],
+            "title": "Niche"
+          },
+          "volume_count": {
+            "type": "integer",
+            "title": "Volume Count"
+          },
+          "volume_basis": {
+            "type": "string",
+            "enum": [
+              "per_week",
+              "per_contract"
+            ],
+            "title": "Volume Basis"
+          },
+          "base_price_cents": {
+            "type": "integer",
+            "title": "Base Price Cents"
+          },
+          "per_video_cents": {
+            "type": "integer",
+            "title": "Per Video Cents"
+          },
+          "one_liner": {
+            "type": "string",
+            "title": "One Liner"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "preferred_channel": {
+            "type": "string",
+            "enum": [
+              "email_first",
+              "phone_ok",
+              "email_only"
+            ],
+            "title": "Preferred Channel"
+          },
+          "addons": {
+            "items": {
+              "$ref": "#/components/schemas/Addon"
+            },
+            "type": "array",
+            "title": "Addons"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "title": "Status"
+          },
+          "floor_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Price Cents"
+          },
+          "currency": {
+            "type": "string",
+            "const": "USD",
+            "title": "Currency"
+          },
+          "included": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Included"
+          },
+          "freebies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Freebies"
+          },
+          "extras": {
+            "items": {
+              "$ref": "#/components/schemas/Extra"
+            },
+            "type": "array",
+            "title": "Extras"
+          },
+          "slots_per_month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slots Per Month"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "content_type",
+          "niche",
+          "volume_count",
+          "volume_basis",
+          "base_price_cents",
+          "per_video_cents",
+          "one_liner",
+          "lead_time_days",
+          "preferred_channel",
+          "addons",
+          "status",
+          "floor_price_cents",
+          "currency",
+          "included",
+          "freebies",
+          "extras",
+          "slots_per_month"
+        ],
+        "title": "SavedPackage",
+        "description": "A package after an edit that may touch the search index. `warnings` lists side\neffects that did not complete; the package itself was saved."
+      },
+      "ScribeToken": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "expires_at"
+        ],
+        "title": "ScribeToken",
+        "description": "A single-use ElevenLabs realtime Scribe token for the browser; `expires_at` is ISO 8601."
+      },
+      "SearchFilters": {
+        "properties": {
+          "niches": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "consumer_tech",
+                "beauty",
+                "fitness",
+                "food",
+                "gaming",
+                "b2b_saas"
+              ]
+            },
+            "type": "array",
+            "title": "Niches",
+            "default": []
+          },
+          "content_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "short_video",
+                "long_video",
+                "story",
+                "live"
+              ]
+            },
+            "type": "array",
+            "title": "Content Types",
+            "default": []
+          },
+          "max_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Price Cents"
+          },
+          "min_followers": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Followers"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          }
+        },
+        "type": "object",
+        "title": "SearchFilters",
+        "description": "Hard filters; an empty list or a missing value leaves that dimension open.\n\n`max_price_cents` and `content_types` must hold on the same published package;\n`niches` matches creators with any of the listed niches."
+      },
+      "SearchRequest": {
+        "properties": {
+          "query": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/SearchFilters"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 48.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 24
+          }
+        },
+        "type": "object",
+        "title": "SearchRequest",
+        "description": "`query` is free text that ranks the filtered creators by meaning; without it the\nmost-followed creators come first."
+      },
+      "SearchResponse": {
+        "properties": {
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/SearchFilters"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/CreatorCard"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "filters",
+          "results"
+        ],
+        "title": "SearchResponse",
+        "description": "The request as applied (blank query and region normalised) and the matches in rank order."
+      },
+      "SelectArgs": {
+        "properties": {
+          "creator_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Creator Ids",
+            "default": []
+          },
+          "top_n": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 48.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top N"
+          }
+        },
+        "type": "object",
+        "title": "SelectArgs",
+        "description": "Which creators to select: those named (`creator_ids`) or the first `top_n` shown."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VoiceCommandRequest": {
+        "properties": {
+          "screen": {
+            "type": "string",
+            "enum": [
+              "discover",
+              "review",
+              "packages",
+              "any"
+            ],
+            "title": "Screen"
+          },
+          "transcript": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Transcript"
+          },
+          "context": {
+            "$ref": "#/components/schemas/VoiceContext"
+          }
+        },
+        "type": "object",
+        "required": [
+          "screen",
+          "transcript",
+          "context"
+        ],
+        "title": "VoiceCommandRequest"
+      },
+      "VoiceContext": {
+        "properties": {
+          "visible_creators": {
+            "items": {
+              "$ref": "#/components/schemas/CreatorRef"
+            },
+            "type": "array",
+            "title": "Visible Creators",
+            "default": []
+          },
+          "package_draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "VoiceContext",
+        "description": "What the screen shows: the creators in view and the package draft being dictated."
+      },
+      "VoiceIntent": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "search",
+              "select",
+              "clear_selection",
+              "open_review",
+              "package_draft",
+              "navigate",
+              "unclear"
+            ],
+            "title": "Kind"
+          },
+          "heard": {
+            "type": "string",
+            "title": "Heard"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "select": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelectArgs"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "package_draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "navigate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Navigate"
+          },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggestions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "heard"
+        ],
+        "title": "VoiceIntent",
+        "description": "What the screen should do. Only the field for `kind` is set; `unclear` carries\n`suggestions` of what to say instead."
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
