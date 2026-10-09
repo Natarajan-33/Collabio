@@ -34,7 +34,9 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Every page, so the session is refreshed before any Server Component reads it;
   // static assets and the favicon are skipped. Only `isGuardedPath` redirects.
+  // The dot before the extension is `\\.` because this is a plain JS string: a bare
+  // `\.` collapses to `.` and would skip pages whose path merely ends in "ico".
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 }

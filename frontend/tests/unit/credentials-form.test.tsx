@@ -127,40 +127,49 @@ describe("CredentialsForm sign-in", () => {
 })
 
 describe("CredentialsForm demo hint", () => {
-  it("lists the seeded accounts, never a password, when demo mode is on", () => {
-    render(<CredentialsForm mode="sign-in" demo />)
+  // Whatever the server derived from the environment; nothing is built in.
+  const accounts = [
+    { email: "shop@demo.test", who: "Brand · Lumen" },
+    { email: "ana.helper@demo.test", who: "Creator · Priya" },
+    { email: "ana.helper+arjun@demo.test", who: "Creator · Arjun" },
+  ]
+
+  it("lists the accounts it is given, never a password", () => {
+    render(<CredentialsForm mode="sign-in" demoAccounts={accounts} />)
 
     const hint = screen.getByRole("complementary", { name: /demo accounts/i })
-    expect(hint.textContent).toContain("lumen.brand@example.com")
-    expect(hint.textContent).toContain("helper.creator@example.com")
-    expect(hint.textContent).toContain("helper.creator+arjun@example.com")
+    expect(hint.textContent).toContain("shop@demo.test")
+    expect(hint.textContent).toContain("ana.helper@demo.test")
+    expect(hint.textContent).toContain("ana.helper+arjun@demo.test")
     expect(hint.textContent).not.toMatch(/password/i)
   })
 
   it("fills the email field when an account is picked", async () => {
     const user = userEvent.setup()
-    render(<CredentialsForm mode="sign-in" demo />)
+    render(<CredentialsForm mode="sign-in" demoAccounts={accounts} />)
 
     await user.click(
-      screen.getByRole("button", { name: /helper\.creator@example\.com/i })
+      screen.getByRole("button", { name: /ana\.helper@demo\.test/i })
     )
 
     expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe(
-      "helper.creator@example.com"
+      "ana.helper@demo.test"
     )
     // Only the password is left to type.
     expect(document.activeElement).toBe(screen.getByLabelText("Password"))
   })
 
-  it("is absent outside demo mode", () => {
+  it("is absent without accounts", () => {
     render(<CredentialsForm mode="sign-in" />)
-
     expect(screen.queryByRole("complementary")).toBeNull()
-    expect(screen.queryByText("lumen.brand@example.com")).toBeNull()
+
+    cleanup()
+    render(<CredentialsForm mode="sign-in" demoAccounts={[]} />)
+    expect(screen.queryByRole("complementary")).toBeNull()
   })
 
   it("is not shown on sign-up", () => {
-    render(<CredentialsForm mode="sign-up" demo />)
+    render(<CredentialsForm mode="sign-up" demoAccounts={accounts} />)
 
     expect(screen.queryByRole("complementary")).toBeNull()
   })

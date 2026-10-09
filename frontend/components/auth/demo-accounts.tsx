@@ -1,14 +1,17 @@
-const DEMO_ACCOUNTS = [
-  { email: "lumen.brand@example.com", who: "Brand · Lumen" },
-  { email: "helper.creator@example.com", who: "Creator · Priya" },
-  { email: "helper.creator+arjun@example.com", who: "Creator · Arjun" },
-] as const
+import type { DemoAccount } from "@/lib/auth/demo"
 
 /**
  * The seeded demo logins, for a walkthrough on a demo deployment. Picking one fills the
- * email field. The password is shared out of band and is never shown here.
+ * email field. The password is shared out of band and is never shown here. The list
+ * comes from the server's environment (see `demoAccounts`), never from this file.
  */
-export function DemoAccounts({ onPick }: { onPick: (email: string) => void }) {
+export function DemoAccounts({
+  accounts,
+  onPick,
+}: {
+  accounts: readonly DemoAccount[]
+  onPick: (email: string) => void
+}) {
   return (
     <aside
       aria-label="Demo accounts"
@@ -18,7 +21,7 @@ export function DemoAccounts({ onPick }: { onPick: (email: string) => void }) {
         Demo accounts
       </p>
       <ul className="mt-2">
-        {DEMO_ACCOUNTS.map(({ email, who }) => (
+        {accounts.map(({ email, who }) => (
           <li key={email}>
             <button
               type="button"
