@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Playwright output.
+    "test-results/**",
+    "playwright-report/**",
   ]),
   {
     // Vendored ElevenLabs UI Orb: three.js uniforms are mutated every frame

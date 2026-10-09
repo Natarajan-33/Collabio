@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e": "playwright test",
     "api:gen": "cd ../backend && uv run python -m scripts.export_openapi ../frontend/lib/api/openapi.json && cd ../frontend && openapi-typescript lib/api/openapi.json -o lib/api/schema.d.ts"
   },
   "dependencies": {
