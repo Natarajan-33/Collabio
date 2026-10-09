@@ -1,0 +1,3117 @@
+{
+  "creators": [
+    {
+      "handle": "arjuntech",
+      "name": "Arjun Mehta",
+      "bio": "Bengaluru gadget reviewer who stress-tests wireless earbuds, wearables and phones for battery life and noise cancelling on real commutes. Fast, honest short videos with a clear verdict.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "IN",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@arjuntech",
+          "followers": 7810000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@arjuntech",
+          "followers": 6390000
+        }
+      ],
+      "followers": 142000,
+      "engagement_rate": 5.8,
+      "email": "arjuntech@example.com",
+      "phone": null,
+      "phone_opt_in": true,
+      "packages": [
+        {
+          "name": "Launch Duo",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 100000,
+          "currency": "USD",
+          "included": [
+            "Script approval",
+            "One revision round",
+            "30-day usage rights"
+          ],
+          "freebies": [
+            "Free vertical cutdown for Stories"
+          ],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 40000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "phone_ok",
+          "status": "published",
+          "floor_price_cents": 80000
+        },
+        {
+          "name": "Deep Dive Review",
+          "content_type": "long_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 280000,
+          "currency": "USD",
+          "included": [
+            "Full-length review",
+            "Chaptered video",
+            "One revision round"
+          ],
+          "freebies": [],
+          "addons": [],
+          "extras": [
+            {
+              "name": "Raw footage",
+              "price_cents": 30000
+            }
+          ],
+          "slots_per_month": 2,
+          "lead_time_days": 21,
+          "preferred_channel": "phone_ok",
+          "status": "published",
+          "floor_price_cents": 238000
+        }
+      ]
+    },
+    {
+      "handle": "priyareviews",
+      "name": "Priya Raman",
+      "bio": "Hands-on tech reviewer focused on audio gear, earbuds and everyday smart devices, with a calm, detail-first style that audiences trust before they buy.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "US",
+      "languages": [
+        "en",
+        "ta"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@priyareviews",
+          "followers": 5760000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@priyareviews",
+          "followers": 3840000
+        }
+      ],
+      "followers": 96000,
+      "engagement_rate": 6.4,
+      "email": "priyareviews@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Review Pair",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 100000,
+          "currency": "USD",
+          "included": [
+            "Script approval",
+            "One revision round",
+            "30-day usage rights"
+          ],
+          "freebies": [
+            "Pinned comment with your link"
+          ],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 45000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 21,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 85000
+        },
+        {
+          "name": "Story Burst",
+          "content_type": "story",
+          "niche": "consumer_tech",
+          "volume_count": 4,
+          "volume_basis": "per_contract",
+          "base_price_cents": 60000,
+          "currency": "USD",
+          "included": [
+            "Link sticker on every story"
+          ],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 48000
+        }
+      ]
+    },
+    {
+      "handle": "mayamakestech",
+      "name": "Maya Chen",
+      "bio": "San Francisco creator covering phones, cameras and creator tools in punchy 60-second reviews with a clean studio look.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "US",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@mayamakestech",
+          "followers": 15500000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@mayamakestech",
+          "followers": 9300000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@mayamakestech",
+          "followers": 6200000
+        }
+      ],
+      "followers": 310000,
+      "engagement_rate": 4.1,
+      "email": "mayamakestech@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "One-Minute Verdict",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 140000,
+          "currency": "USD",
+          "included": [
+            "Studio-lit review",
+            "One revision round"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 55000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 6,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 119000
+        },
+        {
+          "name": "Launch Week Bundle",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 3,
+          "volume_basis": "per_contract",
+          "base_price_cents": 360000,
+          "currency": "USD",
+          "included": [
+            "Teaser, review and recap",
+            "Two revision rounds"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 110000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 2,
+          "lead_time_days": 14,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 288000
+        }
+      ]
+    },
+    {
+      "handle": "danieldoesdevices",
+      "name": "Daniel Okafor",
+      "bio": "London long-form reviewer known for thorough teardowns of laptops, phones and headphones. Slow-burn videos with a loyal, high-intent audience.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "UK",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@danieldoesdevices",
+          "followers": 44200000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@danieldoesdevices",
+          "followers": 7800000
+        }
+      ],
+      "followers": 520000,
+      "engagement_rate": 3.2,
+      "email": "danieldoesdevices@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Full Review",
+          "content_type": "long_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 480000,
+          "currency": "USD",
+          "included": [
+            "10-15 minute review",
+            "Dedicated thumbnail",
+            "Two revision rounds"
+          ],
+          "freebies": [],
+          "addons": [],
+          "extras": [
+            {
+              "name": "Thumbnail pack",
+              "price_cents": 40000
+            }
+          ],
+          "slots_per_month": 1,
+          "lead_time_days": 28,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 408000
+        },
+        {
+          "name": "Short Cutdown",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 240000,
+          "currency": "USD",
+          "included": [
+            "60-second cutdown of the full review"
+          ],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 192000
+        }
+      ]
+    },
+    {
+      "handle": "sofiaunboxes",
+      "name": "Sofia Alvarez",
+      "bio": "Unboxing and first-reaction videos for gadgets that fit a normal life: cheerful, unscripted and quick to turn around.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "US",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "tiktok",
+          "handle": "@sofiaunboxes",
+          "followers": 4290000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@sofiaunboxes",
+          "followers": 3510000
+        }
+      ],
+      "followers": 78000,
+      "engagement_rate": 7.2,
+      "email": "sofiaunboxes@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Unbox & React",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 90000,
+          "currency": "USD",
+          "included": [
+            "Unscripted first reaction",
+            "One revision round"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 35000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 67500
+        },
+        {
+          "name": "Story Takeover",
+          "content_type": "story",
+          "niche": "consumer_tech",
+          "volume_count": 5,
+          "volume_basis": "per_contract",
+          "base_price_cents": 50000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 5,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 40000
+        }
+      ]
+    },
+    {
+      "handle": "liamgadgets",
+      "name": "Liam O'Connor",
+      "bio": "Sydney gadget fan testing wearables, trackers and travel tech outdoors, with relaxed short videos aimed at an active Aussie audience.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "AU",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@liamgadgets",
+          "followers": 2560000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@liamgadgets",
+          "followers": 2240000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@liamgadgets",
+          "followers": 1600000
+        }
+      ],
+      "followers": 64000,
+      "engagement_rate": 5.1,
+      "email": "liamgadgets@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Gadget Check",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 70000,
+          "currency": "USD",
+          "included": [
+            "On-location shoot",
+            "One revision round"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 30000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 56000
+        },
+        {
+          "name": "Monthly Spotlight",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_week",
+          "base_price_cents": 65000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 4,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 49000
+        }
+      ]
+    },
+    {
+      "handle": "ananyatechtalks",
+      "name": "Ananya Iyer",
+      "bio": "Value-focused smartphone and accessory reviews in Hindi and English for first-time premium buyers across India.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "IN",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@ananyatechtalks",
+          "followers": 11100000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@ananyatechtalks",
+          "followers": 7400000
+        }
+      ],
+      "followers": 185000,
+      "engagement_rate": 4.6,
+      "email": "ananyatechtalks@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Budget Tech Reels",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 3,
+          "volume_basis": "per_contract",
+          "base_price_cents": 150000,
+          "currency": "USD",
+          "included": [
+            "Hindi or English voiceover",
+            "One revision round"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 48000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 3,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 120000
+        },
+        {
+          "name": "Explainer",
+          "content_type": "long_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 220000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 21,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 187000
+        }
+      ]
+    },
+    {
+      "handle": "marcusbuildspcs",
+      "name": "Marcus Webb",
+      "bio": "Toronto PC builder who turns sponsor products into full build videos, with a technical audience that reads the spec sheet.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "CA",
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@marcusbuildspcs",
+          "followers": 36900000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@marcusbuildspcs",
+          "followers": 4100000
+        }
+      ],
+      "followers": 410000,
+      "engagement_rate": 3.6,
+      "email": "marcusbuildspcs@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Build Sponsor Segment",
+          "content_type": "long_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 520000,
+          "currency": "USD",
+          "included": [
+            "Integrated 90-second segment",
+            "Pinned affiliate link"
+          ],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 30,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 442000
+        },
+        {
+          "name": "Short Teaser",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 120000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_only",
+          "status": "draft",
+          "floor_price_cents": 96000
+        }
+      ]
+    },
+    {
+      "handle": "hannahgadgetlab",
+      "name": "Hannah Fischer",
+      "bio": "Smart-home tinkerer showing how connected gadgets actually behave in a rented flat: setup time, reliability and what breaks.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "UK",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@hannahgadgetlab",
+          "followers": 6400000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@hannahgadgetlab",
+          "followers": 6400000
+        }
+      ],
+      "followers": 128000,
+      "engagement_rate": 4.9,
+      "email": "hannahgadgetlab@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Smart Home Short",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 110000,
+          "currency": "USD",
+          "included": [
+            "Setup walkthrough",
+            "One revision round"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 42000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 12,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 88000
+        },
+        {
+          "name": "Flat Setup Story Series",
+          "content_type": "story",
+          "niche": "consumer_tech",
+          "volume_count": 6,
+          "volume_basis": "per_contract",
+          "base_price_cents": 75000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 56000
+        }
+      ]
+    },
+    {
+      "handle": "rohanrevs",
+      "name": "Rohan Kapoor",
+      "bio": "Phones and wearables in rapid-fire Shorts: camera tests, battery drains and side-by-side comparisons.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "IN",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@rohanrevs",
+          "followers": 16800000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@rohanrevs",
+          "followers": 7200000
+        }
+      ],
+      "followers": 240000,
+      "engagement_rate": 3.9,
+      "email": "rohanrevs@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Shorts Sprint",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 4,
+          "volume_basis": "per_contract",
+          "base_price_cents": 180000,
+          "currency": "USD",
+          "included": [
+            "Four 45-second Shorts",
+            "Comparison graphics"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 50000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 2,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 135000
+        }
+      ]
+    },
+    {
+      "handle": "jesstechdiary",
+      "name": "Jessica Tran",
+      "bio": "Lifestyle-first tech: desk diaries, study-with-me setups and the small gadgets that make a day easier. Warm, aesthetic and very saveable.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "AU",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@jesstechdiary",
+          "followers": 2860000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@jesstechdiary",
+          "followers": 2340000
+        }
+      ],
+      "followers": 52000,
+      "engagement_rate": 8.1,
+      "email": "jesstechdiary@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Desk Diary Reel",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 50000,
+          "currency": "USD",
+          "included": [
+            "Aesthetic desk-setup reel"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 22000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 40000
+        },
+        {
+          "name": "Story Takeover",
+          "content_type": "story",
+          "niche": "consumer_tech",
+          "volume_count": 5,
+          "volume_basis": "per_contract",
+          "base_price_cents": 65000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 5,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 52000
+        }
+      ]
+    },
+    {
+      "handle": "tomsaudiolab",
+      "name": "Tom Whitfield",
+      "bio": "Headphone and earbud nerd who measures frequency response, ANC depth and latency, then explains it to normal people. Trusted by audio-curious shoppers.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "UK",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@tomsaudiolab",
+          "followers": 13325000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@tomsaudiolab",
+          "followers": 4100000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@tomsaudiolab",
+          "followers": 3075000
+        }
+      ],
+      "followers": 205000,
+      "engagement_rate": 5.5,
+      "email": "tomsaudiolab@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Audio Lab Short",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 160000,
+          "currency": "USD",
+          "included": [
+            "Measurement graphic",
+            "One revision round"
+          ],
+          "freebies": [
+            "Mention in the monthly audio roundup"
+          ],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 65000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 3,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 128000
+        },
+        {
+          "name": "Measured Review",
+          "content_type": "long_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 340000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [
+            {
+              "name": "Raw measurement data",
+              "price_cents": 25000
+            }
+          ],
+          "slots_per_month": 1,
+          "lead_time_days": 25,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 289000
+        }
+      ]
+    },
+    {
+      "handle": "camilleconnected",
+      "name": "Camille Roy",
+      "bio": "Bilingual tech creator from Montreal reviewing connected gadgets in English and French for a Canadian audience.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "CA",
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@camilleconnected",
+          "followers": 4095000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@camilleconnected",
+          "followers": 3185000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@camilleconnected",
+          "followers": 1820000
+        }
+      ],
+      "followers": 91000,
+      "engagement_rate": 6.3,
+      "email": "camilleconnected@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Tech en Francais",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 100000,
+          "currency": "USD",
+          "included": [
+            "French or English edit",
+            "One revision round"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 40000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 12,
+          "preferred_channel": "phone_ok",
+          "status": "published",
+          "floor_price_cents": 80000
+        },
+        {
+          "name": "Live Unboxing",
+          "content_type": "live",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 120000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "phone_ok",
+          "status": "published",
+          "floor_price_cents": 90000
+        }
+      ]
+    },
+    {
+      "handle": "elisetups",
+      "name": "Eli Nakamura",
+      "bio": "Desk-setup and productivity gear creator walking through full workspaces, cable management included.",
+      "niches": [
+        "consumer_tech"
+      ],
+      "region": "US",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@elisetups",
+          "followers": 19800000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@elisetups",
+          "followers": 8250000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@elisetups",
+          "followers": 4950000
+        }
+      ],
+      "followers": 330000,
+      "engagement_rate": 2.8,
+      "email": "elisetups@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Setup Tour Short",
+          "content_type": "short_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 190000,
+          "currency": "USD",
+          "included": [
+            "Workspace tour with product in frame"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 80000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 3,
+          "lead_time_days": 14,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 161500
+        },
+        {
+          "name": "Setup Makeover Long Form",
+          "content_type": "long_video",
+          "niche": "consumer_tech",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 420000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 28,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 357000
+        }
+      ]
+    },
+    {
+      "handle": "zarabeautynotes",
+      "name": "Zara Whitaker",
+      "bio": "Skincare reviewer breaking down ingredients and routines without hype, aimed at twenty-somethings building their first serious routine.",
+      "niches": [
+        "beauty"
+      ],
+      "region": "UK",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@zarabeautynotes",
+          "followers": 8750000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@zarabeautynotes",
+          "followers": 5250000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@zarabeautynotes",
+          "followers": 3500000
+        }
+      ],
+      "followers": 175000,
+      "engagement_rate": 6.8,
+      "email": "zarabeautynotes@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Skincare Short Pair",
+          "content_type": "short_video",
+          "niche": "beauty",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 130000,
+          "currency": "USD",
+          "included": [
+            "Ingredient breakdown",
+            "One revision round"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 55000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 104000
+        },
+        {
+          "name": "GRWM Story Set",
+          "content_type": "story",
+          "niche": "beauty",
+          "volume_count": 4,
+          "volume_basis": "per_contract",
+          "base_price_cents": 70000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 56000
+        },
+        {
+          "name": "Routine Deep Dive",
+          "content_type": "long_video",
+          "niche": "beauty",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 240000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 21,
+          "preferred_channel": "email_first",
+          "status": "draft",
+          "floor_price_cents": 204000
+        }
+      ]
+    },
+    {
+      "handle": "chloeglowlab",
+      "name": "Chloe Nguyen",
+      "bio": "Makeup tutorials and product tests from Melbourne, with a soft-glam style and honest wear-time results.",
+      "niches": [
+        "beauty"
+      ],
+      "region": "AU",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@chloeglowlab",
+          "followers": 4140000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@chloeglowlab",
+          "followers": 3680000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@chloeglowlab",
+          "followers": 1380000
+        }
+      ],
+      "followers": 92000,
+      "engagement_rate": 7.9,
+      "email": "chloeglowlab@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Tutorial Reel",
+          "content_type": "short_video",
+          "niche": "beauty",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 80000,
+          "currency": "USD",
+          "included": [
+            "Step-by-step tutorial reel"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 35000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 64000
+        },
+        {
+          "name": "Full Face Long Form",
+          "content_type": "long_video",
+          "niche": "beauty",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 200000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 21,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 170000
+        }
+      ]
+    },
+    {
+      "handle": "aishaskinedit",
+      "name": "Aisha Khan",
+      "bio": "Sensitive-skin specialist sharing dermatologist-informed reviews, patch tests and budget-friendly swaps.",
+      "niches": [
+        "beauty"
+      ],
+      "region": "CA",
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@aishaskinedit",
+          "followers": 10400000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@aishaskinedit",
+          "followers": 10400000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@aishaskinedit",
+          "followers": 5200000
+        }
+      ],
+      "followers": 260000,
+      "engagement_rate": 5.0,
+      "email": "aishaskinedit@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Derm-Informed Review",
+          "content_type": "long_video",
+          "niche": "beauty",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 320000,
+          "currency": "USD",
+          "included": [
+            "Patch-test results",
+            "Two revision rounds"
+          ],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 25,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 272000
+        },
+        {
+          "name": "Skin Shorts",
+          "content_type": "short_video",
+          "niche": "beauty",
+          "volume_count": 3,
+          "volume_basis": "per_contract",
+          "base_price_cents": 240000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 85000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 2,
+          "lead_time_days": 14,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 192000
+        }
+      ]
+    },
+    {
+      "handle": "bellamakeup",
+      "name": "Isabella Rossi",
+      "bio": "Glam and launch-day makeup looks for a mainstream beauty audience, with a high-production feel.",
+      "niches": [
+        "beauty"
+      ],
+      "region": "US",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@bellamakeup",
+          "followers": 21600000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@bellamakeup",
+          "followers": 16800000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@bellamakeup",
+          "followers": 9600000
+        }
+      ],
+      "followers": 480000,
+      "engagement_rate": 3.4,
+      "email": "bellamakeup@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Glam Short",
+          "content_type": "short_video",
+          "niche": "beauty",
+          "volume_count": 1,
+          "volume_basis": "per_week",
+          "base_price_cents": 220000,
+          "currency": "USD",
+          "included": [
+            "Full glam look",
+            "Product close-ups"
+          ],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 4,
+          "lead_time_days": 10,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 187000
+        },
+        {
+          "name": "Launch Day Live",
+          "content_type": "live",
+          "niche": "beauty",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 350000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 21,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 297500
+        }
+      ]
+    },
+    {
+      "handle": "kavyaskincare",
+      "name": "Kavya Menon",
+      "bio": "Everyday skincare for Indian skin tones and climates, with simple routines and pharmacy-aisle finds.",
+      "niches": [
+        "beauty"
+      ],
+      "region": "IN",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@kavyaskincare",
+          "followers": 3660000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@kavyaskincare",
+          "followers": 2440000
+        }
+      ],
+      "followers": 61000,
+      "engagement_rate": 8.4,
+      "email": "kavyaskincare@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Routine Reels",
+          "content_type": "short_video",
+          "niche": "beauty",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 65000,
+          "currency": "USD",
+          "included": [
+            "Morning and night routine reel"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 28000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 49000
+        },
+        {
+          "name": "Story Routine",
+          "content_type": "story",
+          "niche": "beauty",
+          "volume_count": 5,
+          "volume_basis": "per_contract",
+          "base_price_cents": 45000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 5,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 36000
+        }
+      ]
+    },
+    {
+      "handle": "oliviahartleybeauty",
+      "name": "Olivia Hartley",
+      "bio": "Micro creator with a tight community: honest hauls, try-ons and drugstore dupes that her followers actually buy.",
+      "niches": [
+        "beauty"
+      ],
+      "region": "UK",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "tiktok",
+          "handle": "@oliviahartleybeauty",
+          "followers": 1815000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@oliviahartleybeauty",
+          "followers": 1485000
+        }
+      ],
+      "followers": 33000,
+      "engagement_rate": 8.9,
+      "email": "oliviahartleybeauty@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Honest Haul Short",
+          "content_type": "short_video",
+          "niche": "beauty",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 50000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 20000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 40000
+        },
+        {
+          "name": "Try-On Pair",
+          "content_type": "short_video",
+          "niche": "beauty",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 85000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 68000
+        }
+      ]
+    },
+    {
+      "handle": "jordanliftsdaily",
+      "name": "Jordan Blake",
+      "bio": "Strength coach sharing evidence-based training, supplement reviews and gym-floor technique breakdowns.",
+      "niches": [
+        "fitness"
+      ],
+      "region": "US",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@jordanliftsdaily",
+          "followers": 17100000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@jordanliftsdaily",
+          "followers": 13300000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@jordanliftsdaily",
+          "followers": 7600000
+        }
+      ],
+      "followers": 380000,
+      "engagement_rate": 3.7,
+      "email": "jordanliftsdaily@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Gym Short",
+          "content_type": "short_video",
+          "niche": "fitness",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 220000,
+          "currency": "USD",
+          "included": [
+            "Technique demo",
+            "One revision round"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 95000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 2,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 187000
+        },
+        {
+          "name": "Program Review",
+          "content_type": "long_video",
+          "niche": "fitness",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 380000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 28,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 323000
+        }
+      ]
+    },
+    {
+      "handle": "meeramoves",
+      "name": "Meera Nair",
+      "bio": "Home-workout trainer with no-equipment routines for busy people, in simple English and Hindi.",
+      "niches": [
+        "fitness"
+      ],
+      "region": "IN",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@meeramoves",
+          "followers": 6490000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@meeramoves",
+          "followers": 5310000
+        }
+      ],
+      "followers": 118000,
+      "engagement_rate": 5.9,
+      "email": "meeramoves@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Home Workout Shorts",
+          "content_type": "short_video",
+          "niche": "fitness",
+          "volume_count": 3,
+          "volume_basis": "per_contract",
+          "base_price_cents": 140000,
+          "currency": "USD",
+          "included": [
+            "Three follow-along clips"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 42000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 12,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 112000
+        },
+        {
+          "name": "Daily Story Run",
+          "content_type": "story",
+          "niche": "fitness",
+          "volume_count": 6,
+          "volume_basis": "per_contract",
+          "base_price_cents": 60000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 5,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 45000
+        }
+      ]
+    },
+    {
+      "handle": "callumruns",
+      "name": "Callum Reid",
+      "bio": "Marathon runner reviewing shoes, watches and recovery gear over real training blocks.",
+      "niches": [
+        "fitness"
+      ],
+      "region": "UK",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@callumruns",
+          "followers": 3700000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@callumruns",
+          "followers": 3700000
+        }
+      ],
+      "followers": 74000,
+      "engagement_rate": 6.6,
+      "email": "callumruns@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Run Review Short",
+          "content_type": "short_video",
+          "niche": "fitness",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 75000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 30000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 60000
+        },
+        {
+          "name": "Training Block Series",
+          "content_type": "short_video",
+          "niche": "fitness",
+          "volume_count": 2,
+          "volume_basis": "per_week",
+          "base_price_cents": 180000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 2,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 144000
+        }
+      ]
+    },
+    {
+      "handle": "siennayogaflow",
+      "name": "Sienna Park",
+      "bio": "Yoga and mobility teacher making calm, shareable flows and wellness gear reviews.",
+      "niches": [
+        "fitness"
+      ],
+      "region": "CA",
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@siennayogaflow",
+          "followers": 7865000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@siennayogaflow",
+          "followers": 4290000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@siennayogaflow",
+          "followers": 2145000
+        }
+      ],
+      "followers": 143000,
+      "engagement_rate": 5.2,
+      "email": "siennayogaflow@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Flow Short",
+          "content_type": "short_video",
+          "niche": "fitness",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 120000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 45000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 96000
+        },
+        {
+          "name": "Class Live",
+          "content_type": "live",
+          "niche": "fitness",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 150000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 120000
+        }
+      ]
+    },
+    {
+      "handle": "tylertrains",
+      "name": "Tyler Brooks",
+      "bio": "CrossFit athlete and coach: competition prep, equipment tests and honest take on programming trends.",
+      "niches": [
+        "fitness"
+      ],
+      "region": "AU",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@tylertrains",
+          "followers": 10250000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@tylertrains",
+          "followers": 10250000
+        }
+      ],
+      "followers": 205000,
+      "engagement_rate": 4.4,
+      "email": "tylertrains@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Training Shorts",
+          "content_type": "short_video",
+          "niche": "fitness",
+          "volume_count": 3,
+          "volume_basis": "per_contract",
+          "base_price_cents": 270000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 100000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 2,
+          "lead_time_days": 14,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 229500
+        },
+        {
+          "name": "Gear Test Long Form",
+          "content_type": "long_video",
+          "niche": "fitness",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 300000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 21,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 255000
+        }
+      ]
+    },
+    {
+      "handle": "divyahomeworkouts",
+      "name": "Divya Shah",
+      "bio": "30-day challenges and beginner-friendly home workouts that keep a community checking in every day.",
+      "niches": [
+        "fitness"
+      ],
+      "region": "IN",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@divyahomeworkouts",
+          "followers": 3055000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@divyahomeworkouts",
+          "followers": 1645000
+        }
+      ],
+      "followers": 47000,
+      "engagement_rate": 7.7,
+      "email": "divyahomeworkouts@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Challenge Reels",
+          "content_type": "short_video",
+          "niche": "fitness",
+          "volume_count": 4,
+          "volume_basis": "per_contract",
+          "base_price_cents": 110000,
+          "currency": "USD",
+          "included": [
+            "Four reels across a 30-day challenge"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 30000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 82500
+        },
+        {
+          "name": "Check-in Stories",
+          "content_type": "story",
+          "niche": "fitness",
+          "volume_count": 3,
+          "volume_basis": "per_contract",
+          "base_price_cents": 40000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 5,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 32000
+        }
+      ]
+    },
+    {
+      "handle": "rafaelcooks",
+      "name": "Rafael Gomez",
+      "bio": "Home-cooking creator making restaurant-style meals with grocery-store ingredients and big, bold flavor.",
+      "niches": [
+        "food"
+      ],
+      "region": "US",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@rafaelcooks",
+          "followers": 17200000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@rafaelcooks",
+          "followers": 15050000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@rafaelcooks",
+          "followers": 10750000
+        }
+      ],
+      "followers": 430000,
+      "engagement_rate": 4.3,
+      "email": "rafaelcooks@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Recipe Short",
+          "content_type": "short_video",
+          "niche": "food",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 200000,
+          "currency": "USD",
+          "included": [
+            "Product featured in the recipe"
+          ],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 85000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 3,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 170000
+        },
+        {
+          "name": "Cook-Along",
+          "content_type": "long_video",
+          "niche": "food",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 420000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 25,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 357000
+        }
+      ]
+    },
+    {
+      "handle": "nishaspiceroute",
+      "name": "Nisha Patel",
+      "bio": "South Asian family recipes and spice-shop finds, shot warmly and shared widely by home cooks.",
+      "niches": [
+        "food"
+      ],
+      "region": "UK",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@nishaspiceroute",
+          "followers": 7020000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@nishaspiceroute",
+          "followers": 6240000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@nishaspiceroute",
+          "followers": 2340000
+        }
+      ],
+      "followers": 156000,
+      "engagement_rate": 6.1,
+      "email": "nishaspiceroute@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Spice Story Short",
+          "content_type": "short_video",
+          "niche": "food",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 140000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 50000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 12,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 112000
+        },
+        {
+          "name": "Family Recipe Feature",
+          "content_type": "long_video",
+          "niche": "food",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 260000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 21,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 221000
+        }
+      ]
+    },
+    {
+      "handle": "gracebakes",
+      "name": "Grace Sullivan",
+      "bio": "Baking and dessert creator from Brisbane, with approachable recipes and a cheerful kitchen-table style.",
+      "niches": [
+        "food"
+      ],
+      "region": "AU",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "instagram",
+          "handle": "@gracebakes",
+          "followers": 4400000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@gracebakes",
+          "followers": 3080000
+        },
+        {
+          "platform": "youtube",
+          "handle": "@gracebakes",
+          "followers": 1320000
+        }
+      ],
+      "followers": 88000,
+      "engagement_rate": 7.4,
+      "email": "gracebakes@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Bake Reel",
+          "content_type": "short_video",
+          "niche": "food",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 80000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 32000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 64000
+        },
+        {
+          "name": "Bake Along Stories",
+          "content_type": "story",
+          "niche": "food",
+          "volume_count": 4,
+          "volume_basis": "per_contract",
+          "base_price_cents": 50000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 5,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 40000
+        }
+      ]
+    },
+    {
+      "handle": "antonweeknights",
+      "name": "Anton Dubois",
+      "bio": "Weeknight dinners under 30 minutes for busy families, with practical meal-prep tips.",
+      "niches": [
+        "food"
+      ],
+      "region": "CA",
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@antonweeknights",
+          "followers": 4480000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@antonweeknights",
+          "followers": 4480000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@antonweeknights",
+          "followers": 2240000
+        }
+      ],
+      "followers": 112000,
+      "engagement_rate": 5.6,
+      "email": "antonweeknights@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Weeknight Dinner Short",
+          "content_type": "short_video",
+          "niche": "food",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 150000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 55000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 12,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 120000
+        }
+      ]
+    },
+    {
+      "handle": "lakshmiskitchen",
+      "name": "Lakshmi Venkat",
+      "bio": "Traditional South Indian cooking at scale: festival menus, pantry staples and kitchen tools that last.",
+      "niches": [
+        "food"
+      ],
+      "region": "IN",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@lakshmiskitchen",
+          "followers": 44100000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@lakshmiskitchen",
+          "followers": 29400000
+        }
+      ],
+      "followers": 735000,
+      "engagement_rate": 3.0,
+      "email": "lakshmiskitchen@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Kitchen Short",
+          "content_type": "short_video",
+          "niche": "food",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 260000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 110000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 2,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 221000
+        },
+        {
+          "name": "Festival Cooking Live",
+          "content_type": "live",
+          "niche": "food",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 400000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 28,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 340000
+        }
+      ]
+    },
+    {
+      "handle": "bethbudgeteats",
+      "name": "Beth Carter",
+      "bio": "Budget meals and pantry challenges for students and young families, with receipts shown on screen.",
+      "niches": [
+        "food"
+      ],
+      "region": "US",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "tiktok",
+          "handle": "@bethbudgeteats",
+          "followers": 3450000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@bethbudgeteats",
+          "followers": 3450000
+        }
+      ],
+      "followers": 69000,
+      "engagement_rate": 8.8,
+      "email": "bethbudgeteats@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Budget Meal Reel",
+          "content_type": "short_video",
+          "niche": "food",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 60000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 25000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 45000
+        },
+        {
+          "name": "Pantry Pair",
+          "content_type": "short_video",
+          "niche": "food",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 100000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 80000
+        }
+      ]
+    },
+    {
+      "handle": "kaiplaysrpg",
+      "name": "Kai Tanaka",
+      "bio": "Big-audience RPG and strategy YouTuber with cinematic playthroughs and a loyal, high-trust community.",
+      "niches": [
+        "gaming"
+      ],
+      "region": "US",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@kaiplaysrpg",
+          "followers": 92000000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@kaiplaysrpg",
+          "followers": 23000000
+        }
+      ],
+      "followers": 1150000,
+      "engagement_rate": 1.8,
+      "email": "kaiplaysrpg@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Sponsored Playthrough",
+          "content_type": "long_video",
+          "niche": "gaming",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 600000,
+          "currency": "USD",
+          "included": [
+            "Integrated sponsor segment",
+            "Pinned link and description"
+          ],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 35,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 528000
+        },
+        {
+          "name": "Highlight Short",
+          "content_type": "short_video",
+          "niche": "gaming",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 320000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "email_only",
+          "status": "published",
+          "floor_price_cents": 272000
+        }
+      ]
+    },
+    {
+      "handle": "noahfps",
+      "name": "Noah Gallagher",
+      "bio": "Competitive shooter creator posting clips, tips and gear tests for ranked players.",
+      "niches": [
+        "gaming"
+      ],
+      "region": "UK",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@noahfps",
+          "followers": 16000000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@noahfps",
+          "followers": 11200000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@noahfps",
+          "followers": 4800000
+        }
+      ],
+      "followers": 320000,
+      "engagement_rate": 3.9,
+      "email": "noahfps@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Clip Pack",
+          "content_type": "short_video",
+          "niche": "gaming",
+          "volume_count": 3,
+          "volume_basis": "per_contract",
+          "base_price_cents": 270000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 95000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": 2,
+          "lead_time_days": 12,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 229500
+        },
+        {
+          "name": "Sponsored Stream",
+          "content_type": "live",
+          "niche": "gaming",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 300000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 21,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 255000
+        }
+      ]
+    },
+    {
+      "handle": "riyaplays",
+      "name": "Riya Desai",
+      "bio": "Mobile gaming creator reviewing games, controllers and phones for gaming across India.",
+      "niches": [
+        "gaming"
+      ],
+      "region": "IN",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@riyaplays",
+          "followers": 9240000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@riyaplays",
+          "followers": 6160000
+        }
+      ],
+      "followers": 154000,
+      "engagement_rate": 6.2,
+      "email": "riyaplays@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Mobile Gameplay Short",
+          "content_type": "short_video",
+          "niche": "gaming",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 90000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 35000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 67500
+        },
+        {
+          "name": "Sponsored Live",
+          "content_type": "live",
+          "niche": "gaming",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 110000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 88000
+        }
+      ]
+    },
+    {
+      "handle": "masoncozygames",
+      "name": "Mason Clarke",
+      "bio": "Cozy and indie games streamer with a gentle audience that loves recommendations.",
+      "niches": [
+        "gaming"
+      ],
+      "region": "CA",
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@masoncozygames",
+          "followers": 3320000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@masoncozygames",
+          "followers": 3320000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@masoncozygames",
+          "followers": 1660000
+        }
+      ],
+      "followers": 83000,
+      "engagement_rate": 7.1,
+      "email": "masoncozygames@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Cozy Short",
+          "content_type": "short_video",
+          "niche": "gaming",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 70000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 28000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 56000
+        },
+        {
+          "name": "Sponsored Stream",
+          "content_type": "live",
+          "niche": "gaming",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 180000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 21,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 144000
+        }
+      ]
+    },
+    {
+      "handle": "elliestreams",
+      "name": "Ellie Hunt",
+      "bio": "Variety streamer and community builder who turns sponsor spots into game nights her viewers talk about for weeks.",
+      "niches": [
+        "gaming"
+      ],
+      "region": "AU",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@elliestreams",
+          "followers": 13500000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@elliestreams",
+          "followers": 8100000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@elliestreams",
+          "followers": 5400000
+        }
+      ],
+      "followers": 270000,
+      "engagement_rate": 4.2,
+      "email": "elliestreams@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Game Night Live",
+          "content_type": "live",
+          "niche": "gaming",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 290000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 21,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 246500
+        },
+        {
+          "name": "Highlight Shorts",
+          "content_type": "short_video",
+          "niche": "gaming",
+          "volume_count": 4,
+          "volume_basis": "per_contract",
+          "base_price_cents": 240000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 70000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 192000
+        },
+        {
+          "name": "Community Challenge",
+          "content_type": "long_video",
+          "niche": "gaming",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 350000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 28,
+          "preferred_channel": "email_first",
+          "status": "draft",
+          "floor_price_cents": 297500
+        }
+      ]
+    },
+    {
+      "handle": "devspeedruns",
+      "name": "Dev Malhotra",
+      "bio": "Speedrunner and retro-game explainer making fast, funny clips for a young audience.",
+      "niches": [
+        "gaming"
+      ],
+      "region": "IN",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@devspeedruns",
+          "followers": 1950000
+        },
+        {
+          "platform": "tiktok",
+          "handle": "@devspeedruns",
+          "followers": 1950000
+        }
+      ],
+      "followers": 39000,
+      "engagement_rate": 8.6,
+      "email": "devspeedruns@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Speedrun Short",
+          "content_type": "short_video",
+          "niche": "gaming",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 65000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 25000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 7,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 49000
+        },
+        {
+          "name": "Run Breakdown",
+          "content_type": "long_video",
+          "niche": "gaming",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 140000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 112000
+        }
+      ]
+    },
+    {
+      "handle": "rachelsaasplaybook",
+      "name": "Rachel Goldberg",
+      "bio": "B2B SaaS growth operator sharing playbooks on pricing, onboarding and sales tooling for startup founders and revenue leaders.",
+      "niches": [
+        "b2b_saas"
+      ],
+      "region": "US",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@rachelsaasplaybook",
+          "followers": 2800000
+        },
+        {
+          "platform": "instagram",
+          "handle": "@rachelsaasplaybook",
+          "followers": 560000
+        },
+        {
+          "platform": "linkedin",
+          "handle": "@rachelsaasplaybook",
+          "followers": 2240000
+        }
+      ],
+      "followers": 56000,
+      "engagement_rate": 4.8,
+      "email": "rachelsaasplaybook@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Founder Story Short",
+          "content_type": "short_video",
+          "niche": "b2b_saas",
+          "volume_count": 2,
+          "volume_basis": "per_contract",
+          "base_price_cents": 180000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 70000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 14,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 144000
+        },
+        {
+          "name": "Product Walkthrough",
+          "content_type": "long_video",
+          "niche": "b2b_saas",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 350000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": 1,
+          "lead_time_days": 28,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 297500
+        }
+      ]
+    },
+    {
+      "handle": "samshipsproduct",
+      "name": "Sam Patterson",
+      "bio": "Former product manager reviewing productivity and product-management tools for small teams.",
+      "niches": [
+        "b2b_saas"
+      ],
+      "region": "UK",
+      "languages": [
+        "en"
+      ],
+      "platforms": [
+        {
+          "platform": "youtube",
+          "handle": "@samshipsproduct",
+          "followers": 1320000
+        },
+        {
+          "platform": "linkedin",
+          "handle": "@samshipsproduct",
+          "followers": 1080000
+        }
+      ],
+      "followers": 24000,
+      "engagement_rate": 5.4,
+      "email": "samshipsproduct@example.com",
+      "phone": null,
+      "phone_opt_in": false,
+      "packages": [
+        {
+          "name": "Feature Spotlight",
+          "content_type": "short_video",
+          "niche": "b2b_saas",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 120000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [
+            {
+              "name": "Extra video",
+              "price_cents": 45000,
+              "unit": "video"
+            }
+          ],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 10,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 96000
+        },
+        {
+          "name": "Tool Teardown",
+          "content_type": "long_video",
+          "niche": "b2b_saas",
+          "volume_count": 1,
+          "volume_basis": "per_contract",
+          "base_price_cents": 240000,
+          "currency": "USD",
+          "included": [],
+          "freebies": [],
+          "addons": [],
+          "extras": [],
+          "slots_per_month": null,
+          "lead_time_days": 21,
+          "preferred_channel": "email_first",
+          "status": "published",
+          "floor_price_cents": 204000
+        }
+      ]
+    }
+  ]
+}
