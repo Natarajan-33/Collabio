@@ -5,6 +5,7 @@ import gsap from "gsap"
 import { Keyboard, Mic, SendHorizontal } from "lucide-react"
 import { useReducedMotion } from "motion/react"
 import dynamic from "next/dynamic"
+import { useRouter } from "next/navigation"
 import * as React from "react"
 import { toast } from "sonner"
 
@@ -15,6 +16,7 @@ import {
   type VoiceIntent,
 } from "@/components/voice/voice-screen"
 import { useApi } from "@/hooks/use-api"
+import { safeNextPath } from "@/lib/auth/routing"
 import { cn } from "@/lib/utils"
 import {
   type DockMode,
@@ -44,10 +46,30 @@ const ERROR_MS = 6000
 
 /**
  * Targets that keep Space for themselves: typing fields (and anything inside an
- * editable region) and the dock's own buttons, which Space must still be able to press.
+ * editable region) and controls that Space activates from the keyboard, such as
+ * buttons, links, checkboxes and their ARIA equivalents. Without this a focused
+ * checkbox could never be toggled with Space, and holding the key to speak would
+ * press whatever control happened to have focus.
  */
-const PASSTHROUGH =
-  "input, textarea, select, [contenteditable]:not([contenteditable='false']), [data-voice-passthrough]"
+const PASSTHROUGH = [
+  "input",
+  "textarea",
+  "select",
+  "button",
+  "a[href]",
+  "[contenteditable]:not([contenteditable='false'])",
+  "[role=button]",
+  "[role=checkbox]",
+  "[role=switch]",
+  "[role=radio]",
+  "[role=option]",
+  "[role=menuitem]",
+  "[role=tab]",
+  "[data-voice-passthrough]",
+].join(", ")
+
+/** The hold-to-speak button: a button, but Space on it is the push-to-talk key. */
+const PUSH_TO_TALK = "[data-voice-ptt]"
 
 type PressSource = "key" | "pointer"
 
@@ -56,7 +78,9 @@ function isSpace(event: KeyboardEvent) {
 }
 
 function leavesSpaceAlone(target: EventTarget | null) {
-  return target instanceof Element && target.closest(PASSTHROUGH) !== null
+  if (!(target instanceof Element)) return false
+  if (target.closest(PUSH_TO_TALK)) return false
+  return target.closest(PASSTHROUGH) !== null
 }
 
 function orbState(mode: DockMode): AgentState {
@@ -107,6 +131,7 @@ function Readout({ state }: { state: DockState }) {
  */
 export function VoiceDock() {
   const api = useApi()
+  const router = useRouter()
   const registry = useVoiceRegistry()
   const reducedMotion = useReducedMotion()
   const [state, dispatch] = React.useReducer(dockReducer, initialDockState)
@@ -157,17 +182,27 @@ export function VoiceDock() {
       setSuggestions(intent.kind === "unclear" ? intent.suggestions : [])
       dispatch({ type: "ROUTED", heard: intent.heard || text })
 
-      // `unclear` is the dock's to show. Anything else goes to the page, if it is
-      // still the one that was on screen when the command was sent.
-      if (intent.kind === "unclear" || !target) return
-      if (registry?.current() !== target) return
+      // `unclear` is the dock's to show. Anything else acts only if the page that was
+      // on screen when the command was sent still is.
+      if (intent.kind === "unclear") return
+      if ((registry?.current() ?? null) !== target) return
+
+      // Going to another page is the same on every screen, so the dock does it and
+      // pages never see it. Only in-app paths are followed.
+      if (intent.kind === "navigate") {
+        const to = intent.navigate
+        if (to && safeNextPath(to) === to) router.push(to)
+        return
+      }
+
+      if (!target) return
       try {
         target.onIntent(intent)
       } catch (error) {
         console.error("The page failed to handle a voice command", error)
       }
     },
-    [api, registry]
+    [api, registry, router]
   )
 
   const capture = useCommandCapture({
@@ -180,6 +215,10 @@ export function VoiceDock() {
     onError: ({ reason, fatal }) => {
       dispatch({ type: "FAIL", reason, fatal })
       if (fatal) {
+        // Typing takes over and disables the orb, so a pointer-up that would end a
+        // press-and-hold may never arrive: drop the hold or Space stays locked out.
+        // (A held key is let go by its own key-up, which still arrives.)
+        if (pressedBy.current === "pointer") pressedBy.current = null
         toast.error(reason, {
           description: "You can type your commands instead.",
         })
@@ -379,6 +418,7 @@ export function VoiceDock() {
           disabled={typing}
           aria-label="Hold to speak"
           aria-keyshortcuts="Space"
+          data-voice-ptt
           onPointerDown={(event) => {
             if (event.button !== 0) return
             if (beginPress("pointer")) {

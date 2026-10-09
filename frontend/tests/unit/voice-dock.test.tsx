@@ -24,6 +24,7 @@ const h = vi.hoisted(() => ({
   api: { POST: vi.fn() },
   reduced: { current: true },
   toastError: vi.fn(),
+  router: { push: vi.fn() },
 }))
 
 /** The options the dock passed to `useCommandCapture`: how tests play the microphone. */
@@ -38,6 +39,7 @@ vi.mock("@/lib/voice/use-command-capture", () => ({
   },
 }))
 vi.mock("@/hooks/use-api", () => ({ useApi: () => h.api }))
+vi.mock("next/navigation", () => ({ useRouter: () => h.router }))
 vi.mock("sonner", () => ({ toast: { error: h.toastError } }))
 vi.mock("motion/react", () => ({ useReducedMotion: () => h.reduced.current }))
 // Never WebGL in unit tests: the dynamic Orb becomes a marker that shows its props.
@@ -115,6 +117,7 @@ beforeEach(() => {
   h.capture.stop.mockReset()
   h.api.POST.mockReset()
   h.toastError.mockReset()
+  h.router.push.mockReset()
   h.options = null
   h.reduced.current = true
   stubMotionPreference(true)
@@ -173,6 +176,89 @@ describe("VoiceDock: starting and stopping a capture", () => {
 
     expect(h.capture.start).not.toHaveBeenCalled()
     el.remove()
+  })
+
+  it.each<[string, () => HTMLElement]>([
+    ["a button", () => document.createElement("button")],
+    [
+      "a link",
+      () => {
+        const a = document.createElement("a")
+        a.setAttribute("href", "/somewhere")
+        return a
+      },
+    ],
+    [
+      "a checkbox input",
+      () => {
+        const input = document.createElement("input")
+        input.type = "checkbox"
+        return input
+      },
+    ],
+    [
+      "a radio input",
+      () => {
+        const input = document.createElement("input")
+        input.type = "radio"
+        return input
+      },
+    ],
+    ...[
+      "button",
+      "checkbox",
+      "switch",
+      "radio",
+      "option",
+      "menuitem",
+      "tab",
+    ].map(
+      (role) =>
+        [
+          `an element with role=${role}`,
+          () => {
+            const div = document.createElement("div")
+            div.setAttribute("role", role)
+            div.tabIndex = 0
+            return div
+          },
+        ] satisfies [string, () => HTMLElement]
+    ),
+  ])("space on %s keeps its own keyboard activation", (_name, make) => {
+    renderDock()
+    const el = make()
+    document.body.append(el)
+
+    // Not claimed: the control still gets Space (checkbox toggles, button clicks).
+    expect(fireEvent.keyDown(el, space)).toBe(true)
+    expect(fireEvent.keyUp(el, space)).toBe(true)
+
+    expect(h.capture.start).not.toHaveBeenCalled()
+    el.remove()
+  })
+
+  it("space on a nested part of a control keeps the control's activation", () => {
+    renderDock()
+    const button = document.createElement("button")
+    const icon = document.createElement("span")
+    button.append(icon)
+    document.body.append(button)
+
+    fireEvent.keyDown(icon, space)
+
+    expect(h.capture.start).not.toHaveBeenCalled()
+    button.remove()
+  })
+
+  it("space on a non-interactive link (no href) or plain element is still push-to-talk", () => {
+    renderDock()
+    const a = document.createElement("a")
+    document.body.append(a)
+
+    fireEvent.keyDown(a, space)
+
+    expect(h.capture.start).toHaveBeenCalledTimes(1)
+    a.remove()
   })
 
   it("leaves chorded space alone", () => {
@@ -425,6 +511,78 @@ describe("VoiceDock: routing a command", () => {
     expect(screen.getByText("Heard:")).toBeTruthy()
   })
 
+  it("navigates for a navigate intent, on any screen, without bothering the page", async () => {
+    const onIntent = vi.fn()
+    h.api.POST.mockResolvedValue(
+      ok(
+        intent({
+          kind: "navigate",
+          heard: "Go to packages",
+          navigate: "/creator/packages",
+        })
+      )
+    )
+    renderDock(onIntent)
+
+    await speak("go to my packages")
+
+    expect(h.router.push).toHaveBeenCalledExactlyOnceWith("/creator/packages")
+    expect(onIntent).not.toHaveBeenCalled()
+    expect(screen.getByText("Go to packages")).toBeTruthy()
+  })
+
+  it("navigates when no page has registered either", async () => {
+    h.api.POST.mockResolvedValue(
+      ok(intent({ kind: "navigate", navigate: "/brand/discover" }))
+    )
+    render(
+      <VoiceScreenProvider>
+        <VoiceDock />
+      </VoiceScreenProvider>
+    )
+
+    await speak("go to discover")
+
+    expect(h.router.push).toHaveBeenCalledExactlyOnceWith("/brand/discover")
+  })
+
+  it.each([
+    ["another site", "https://evil.example/phish"],
+    ["a protocol-relative URL", "//evil.example"],
+    ["a script URL", "javascript:alert(1)"],
+    ["the sign-in page", "/sign-in"],
+    ["nothing", null],
+  ])("does not navigate to %s", async (_name, to) => {
+    h.api.POST.mockResolvedValue(ok(intent({ kind: "navigate", navigate: to })))
+    renderDock()
+
+    await speak("go somewhere")
+
+    expect(h.router.push).not.toHaveBeenCalled()
+    // The command was still understood, so the chip still says so.
+    expect(screen.getByText("Heard:")).toBeTruthy()
+  })
+
+  it("does not navigate for a page that is no longer on screen", async () => {
+    let resolve!: (value: unknown) => void
+    h.api.POST.mockReturnValue(new Promise((r) => (resolve = r)))
+    const withPage = (shown: boolean) => (
+      <VoiceScreenProvider>
+        {shown ? <Page onIntent={vi.fn()} /> : null}
+        <VoiceDock />
+      </VoiceScreenProvider>
+    )
+    const { rerender } = render(withPage(true))
+    await speak("go to packages")
+
+    rerender(withPage(false))
+    await act(async () =>
+      resolve(ok(intent({ kind: "navigate", navigate: "/creator/packages" })))
+    )
+
+    expect(h.router.push).not.toHaveBeenCalled()
+  })
+
   it("works outside any provider too", async () => {
     h.api.POST.mockResolvedValue(ok(intent()))
     render(<VoiceDock />)
@@ -605,6 +763,23 @@ describe("VoiceDock: falling back to typing", () => {
     fireEvent.keyUp(document.body, space)
     fireEvent.keyDown(document.body, space)
     expect(h.capture.start).toHaveBeenCalledTimes(1)
+  })
+
+  it("a fatal failure during a press-and-hold does not leave the press stuck", async () => {
+    const user = userEvent.setup()
+    renderDock()
+    const orb = screen.getByRole("button", { name: "Hold to speak" })
+    await user.pointer({ keys: "[MouseLeft>]", target: orb })
+    expect(h.capture.start).toHaveBeenCalledTimes(1)
+
+    // The microphone is refused while the orb is still held: the orb is disabled by
+    // the switch to typing, so the pointer-up that would end the press never arrives.
+    act(() => capture().onError({ reason: "Microphone blocked", fatal: true }))
+
+    // Back to voice (say, after allowing the microphone): Space works again.
+    await user.click(screen.getByRole("button", { name: "Use voice" }))
+    fireEvent.keyDown(document.body, space)
+    expect(h.capture.start).toHaveBeenCalledTimes(2)
   })
 
   it("a recoverable failure keeps voice and does not toast", () => {

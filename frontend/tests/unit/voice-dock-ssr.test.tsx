@@ -6,6 +6,7 @@ import { VoiceDock } from "@/components/voice/voice-dock"
 import { VoiceScreenProvider } from "@/components/voice/voice-screen"
 
 vi.mock("@/hooks/use-api", () => ({ useApi: () => ({ POST: vi.fn() }) }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 describe("VoiceDock on the server", () => {
   it("renders without a browser, as the app shell does for every page", () => {
