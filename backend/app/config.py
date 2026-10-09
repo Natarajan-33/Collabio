@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # backend/.env, resolved from this file so the app loads it from any working directory.
@@ -25,20 +26,24 @@ class Settings(BaseSettings):
     )
 
     supabase_url: str = "http://127.0.0.1:54321"
-    supabase_secret_key: str = ""
-    supabase_db_url: str = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+    # Fields marked repr=False hold secrets (or a DSN with a password): they stay out of
+    # repr(), so logs and pytest tracebacks that show a Settings never print them.
+    supabase_secret_key: str = Field("", repr=False)
+    supabase_db_url: str = Field(
+        "postgresql://postgres:postgres@127.0.0.1:54322/postgres", repr=False
+    )
     supabase_jwks_url: str = "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
 
-    gemini_api_key: str = ""
-    gemini_text_model: str = "gemini-3.8-flash"
+    gemini_api_key: str = Field("", repr=False)
+    gemini_text_model: str = "gemini-3.5-flash-lite"
     gemini_embed_model: str = "gemini-embedding-2"
 
-    elevenlabs_api_key: str = ""
+    elevenlabs_api_key: str = Field("", repr=False)
 
     frontend_origin: str = "http://localhost:3000"
 
     demo_brand_email: str = ""
-    demo_password: str = ""
+    demo_password: str = Field("", repr=False)
     demo_helper_phone: str = ""
     demo_helper_email: str = ""
 

@@ -3,8 +3,9 @@
 import math
 
 import pytest
-from pydantic import BaseModel, PositiveInt, ValidationError
+from pydantic import BaseModel, PositiveInt
 
+from app.adapters.gemini import GeminiInvalidOutput
 from tests.fakes import FakeGemini
 
 
@@ -55,11 +56,11 @@ async def test_generate_structured_returns_queued_objects_in_order_and_records_c
     assert fake.calls == [("sys", "one", Price), ("sys", "two", Price)]
 
 
-async def test_queued_dict_that_breaks_the_schema_raises_validation_error():
+async def test_queued_dict_that_breaks_the_schema_raises_invalid_output():
     fake = FakeGemini()
     fake.queue_structured({"cents": -5})
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(GeminiInvalidOutput):
         await fake.generate_structured(system="s", prompt="p", schema=Price)
 
 

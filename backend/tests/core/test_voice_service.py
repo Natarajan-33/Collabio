@@ -217,7 +217,7 @@ async def test_no_suggestions_from_the_model_falls_back_to_screen_examples(gemin
 
 async def test_data_the_schema_rejects_is_unclear_and_echoes_the_transcript(gemini):
     reply = {"kind": "search", "heard": "x", "search": {"filters": {"max_price_cents": -5}}}
-    with pytest.raises(ValidationError):  # what the fake raises, as the SDK would for a reply
+    with pytest.raises(ValidationError):  # the reply really does break the schema
         RoutedIntent.model_validate(reply)
 
     intent = await route(gemini, request(transcript="cheap ones"), reply)
@@ -234,6 +234,16 @@ async def test_gemini_invalid_output_is_unclear():
     intent = await VoiceService(Garbled()).route(request(transcript="blah"))
     assert (intent.kind, intent.heard) == ("unclear", "blah")
     assert intent.suggestions
+
+
+async def test_a_pydantic_error_from_our_own_request_is_a_bug_not_unclear():
+    class RejectsOurSchema:
+        async def generate_structured(self, **_):
+            # e.g. the SDK refusing a keyword in RoutedIntent's JSON schema
+            RoutedIntent.model_validate({"kind": "nonsense"})
+
+    with pytest.raises(ValidationError):
+        await VoiceService(RejectsOurSchema()).route(request())
 
 
 async def test_gemini_unavailable_is_voice_unavailable():

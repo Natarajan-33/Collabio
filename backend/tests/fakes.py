@@ -5,9 +5,14 @@ import math
 from collections import deque
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
-from app.adapters.gemini import EMBED_DIMENSIONS, format_document, format_query
+from app.adapters.gemini import (
+    EMBED_DIMENSIONS,
+    GeminiInvalidOutput,
+    format_document,
+    format_query,
+)
 from app.schemas.voice import ScribeToken
 
 
@@ -46,8 +51,8 @@ class FakeGemini:
 
     def queue_structured(self, obj: BaseModel | dict[str, Any]) -> None:
         """Queue the next model reply: a model instance, or a raw dict validated against
-        the caller's schema when it is returned. Schema-breaking data raises pydantic's
-        ValidationError (GeminiClient raises GeminiInvalidOutput for such a reply)."""
+        the caller's schema when it is returned. Schema-breaking data raises GeminiInvalidOutput,
+        as GeminiClient does for a reply that does not fit the schema."""
         self._queued.append(obj)
 
     async def generate_structured[T: BaseModel](
@@ -58,7 +63,10 @@ class FakeGemini:
             raise AssertionError("FakeGemini.generate_structured called with nothing queued")
         obj = self._queued.popleft()
         if isinstance(obj, dict):
-            return schema.model_validate(obj)
+            try:
+                return schema.model_validate(obj)
+            except ValidationError as exc:
+                raise GeminiInvalidOutput(f"queued reply does not fit {schema.__name__}") from exc
         if not isinstance(obj, schema):
             raise TypeError(f"queued a {type(obj).__name__}; the caller wants {schema.__name__}")
         return obj

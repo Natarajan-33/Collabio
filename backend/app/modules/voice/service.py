@@ -8,8 +8,6 @@ becomes `unclear` with suggestions, so a bad model reply never reaches the scree
 
 import logging
 
-from pydantic import ValidationError
-
 from app.adapters.gemini import GeminiInvalidOutput, GeminiPort, GeminiUnavailable
 from app.core.package_rules import merge_package_draft
 from app.core.refs import resolve_creator_refs
@@ -59,14 +57,16 @@ class VoiceService:
     async def route(self, req: VoiceCommandRequest) -> VoiceIntent:
         """The intent for `req.transcript` on `req.screen`.
 
-        A reply the model got wrong (invalid, off-screen, missing what its kind needs)
-        is `unclear`. Raises `VoiceUnavailable` when the model cannot be reached.
+        A reply the model got wrong (not valid for the schema, off-screen, missing what
+        its kind needs) is `unclear`. Raises `VoiceUnavailable` when the model cannot be
+        reached. Anything else, such as pydantic rejecting our own request schema, is a
+        bug and propagates rather than hiding behind `unclear`.
         """
         try:
             routed = await self._gemini.generate_structured(
                 system=ROUTER_SYSTEM, prompt=router_prompt(req), schema=RoutedIntent
             )
-        except (ValidationError, GeminiInvalidOutput) as exc:
+        except GeminiInvalidOutput as exc:
             logger.warning("voice router reply unusable: %s", exc)
             return _unclear(req, heard=req.transcript)
         except GeminiUnavailable as exc:
