@@ -13,6 +13,18 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // Vendored ElevenLabs UI Orb: three.js uniforms are mutated every frame
+    // and the seed is random by design. The React Compiler lint rules cannot
+    // model that imperative WebGL code, and it is not ours to rewrite.
+    files: ["components/ui/orb.tsx"],
+    rules: {
+      "react-hooks/purity": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/preserve-manual-memoization": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
