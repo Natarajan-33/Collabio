@@ -1,5 +1,5 @@
 from app.core.package_rules import merge_package_draft, missing_fields, validate_package
-from app.schemas.packages import Addon, Extra, PackageDraft
+from app.schemas.packages import Addon, Extra, PackageDraft, PackageTerms
 from tests.core.factories import make_pkg
 
 
@@ -93,6 +93,26 @@ def test_missing_fields_empty_for_complete_draft():
         preferred_channel="phone_ok",
     )
     assert missing_fields(draft) == []
+
+
+def test_complete_draft_converts_to_package_terms_without_lead_time():
+    draft = PackageDraft(
+        name="Duo",
+        content_type="short_video",
+        niche="consumer_tech",
+        volume_count=2,
+        volume_basis="per_contract",
+        base_price_cents=100000,
+        preferred_channel="phone_ok",
+    )
+    assert missing_fields(draft) == []
+    terms = PackageTerms(**draft.model_dump(exclude_none=True))
+    assert terms.lead_time_days is None and terms.slots_per_month is None
+    assert terms.currency == "USD"
+
+
+def test_validate_accepts_unset_lead_time():
+    assert validate_package(make_pkg(lead_time_days=None), ["consumer_tech"]) == []
 
 
 def test_merge_keeps_current_when_extracted_null_and_merges_addons():

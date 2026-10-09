@@ -44,7 +44,7 @@ def validate_package(pkg: PackageTerms, creator_niches: list[str]) -> list[RuleV
             fail(field, f"Every {noun} needs a price above $0.")
     if pkg.slots_per_month is not None and pkg.slots_per_month < 0:
         fail("slots_per_month", "Slots per month can't be negative.")
-    if pkg.lead_time_days < 0:
+    if pkg.lead_time_days is not None and pkg.lead_time_days < 0:
         fail("lead_time_days", "Lead time can't be negative.")
     return violations
 

@@ -20,6 +20,13 @@ def test_one_liner_weekly_no_addons():
     assert package_one_liner(pkg) == "1 video/week · $1,500"
 
 
+def test_text_tolerates_unset_lead_time_and_slots():
+    pkg = make_pkg(lead_time_days=None, slots_per_month=None)
+    assert package_one_liner(pkg) == "2 videos/contract · $1,000"
+    _, text = creator_embedding_document("Maya Chen", "Gadgets", ["consumer_tech"], [pkg])
+    assert "2 videos/contract · $1,000" in text
+
+
 def test_one_liner_ignores_item_addons():
     pkg = make_pkg(addons=[Addon(name="Rush delivery", price_cents=20000, unit="item")])
     assert package_one_liner(pkg) == "2 videos/contract · $1,000"

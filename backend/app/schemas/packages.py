@@ -41,7 +41,7 @@ class PackageTerms(BaseModel):
     addons: list[Addon] = []
     extras: list[Extra] = []
     slots_per_month: int | None = None
-    lead_time_days: int
+    lead_time_days: int | None = None
     preferred_channel: PreferredChannel
 
 
