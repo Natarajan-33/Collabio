@@ -49,6 +49,37 @@ def validate_package(pkg: PackageTerms, creator_niches: list[str]) -> list[RuleV
     return violations
 
 
+# Stand-ins for required fields the draft has no value for yet; `draft_violations` drops
+# whatever they would trigger.
+_NEUTRAL_VALUES = {
+    "name": "Draft",
+    "content_type": "short_video",
+    "niche": "consumer_tech",
+    "volume_count": 1,
+    "volume_basis": "per_contract",
+    "base_price_cents": 1,
+    "preferred_channel": "email_first",
+}
+
+
+def terms_from_draft(draft: PackageDraft) -> PackageTerms:
+    """The draft as package terms; unset optional fields take the terms' defaults.
+
+    Raises pydantic's ValidationError when a required field is missing, so check
+    `missing_fields` first.
+    """
+    return PackageTerms(**draft.model_dump(exclude_none=True))
+
+
+def draft_violations(draft: PackageDraft, creator_niches: list[str]) -> list[RuleViolation]:
+    """`validate_package` for a draft that may be incomplete: the rules broken by the
+    values it already has. Fields it still lacks are `missing_fields`, not violations."""
+    missing = set(missing_fields(draft))
+    values = draft.model_dump(exclude_none=True) | {name: _NEUTRAL_VALUES[name] for name in missing}
+    violations = validate_package(PackageTerms(**values), creator_niches)
+    return [violation for violation in violations if violation.field not in missing]
+
+
 def missing_fields(draft: PackageDraft) -> list[str]:
     """Required fields the draft has no value for (a blank name counts as missing)."""
     return [field for field in REQUIRED_FIELDS if _is_blank(getattr(draft, field))]
@@ -80,3 +111,13 @@ def merge_package_draft(current: PackageDraft, extracted: PackageDraft) -> Packa
         else:
             merged[field] = cur if ext is None else ext
     return PackageDraft(**merged)
+
+
+def patch_package_draft(saved: PackageDraft, patch: PackageDraft) -> PackageDraft:
+    """Apply an edit from the clicks editor: only the fields `patch` was given change.
+
+    Unlike `merge_package_draft` (speech), a list in the patch replaces the saved list, so
+    an item can be removed, and an explicit null clears an optional field.
+    """
+    values = saved.model_dump() | patch.model_dump(include=patch.model_fields_set)
+    return PackageDraft(**values)

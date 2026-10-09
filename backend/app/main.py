@@ -6,7 +6,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.adapters.db import Database
-from app.api.routers import creators, discovery, health, me, voice
+from app.api.routers import creators, discovery, health, me, packages, voice
 from app.config import get_settings
 
 API_PREFIX = "/api/v1"
@@ -54,6 +54,7 @@ def create_app() -> FastAPI:
     api.include_router(me.router)
     api.include_router(discovery.router)
     api.include_router(creators.router)
+    api.include_router(packages.router)
     api.include_router(voice.router)
     app.include_router(api)
 

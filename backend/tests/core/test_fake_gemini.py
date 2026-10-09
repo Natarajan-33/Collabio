@@ -5,7 +5,7 @@ import math
 import pytest
 from pydantic import BaseModel, PositiveInt
 
-from app.adapters.gemini import GeminiInvalidOutput
+from app.adapters.gemini import GeminiInvalidOutput, GeminiUnavailable
 from tests.fakes import FakeGemini
 
 
@@ -42,6 +42,21 @@ async def test_embed_calls_counts_each_embedding_request():
     await fake.embed_query("tech creators")
 
     assert fake.embed_calls == 2
+
+
+async def test_embed_failure_raises_on_every_embedding_request_and_still_counts_it():
+    fake = FakeGemini()
+    fake.embed_failure = GeminiUnavailable("down")
+
+    with pytest.raises(GeminiUnavailable):
+        await fake.embed_documents([("A", "tech")])
+    with pytest.raises(GeminiUnavailable):
+        await fake.embed_query("tech")
+    assert fake.embed_calls == 2
+
+    fake.embed_failure = None
+    await fake.embed_query("tech")
+    assert fake.embed_calls == 3
 
 
 async def test_generate_structured_returns_queued_objects_in_order_and_records_calls():

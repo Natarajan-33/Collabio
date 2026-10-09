@@ -210,3 +210,27 @@ async def other_package_id(api_db: Database) -> uuid.UUID:
     if package_id is None:
         _skip(NOT_SEEDED)
     return package_id
+
+
+@pytest.fixture
+async def new_creator_client(
+    app: FastAPI, fake_jwks: None, api_db: Database, fake_gemini: FakeGemini, auth_user: uuid.UUID
+) -> AsyncIterator[AsyncClient]:
+    """A client signed in as a brand-new creator (niche consumer_tech, no packages, no bio).
+
+    Tests that create, edit, publish or set floors on packages use this instead of the
+    seeded creators, whose rows must never change. The creator is onboarded through the
+    API; deleting its auth user (the `auth_user` fixture) removes it and its packages.
+    Embeddings and structured replies come from `fake_gemini`.
+    """
+    onboarding = {
+        "role": "creator",
+        "display_name": "Test Creator",
+        "handle": f"test_{auth_user.hex[:12]}",
+        "niches": ["consumer_tech"],
+        "region": "IN",
+    }
+    async with _signed_in(app, auth_user) as c:
+        r = await c.post("/api/v1/onboarding", json=onboarding)
+        assert r.status_code == 200, r.text
+        yield c

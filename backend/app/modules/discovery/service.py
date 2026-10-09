@@ -68,10 +68,10 @@ def _initials(name: str) -> str:
     return "".join(word[0] for word in name.split()[:2]).upper()
 
 
-def _package(row: dict[str, Any]) -> PackageSummary:
-    terms = PackageTerms.model_validate(row)
+def package_summary(package_id: UUID, terms: PackageTerms) -> PackageSummary:
+    """The card text and derived prices for a package's terms."""
     return PackageSummary(
-        id=row["id"],
+        id=package_id,
         name=terms.name,
         content_type=terms.content_type,
         niche=terms.niche,
@@ -84,6 +84,10 @@ def _package(row: dict[str, Any]) -> PackageSummary:
         preferred_channel=terms.preferred_channel,
         addons=terms.addons,
     )
+
+
+def _package(row: dict[str, Any]) -> PackageSummary:
+    return package_summary(row["id"], PackageTerms.model_validate(row))
 
 
 def _card(row: dict[str, Any]) -> CreatorCard:

@@ -1,14 +1,15 @@
 """Creator packages: the published terms and the partial draft voice builds up."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, PositiveInt, StringConstraints
 
 Niche = Literal["consumer_tech", "beauty", "fitness", "food", "gaming", "b2b_saas"]
 ContentType = Literal["short_video", "long_video", "story", "live"]
 VolumeBasis = Literal["per_week", "per_contract"]
 PreferredChannel = Literal["email_first", "phone_ok", "email_only"]
 Currency = Literal["USD"]
+PackageStatus = Literal["draft", "published"]
 
 
 class Addon(BaseModel):
@@ -69,3 +70,39 @@ class RuleViolation(BaseModel):
 
     field: str
     message: str
+
+
+class DraftFromSpeechRequest(BaseModel):
+    """What the creator just said about a package, and the draft it is to be folded into."""
+
+    transcript: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)
+    ]
+    current: PackageDraft = Field(default_factory=PackageDraft)
+
+
+class ExtractedDraft(BaseModel):
+    """What the model returns for a dictated package: the cleaned-up words (`heard`) and
+    only the fields said in them. The service merges `draft` into the open draft."""
+
+    heard: str
+    draft: PackageDraft
+
+
+class DraftResult(BaseModel):
+    """The open draft after the latest dictation, what it still needs, and what it breaks.
+
+    `missing` lists the required fields with no value yet, in the order the editor asks
+    for them. `violations` are the publishing rules already broken by the values present.
+    """
+
+    draft: PackageDraft
+    missing: list[str]
+    violations: list[RuleViolation]
+    heard: str
+
+
+class FloorRequest(BaseModel):
+    """The lowest price (cents) the creator will accept for a package; never shown to brands."""
+
+    floor_price_cents: PositiveInt

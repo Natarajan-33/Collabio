@@ -1,4 +1,11 @@
-from app.core.package_rules import merge_package_draft, missing_fields, validate_package
+from app.core.package_rules import (
+    draft_violations,
+    merge_package_draft,
+    missing_fields,
+    patch_package_draft,
+    terms_from_draft,
+    validate_package,
+)
 from app.schemas.packages import Addon, Extra, PackageDraft, PackageTerms
 from tests.core.factories import make_pkg
 
@@ -172,3 +179,63 @@ def test_merge_does_not_mutate_inputs():
     merge_package_draft(cur, ext)
     assert [a.name for a in cur.addons] == ["Extra video"]
     assert [a.name for a in ext.addons] == ["Rush"]
+
+
+# Violations while the draft is still being filled in ------------------------------------
+
+
+def test_draft_violations_report_only_fields_the_draft_has():
+    draft = PackageDraft(niche="beauty", volume_count=0)
+    got = draft_violations(draft, creator_niches=["consumer_tech"])
+    assert [v.field for v in got] == ["niche", "volume_count"]
+
+
+def test_draft_violations_ignore_missing_fields():
+    # Nothing said yet: an unset name, price or niche is "missing", not a rule violation.
+    assert draft_violations(PackageDraft(), creator_niches=["consumer_tech"]) == []
+    assert draft_violations(PackageDraft(name="  "), creator_niches=[]) == []
+
+
+def test_draft_violations_for_a_complete_draft_match_validate_package():
+    draft = PackageDraft(**make_pkg(niche="beauty", lead_time_days=-2).model_dump())
+    assert draft_violations(draft, ["consumer_tech"]) == validate_package(
+        terms_from_draft(draft), ["consumer_tech"]
+    )
+
+
+def test_terms_from_draft_fills_defaults_for_unset_optional_fields():
+    draft = PackageDraft(**make_pkg(lead_time_days=None).model_dump())
+    draft.currency = None
+    terms = terms_from_draft(draft)
+    assert terms.currency == "USD" and terms.lead_time_days is None
+
+
+# Patching a saved package ------------------------------------------------------------------
+
+
+def test_patch_changes_only_the_fields_that_were_sent():
+    saved = PackageDraft(**make_pkg(lead_time_days=14).model_dump())
+    patched = patch_package_draft(saved, PackageDraft(base_price_cents=90000))
+    assert patched.base_price_cents == 90000
+    assert patched.name == saved.name and patched.lead_time_days == 14
+
+
+def test_patch_replaces_lists_so_items_can_be_removed():
+    saved = PackageDraft(
+        included=["Script approval", "One revision"],
+        addons=[Addon(name="Rush", price_cents=2000, unit="item")],
+    )
+    patched = patch_package_draft(saved, PackageDraft(included=["Script approval"], addons=[]))
+    assert patched.included == ["Script approval"] and patched.addons == []
+
+
+def test_patch_with_explicit_null_clears_an_optional_field():
+    saved = PackageDraft(lead_time_days=14, slots_per_month=3)
+    patched = patch_package_draft(saved, PackageDraft.model_validate({"lead_time_days": None}))
+    assert patched.lead_time_days is None and patched.slots_per_month == 3
+
+
+def test_patch_does_not_mutate_its_inputs():
+    saved = PackageDraft(included=["a"])
+    patch_package_draft(saved, PackageDraft(included=["b"]))
+    assert saved.included == ["a"]

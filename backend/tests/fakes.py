@@ -31,23 +31,30 @@ class FakeGemini:
     """GeminiPort without the network.
 
     Embeddings hash the same formatted text the real client sends. `embed_calls`
-    counts embedding requests (one per `embed_documents` or `embed_query` call).
+    counts embedding requests (one per `embed_documents` or `embed_query` call);
+    set `embed_failure` to make every embedding request raise it (after being counted).
     `generate_structured` returns objects queued with `queue_structured` in FIFO
     order and records each `(system, prompt, schema)` in `calls`.
     """
 
     def __init__(self) -> None:
         self.embed_calls = 0
+        self.embed_failure: Exception | None = None
         self.calls: list[tuple[str, str, type[BaseModel]]] = []
         self._queued: deque[BaseModel | dict[str, Any]] = deque()
 
     async def embed_documents(self, docs: list[tuple[str, str]]) -> list[list[float]]:
-        self.embed_calls += 1
+        self._count_embed_call()
         return [fake_embedding(format_document(title, text)) for title, text in docs]
 
     async def embed_query(self, query: str) -> list[float]:
-        self.embed_calls += 1
+        self._count_embed_call()
         return fake_embedding(format_query(query))
+
+    def _count_embed_call(self) -> None:
+        self.embed_calls += 1
+        if self.embed_failure is not None:
+            raise self.embed_failure
 
     def queue_structured(self, obj: BaseModel | dict[str, Any]) -> None:
         """Queue the next model reply: a model instance, or a raw dict validated against
