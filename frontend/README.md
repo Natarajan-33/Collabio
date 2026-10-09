@@ -143,7 +143,10 @@ this once on a fresh seed, in Chrome:
       name, **Publish**, and the package appears with a "Published" badge. To try the private
       floor, **Save draft** first (the floor field unlocks once the package is saved), set a
       floor, then publish: the floor shows only on Priya's own screen, never on a brand's.
-      Re-seed afterwards to remove the package.
+      Then sign out, sign in as the brand and say "tech short videos under a thousand":
+      Priya's new package appears, and no floor price is shown. (This is the publish, embed
+      and brand-search path; the e2e spec stops at the badge.) Re-seed afterwards to remove
+      the package.
 - [ ] **Mic denied falls back to typing**: block the microphone for `localhost` in the browser
       (or dismiss the permission prompt) and hold Space. A message appears and the Dock
       switches to its text box; typing a command and pressing Enter works. The keyboard icon
@@ -151,3 +154,6 @@ this once on a fresh seed, in Chrome:
 - [ ] **Light and dark**: press `d` (outside a text field) to flip the theme, and check
       Discover, Review and Packages in both. Text stays readable and nothing relies on colour
       alone.
+- [ ] **Phone width**: narrow the window to about 390 px (browser device toolbar) and check
+      Discover, Review and Packages in both themes. The page itself does not scroll
+      sideways, the Dock and the selection tray stay reachable, and text stays readable.

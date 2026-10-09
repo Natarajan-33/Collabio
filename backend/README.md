@@ -124,6 +124,12 @@ uv run pytest -m live             # real Gemini and ElevenLabs calls; spends quo
 uv run ruff check .
 ```
 
+In PowerShell, set the variable first (`REQUIRE_DB=1 uv run ...` is POSIX-only):
+
+```powershell
+$env:REQUIRE_DB = "1"; uv run pytest -q
+```
+
 - Without `REQUIRE_DB=1`, tests that need the database **skip** when `SUPABASE_DB_URL` is
   empty, a placeholder, or unreachable. A database that is reachable but wrong (bad password,
   missing `vector` extension) still fails. Use `REQUIRE_DB=1` whenever you want to be sure
