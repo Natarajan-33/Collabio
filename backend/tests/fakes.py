@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.adapters.gemini import EMBED_DIMENSIONS, format_document, format_query
+from app.schemas.voice import ScribeToken
 
 
 def fake_embedding(text: str) -> list[float]:
@@ -61,3 +62,17 @@ class FakeGemini:
         if not isinstance(obj, schema):
             raise TypeError(f"queued a {type(obj).__name__}; the caller wants {schema.__name__}")
         return obj
+
+
+class FakeElevenLabs:
+    """ElevenLabsPort without the network: hands out `token`, or raises `failure` if given."""
+
+    def __init__(self, *, failure: Exception | None = None) -> None:
+        self.mint_calls = 0
+        self._failure = failure
+
+    async def mint_scribe_token(self) -> ScribeToken:
+        self.mint_calls += 1
+        if self._failure is not None:
+            raise self._failure
+        return ScribeToken(token="fake-scribe-token", expires_at="2026-10-09T12:15:00+00:00")

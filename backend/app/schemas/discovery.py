@@ -12,7 +12,6 @@ from pydantic import (
     BeforeValidator,
     Field,
     NonNegativeInt,
-    PositiveInt,
     StringConstraints,
 )
 
@@ -48,7 +47,8 @@ class SearchFilters(BaseModel):
 
     niches: list[Niche] = []
     content_types: list[ContentType] = []
-    max_price_cents: PositiveInt | None = None
+    # ge=1, not PositiveInt: that emits `exclusiveMinimum`, which Gemini's response schema rejects.
+    max_price_cents: Annotated[int, Field(ge=1)] | None = None
     min_followers: NonNegativeInt | None = None
     region: OptionalText = None
 

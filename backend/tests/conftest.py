@@ -19,10 +19,10 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.adapters.db import Database
-from app.api.deps import get_db, get_gemini, get_jwks_client
+from app.api.deps import get_db, get_elevenlabs, get_gemini, get_jwks_client
 from app.config import get_settings
 from app.main import create_app
-from tests.fakes import FakeGemini
+from tests.fakes import FakeElevenLabs, FakeGemini
 from tests.tokens import TEST_JWKS, StaticJWKSClient, auth_header
 
 
@@ -140,6 +140,14 @@ def fake_gemini(app: FastAPI) -> FakeGemini:
     return gemini
 
 
+@pytest.fixture
+def fake_elevenlabs(app: FastAPI) -> FakeElevenLabs:
+    """Serve Scribe tokens from FakeElevenLabs instead of the ElevenLabs API."""
+    elevenlabs = FakeElevenLabs()
+    app.dependency_overrides[get_elevenlabs] = lambda: elevenlabs
+    return elevenlabs
+
+
 async def _auth_user_id(db: Database, email: str) -> uuid.UUID:
     """The seeded demo login with this email, or skip when the seed has not run."""
     if not email:
@@ -165,9 +173,14 @@ async def _signed_in(app: FastAPI, user_id: uuid.UUID) -> AsyncIterator[AsyncCli
 
 @pytest.fixture
 async def brand_client(
-    app: FastAPI, fake_jwks: None, api_db: Database, fake_gemini: FakeGemini
+    app: FastAPI,
+    fake_jwks: None,
+    api_db: Database,
+    fake_gemini: FakeGemini,
+    fake_elevenlabs: FakeElevenLabs,
 ) -> AsyncIterator[AsyncClient]:
-    """A client signed in as the seeded demo brand (Lumen Audio)."""
+    """A client signed in as the seeded demo brand (Lumen Audio); the voice and search
+    services behind it are fakes, so it can never reach a real API."""
     user_id = await _auth_user_id(api_db, get_settings().demo_brand_email)
     async with _signed_in(app, user_id) as c:
         yield c
@@ -175,9 +188,10 @@ async def brand_client(
 
 @pytest.fixture
 async def creator_client(
-    app: FastAPI, fake_jwks: None, api_db: Database
+    app: FastAPI, fake_jwks: None, api_db: Database, fake_elevenlabs: FakeElevenLabs
 ) -> AsyncIterator[AsyncClient]:
-    """A client signed in as the seeded demo creator Priya (`priyareviews`)."""
+    """A client signed in as the seeded demo creator Priya (`priyareviews`). Scribe tokens
+    come from a fake; a test that routes voice commands asks for `fake_gemini` itself."""
     user_id = await _auth_user_id(api_db, get_settings().demo_helper_email)
     async with _signed_in(app, user_id) as c:
         yield c

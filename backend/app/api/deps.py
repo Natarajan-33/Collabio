@@ -12,6 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.concurrency import run_in_threadpool
 
 from app.adapters.db import Database
+from app.adapters.elevenlabs import ElevenLabsClient, ElevenLabsPort
 from app.adapters.gemini import GeminiClient, GeminiPort
 from app.config import get_settings
 from app.modules.me import service as me_service
@@ -56,6 +57,15 @@ def get_gemini() -> GeminiPort:
         return GeminiClient(get_settings())
     except ValueError as exc:  # no GEMINI_API_KEY
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "gemini_unavailable") from exc
+
+
+@lru_cache
+def get_elevenlabs() -> ElevenLabsPort:
+    """The process-wide ElevenLabs client, built on first use."""
+    try:
+        return ElevenLabsClient(get_settings())
+    except ValueError as exc:  # no ELEVENLABS_API_KEY
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "elevenlabs_unavailable") from exc
 
 
 @lru_cache
@@ -107,6 +117,13 @@ async def current_user(
     return CurrentUser(id=user.id, email=user.email, role=role)
 
 
+async def onboarded_user(user: Annotated[CurrentUser, Depends(current_user)]) -> CurrentUser:
+    """A signed-in user who has chosen a role; 409 `onboarding_required` before that."""
+    if user.role is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "onboarding_required")
+    return user
+
+
 def require_role(role: Role) -> Callable[..., Awaitable[CurrentUser]]:
     """A dependency that admits only users with `role`.
 
@@ -114,9 +131,7 @@ def require_role(role: Role) -> Callable[..., Awaitable[CurrentUser]]:
     for the other role.
     """
 
-    async def dependency(user: Annotated[CurrentUser, Depends(current_user)]) -> CurrentUser:
-        if user.role is None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "onboarding_required")
+    async def dependency(user: Annotated[CurrentUser, Depends(onboarded_user)]) -> CurrentUser:
         if user.role != role:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "wrong_role")
         return user
