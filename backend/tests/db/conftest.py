@@ -5,73 +5,18 @@ afterwards, so seed rows never outlive the test. Rows already in the database
 (e.g. the demo seed) stay visible, so tests scope their assertions to the rows
 they create (match_creators tests filter on `factory.region`).
 
-The tests skip only when there is no database to use: SUPABASE_DB_URL is empty
-or still the dashboard placeholder, or the host cannot be reached. A database
-that is reachable but broken (wrong password or database name, missing vector
-extension, malformed DSN) fails the tests. Set REQUIRE_DB=1 to turn the skips
-into failures too, e.g. in CI.
+The `db` fixture, and when these tests skip, are in tests/conftest.py.
 """
 
 import json
-import os
-import ssl
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
-from typing import NoReturn
 
 import asyncpg
 import pytest
 
 from app.adapters.db import Database
-from app.config import get_settings
-
-NOT_CONFIGURED = "database not configured: SUPABASE_DB_URL is empty or a placeholder"
-NOT_REACHABLE = "database not reachable"
-# Supabase dashboard connection strings contain "[YOUR-PASSWORD]" until filled in.
-DSN_PLACEHOLDER = "[YOUR-"
-
-# The first connect attempt decides for the whole session: later tests reuse its
-# outcome instead of reconnecting. A refused connection takes ~2 s on Windows, and
-# repeated failed logins can get the client IP banned by the Supabase pooler.
-_skip_reason: str | None = None
-_connect_failed = False
-
-
-def _skip(reason: str) -> NoReturn:
-    if os.environ.get("REQUIRE_DB") == "1":
-        pytest.fail(f"{reason} (REQUIRE_DB=1)", pytrace=False)
-    pytest.skip(reason)
-
-
-@pytest.fixture
-async def db() -> AsyncIterator[Database]:
-    global _skip_reason, _connect_failed
-    if _connect_failed:
-        pytest.fail("database connection failed in an earlier test; see that error", pytrace=False)
-    if _skip_reason is not None:
-        _skip(_skip_reason)
-
-    dsn = get_settings().supabase_db_url
-    if not dsn.strip() or DSN_PLACEHOLDER in dsn:
-        _skip_reason = NOT_CONFIGURED
-        _skip(NOT_CONFIGURED)
-
-    database = Database()
-    try:
-        await database.connect(dsn)
-    except Exception as exc:
-        # Refused, DNS failure or timeout (TimeoutError is an OSError): no database here.
-        if isinstance(exc, OSError) and not isinstance(exc, ssl.SSLError):
-            _skip_reason = NOT_REACHABLE
-            _skip(NOT_REACHABLE)
-        # TLS, auth, catalog, codec or DSN errors: the database is there but broken.
-        _connect_failed = True
-        raise
-    try:
-        yield database
-    finally:
-        await database.close()
 
 
 @pytest.fixture

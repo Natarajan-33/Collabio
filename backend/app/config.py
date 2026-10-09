@@ -6,6 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # backend/.env, resolved from this file so the app loads it from any working directory.
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
+# Supabase dashboard connection strings contain "[YOUR-PASSWORD]" until filled in.
+DSN_PLACEHOLDER = "[YOUR-"
+
 
 class Settings(BaseSettings):
     """Backend configuration read from the environment and `backend/.env`.
@@ -38,6 +41,12 @@ class Settings(BaseSettings):
     demo_password: str = ""
     demo_helper_phone: str = ""
     demo_helper_email: str = ""
+
+    @property
+    def database_configured(self) -> bool:
+        """False while SUPABASE_DB_URL is blank or still the dashboard placeholder."""
+        dsn = self.supabase_db_url
+        return bool(dsn.strip()) and DSN_PLACEHOLDER not in dsn
 
 
 @lru_cache
