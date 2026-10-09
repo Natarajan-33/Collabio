@@ -85,7 +85,7 @@ Actors: **Presenter** = brand "Lumen Audio" (product: wireless earbuds). **Helpe
 ### 4.2 Architectural rules
 1. **All writes go through the backend.** Business rules (outreach gating, budget ceiling, creator floor, award eligibility) live in exactly one place.
 2. **Realtime is a doorbell, not the data source.** The frontend subscribes to `thread_events` INSERTs (RLS-filtered) and invalidates/refetches the affected view model from the API. Deltas and ranking are computed server-side only.
-3. **No secret keys in the browser.** The browser holds only the Supabase anon key and the user's Supabase session. ElevenLabs access is via backend-minted signed URLs (agents) and single-use tokens (Scribe).
+3. **No secret keys in the browser.** The browser holds only the Supabase publishable key and the user's Supabase session. ElevenLabs access is via backend-minted signed URLs (agents) and single-use tokens (Scribe).
 4. **Pure core, thin adapters.** Delta engine, ranking, thread state machine, brief completeness, guardrail checks, reply-token parsing, and email quote-stripping are pure Python functions with no I/O. Gemini, ElevenLabs, Resend, and Postgres are behind adapter interfaces so the core and orchestrators are testable with fakes.
 5. **The event log is the source of truth.** `thread_events` is append-only. Thread `status` and `latest_terms` are denormalized projections updated in the same transaction as the event insert.
 
@@ -130,7 +130,7 @@ The existing root-level Next.js scaffold stays untouched; it exists only to host
 | Component registries | `@react-bits`, `@canvas-ui`, ElevenLabs UI (`https://ui.elevenlabs.io/r/*.json`) |
 | Backend | Python 3.12+, `uv`, FastAPI, Pydantic v2, asyncpg, `google-genai`, `elevenlabs`, `resend`, Jinja2, PyJWT, tenacity |
 | Data | Supabase Postgres 17 + pgvector (HNSW, cosine), Supabase Auth (email + password), Supabase Realtime (postgres_changes) |
-| AI | Gemini `gemini-embedding-2` (768-dim via MRL), Gemini Flash (`gemini-flash-latest`, pinned to a concrete version in the M1 plan) for structuring/drafting/routing; ElevenLabs Agents (2) + `scribe_v2_realtime` |
+| AI | Gemini `gemini-embedding-2` (768-dim via MRL), Gemini `gemini-3.8-flash` (thinking level `low` for routing/structuring) for structuring/drafting/routing; ElevenLabs Agents (2) + `scribe_v2_realtime` |
 | Hosting | Frontend → Vercel; Backend → Fly.io or Render (single instance, public HTTPS for webhooks); dev via local tunnel |
 
 ---
@@ -219,18 +219,19 @@ Thread event `type` values: `queued`, `email_drafted`, `email_sent`, `email_boun
 ### 6.2 Private limits stay private
 - The **creator floor** lives only in `package_floors` (readable by the owning creator). The **brand ceiling** lives only in `briefs` (readable by the owning brand).
 - Neither value is ever copied into `threads`, `thread_events`, `transcripts`, email bodies, or agent dynamic variables.
-- The backend reads both with the service role: the floor for the creator's counter warning, the ceiling for `check_counter` and brand-counter validation.
+- The backend reads both with privileged access: the floor for the creator's counter warning, the ceiling for `check_counter` and brand-counter validation.
 
 ### 6.3 Row-level security
 | Table | Read | Write |
 |---|---|---|
 | `profiles` | self | self (via backend) |
-| `creators`, `packages` (published) | any authenticated user | owning creator via backend |
+| `creators` (holds contact email/phone) | owning creator only — brands get creator data only through the API, which never returns contact fields | owning creator via backend |
+| `packages` (published) | any authenticated user | owning creator via backend |
 | `package_floors` | owning creator | owning creator via backend |
 | `brands`, `products`, `briefs`, `batches` | owning brand | via backend |
 | `threads`, `thread_events`, `transcripts` | the thread's brand **or** creator | backend only |
 
-The backend uses the service role and therefore bypasses RLS; **every endpoint enforces ownership explicitly in code**, and tests cover both layers.
+The backend connects with privileged credentials and therefore bypasses RLS; **every endpoint enforces ownership explicitly in code**, and tests cover both layers.
 
 ### 6.4 Shared schemas (Pydantic → OpenAPI → TypeScript)
 - **`DealBrief`** — the mandatory variables with validators (see §7.3).
@@ -386,7 +387,7 @@ One-page landing with GSAP ScrollTrigger storytelling and Register / Sign in CTA
 ---
 
 ## 12. Security & compliance
-- Secrets only in backend env; browser gets anon key + short-lived ElevenLabs credentials.
+- Secrets only in backend env; browser gets the publishable key + short-lived ElevenLabs credentials.
 - Supabase JWT verified in FastAPI via JWKS; role loaded from `profiles`.
 - RLS on every table plus explicit ownership checks in every endpoint.
 - AI disclosure on calls (first message) and emails (footer); recording-consent statement at call start.
@@ -414,7 +415,7 @@ One-page landing with GSAP ScrollTrigger storytelling and Register / Sign in CTA
   - shadcn/base-ui: drawer, dialog, tabs, table, toggle groups, tooltip, command.
   - ElevenLabs UI: Orb, live waveform, voice button, transcript/conversation components.
   - react-bits: CountUp (KPIs, prices), BlurText/SplitText (headings), AnimatedList (event feed), ShinyText ("Best value"), SpotlightCard (creator cards), Aurora/Silk (landing + empty states only).
-  - canvas-ui (liquid glass): floating Voice Dock, selection tray.
+  - canvas-ui (page-level WebGL effects, e.g. `liquid-react`, `glass-object-react`): marketing landing hero and sign-in backdrop only — never on work screens. The Voice Dock's glass look is plain CSS (`backdrop-filter`).
   - GSAP: Flip for board re-rank/status moves; timeline for the launch "deal" of 10 cards; ScrollTrigger on landing; all honor `prefers-reduced-motion`.
 - **Accessibility:** every voice action has a click equivalent; captions for all agent speech; hold-Space push-to-talk; visible focus states.
 
@@ -434,9 +435,9 @@ One-page landing with GSAP ScrollTrigger storytelling and Register / Sign in CTA
 | 8 | Vercel + Fly.io/Render accounts | M2 (webhooks need public HTTPS) |
 | 9 | Docker Desktop for local Supabase (optional; else a test project) | M1 tests |
 
-Backend env (names fixed now): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS_URL`, `GEMINI_API_KEY`, `GEMINI_TEXT_MODEL`, `GEMINI_EMBED_MODEL`, `ELEVENLABS_API_KEY`, `ELEVENLABS_BRIEF_AGENT_ID`, `ELEVENLABS_NEGOTIATION_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID`, `ELEVENLABS_WEBHOOK_SECRET`, `ELEVENLABS_TOOL_SECRET`, `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_INBOUND_DOMAIN`, `RESEND_WEBHOOK_SECRET`, `PUBLIC_BACKEND_URL`, `PUBLIC_FRONTEND_URL`, `DEMO_MODE`, `DEMO_ADMIN_TOKEN`, `DEMO_HELPER_PHONE`, `DEMO_HELPER_EMAIL`.
+Backend env (names fixed now): `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS_URL`, `GEMINI_API_KEY`, `GEMINI_TEXT_MODEL`, `GEMINI_EMBED_MODEL`, `ELEVENLABS_API_KEY`, `ELEVENLABS_BRIEF_AGENT_ID`, `ELEVENLABS_NEGOTIATION_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID`, `ELEVENLABS_WEBHOOK_SECRET`, `ELEVENLABS_TOOL_SECRET`, `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_INBOUND_DOMAIN`, `RESEND_WEBHOOK_SECRET`, `PUBLIC_BACKEND_URL`, `PUBLIC_FRONTEND_URL`, `DEMO_MODE`, `DEMO_ADMIN_TOKEN`, `DEMO_BRAND_EMAIL`, `DEMO_PASSWORD`, `DEMO_HELPER_PHONE`, `DEMO_HELPER_EMAIL`.
 
-Frontend env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL`.
+Frontend env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_API_URL`.
 
 The existing Twilio number is currently assigned to the "Support agent" for inbound calls. Outbound calls specify the agent per call, so no reassignment is required.
 
