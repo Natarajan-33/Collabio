@@ -4,6 +4,9 @@
  *
  * idle → connecting → listening → routing → heard → idle
  *                \________________/   \→ error
+ *
+ * Letting go moves straight to `routing`: the speaker is done, but the last words may
+ * still be on their way, so the command is only sent once `RELEASE` brings them.
  */
 export type DockMode =
   "idle" | "connecting" | "listening" | "routing" | "heard" | "error"
@@ -25,6 +28,8 @@ export type DockEvent =
   | { type: "PRESS" }
   | { type: "CONNECTED" }
   | { type: "PARTIAL"; text: string }
+  /** The speaker let go; the final transcript has not arrived yet. */
+  | { type: "RELEASING" }
   | { type: "RELEASE"; finalText: string }
   | { type: "ROUTED"; heard: string }
   | { type: "FAIL"; reason: string; fatal: boolean }
@@ -69,8 +74,18 @@ export function dockReducer(state: DockState, event: DockEvent): DockState {
         return state
       return { ...state, mode: "listening", partial: event.text }
 
-    case "RELEASE": {
+    case "RELEASING":
       if (state.mode !== "connecting" && state.mode !== "listening")
+        return state
+      return { ...state, mode: "routing" }
+
+    case "RELEASE": {
+      // Straight from a capture, or from `RELEASING` once the final words are in.
+      if (
+        state.mode !== "connecting" &&
+        state.mode !== "listening" &&
+        state.mode !== "routing"
+      )
         return state
       const text = event.finalText.trim()
       if (!text) return { ...state, mode: "idle", partial: "" }

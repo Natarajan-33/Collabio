@@ -98,6 +98,69 @@ describe("dockReducer", () => {
     expect(heard.partial).toBe("")
   })
 
+  it("letting go shows the command being worked on while the last words arrive", () => {
+    const releasing = run([
+      { type: "PRESS" },
+      { type: "CONNECTED" },
+      { type: "PARTIAL", text: "select the top" },
+      { type: "RELEASING" },
+    ])
+    expect(releasing.mode).toBe("routing")
+    expect(releasing.partial).toBe("select the top")
+
+    // Words still in flight no longer change what is shown...
+    expect(
+      dockReducer(releasing, { type: "PARTIAL", text: "select the top ten" })
+    ).toBe(releasing)
+    // ...the final report does.
+    const routing = dockReducer(releasing, {
+      type: "RELEASE",
+      finalText: "Select the top ten.",
+    })
+    expect(routing.mode).toBe("routing")
+    expect(routing.partial).toBe("Select the top ten.")
+  })
+
+  it("letting go with nothing heard still returns to idle", () => {
+    const releasing = run([
+      { type: "PRESS" },
+      { type: "CONNECTED" },
+      { type: "RELEASING" },
+    ])
+
+    const s = dockReducer(releasing, { type: "RELEASE", finalText: " " })
+
+    expect(s).toEqual(initialDockState)
+  })
+
+  it("a failure while waiting for the last words shows the failure", () => {
+    const releasing = run([
+      { type: "PRESS" },
+      { type: "PARTIAL", text: "select the top" },
+      { type: "RELEASING" },
+    ])
+
+    const s = dockReducer(releasing, {
+      type: "FAIL",
+      reason: "Voice usage limit reached",
+      fatal: true,
+    })
+
+    expect(s.mode).toBe("error")
+    expect(s.input).toBe("text")
+  })
+
+  it("letting go only matters during a capture", () => {
+    expect(dockReducer(initialDockState, { type: "RELEASING" })).toBe(
+      initialDockState
+    )
+    const routing = dockReducer(initialDockState, {
+      type: "TEXT_SUBMIT",
+      text: "first",
+    })
+    expect(dockReducer(routing, { type: "RELEASING" })).toBe(routing)
+  })
+
   it("routed is ignored unless a command is being routed", () => {
     expect(dockReducer(initialDockState, { type: "ROUTED", heard: "x" })).toBe(
       initialDockState

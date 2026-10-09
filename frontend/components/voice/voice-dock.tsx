@@ -44,20 +44,33 @@ const MAX_COMMAND_LENGTH = 500
 /** How long a failure stays in the dock before it clears itself. */
 const ERROR_MS = 6000
 
+/** Inputs where Space is not a way to press something: they take text. */
+const TEXT_INPUT =
+  "input:not([type=checkbox], [type=radio], [type=button], [type=submit], [type=reset], [type=image], [type=file], [type=color])"
+
 /**
- * Targets that keep Space for themselves: typing fields (and anything inside an
- * editable region) and controls that Space activates from the keyboard, such as
- * buttons, links, checkboxes and their ARIA equivalents. Without this a focused
- * checkbox could never be toggled with Space, and holding the key to speak would
- * press whatever control happened to have focus.
+ * Typing fields (and anything inside an editable region) always keep Space: whoever
+ * is in one is typing, however they got there.
  */
-const PASSTHROUGH = [
-  "input",
+const TYPING = [
+  TEXT_INPUT,
   "textarea",
   "select",
+  "[contenteditable]:not([contenteditable='false'])",
+].join(", ")
+
+/**
+ * Controls that Space presses from the keyboard: buttons, links, checkboxes and their
+ * ARIA equivalents. They keep Space only while the keyboard is what is driving, so a
+ * keyboard user can still press or toggle the control they tabbed to. After a mouse
+ * click they would otherwise hold on to focus and take every push-to-talk Space for
+ * themselves: the dock's own mic/keyboard toggle flipped straight back, a card's
+ * checkbox flipped instead of listening.
+ */
+const KEYBOARD_PRESSED = [
+  "input",
   "button",
   "a[href]",
-  "[contenteditable]:not([contenteditable='false'])",
   "[role=button]",
   "[role=checkbox]",
   "[role=switch]",
@@ -73,14 +86,21 @@ const PUSH_TO_TALK = "[data-voice-ptt]"
 
 type PressSource = "key" | "pointer"
 
+/** What the user last used to act on the page: decides who owns Space on a control. */
+type Modality = "key" | "pointer"
+
+/** Keys that say nothing about whether the keyboard is driving the page. */
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "AltGraph"])
+
 function isSpace(event: KeyboardEvent) {
   return event.code === "Space" || event.key === " "
 }
 
-function leavesSpaceAlone(target: EventTarget | null) {
+function leavesSpaceAlone(target: EventTarget | null, modality: Modality) {
   if (!(target instanceof Element)) return false
   if (target.closest(PUSH_TO_TALK)) return false
-  return target.closest(PASSTHROUGH) !== null
+  if (target.closest(TYPING)) return true
+  return modality === "key" && target.closest(KEYBOARD_PRESSED) !== null
 }
 
 function orbState(mode: DockMode): AgentState {
@@ -142,8 +162,12 @@ export function VoiceDock() {
   const pillRef = React.useRef<HTMLDivElement>(null)
   const ringRef = React.useRef<HTMLSpanElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const orbRef = React.useRef<HTMLButtonElement>(null)
   const stateRef = React.useRef(state)
   const pressedBy = React.useRef<PressSource | null>(null)
+  // Keyboard until the mouse says otherwise: a control focused before anyone has
+  // touched the page (an autofocus, say) is only reachable by keyboard.
+  const modality = React.useRef<Modality>("key")
   const showMode = React.useRef<((mode: DockMode) => void) | null>(null)
 
   React.useEffect(() => {
@@ -250,7 +274,10 @@ export function VoiceDock() {
       if (!pressedBy.current) return false
       if (source && pressedBy.current !== source) return false
       pressedBy.current = null
-      stop()
+      // The speaker is done, but the last words may still be on their way: show the
+      // command as being worked on until the capture reports it.
+      dispatch({ type: "RELEASING" })
+      void stop()
       return true
     },
     [stop]
@@ -258,12 +285,20 @@ export function VoiceDock() {
 
   // Hold Space anywhere that is not asking for typing.
   React.useEffect(() => {
+    const onPointerDown = () => {
+      modality.current = "pointer"
+    }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!isSpace(event)) return
+      if (!isSpace(event)) {
+        // Tab, arrows, Enter: the keyboard is driving. (Space itself is left out, so
+        // the Space that starts a press does not hand the next one to a control.)
+        if (!MODIFIER_KEYS.has(event.key)) modality.current = "key"
+        return
+      }
       // Auto-repeat of the key being held: keep the page from scrolling.
       if (pressedBy.current === "key") return event.preventDefault()
       if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return
-      if (leavesSpaceAlone(event.target)) return
+      if (leavesSpaceAlone(event.target, modality.current)) return
       if (beginPress("key")) event.preventDefault()
     }
     const onKeyUp = (event: KeyboardEvent) => {
@@ -274,10 +309,12 @@ export function VoiceDock() {
     // A release that happens while the window is not looking never arrives.
     const onBlur = () => endPress()
 
+    window.addEventListener("pointerdown", onPointerDown, true)
     window.addEventListener("keydown", onKeyDown)
     window.addEventListener("keyup", onKeyUp)
     window.addEventListener("blur", onBlur)
     return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true)
       window.removeEventListener("keydown", onKeyDown)
       window.removeEventListener("keyup", onKeyUp)
       window.removeEventListener("blur", onBlur)
@@ -349,9 +386,15 @@ export function VoiceDock() {
     return () => clearTimeout(timer)
   }, [state.mode])
 
-  // Typing is what the user asked for (or was left with): put the cursor there.
+  // Typing is what the user asked for (or was left with): put the cursor there. Going
+  // back to voice, focus moves to the orb: it is the control Space speaks through, and
+  // leaving focus on the toggle that was just used would have Space press it again.
+  const previousInput = React.useRef(state.input)
   React.useEffect(() => {
+    const before = previousInput.current
+    previousInput.current = state.input
     if (state.input === "text") inputRef.current?.focus()
+    else if (before === "text") orbRef.current?.focus()
   }, [state.input])
 
   function submitText(raw: string) {
@@ -414,6 +457,7 @@ export function VoiceDock() {
         />
 
         <button
+          ref={orbRef}
           type="button"
           disabled={typing}
           aria-label="Hold to speak"

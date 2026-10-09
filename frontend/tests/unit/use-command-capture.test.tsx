@@ -1,7 +1,10 @@
 import { act, cleanup, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { useCommandCapture } from "@/lib/voice/use-command-capture"
+import {
+  COMMIT_WAIT_MS,
+  useCommandCapture,
+} from "@/lib/voice/use-command-capture"
 
 type ScribeOptions = {
   modelId?: string
@@ -20,6 +23,7 @@ const h = vi.hoisted(() => ({
     status: "disconnected",
     connect: vi.fn(),
     disconnect: vi.fn(),
+    commit: vi.fn(),
   },
   options: null as unknown,
   api: { POST: vi.fn() },
@@ -54,6 +58,22 @@ function setup() {
   return { ...hook, handlers }
 }
 
+/**
+ * Lets go and waits for the command. By default Scribe answers the commit at once with
+ * `commit` (nothing new when omitted); `null` leaves the commit unanswered.
+ */
+async function released(
+  hook: ReturnType<typeof setup>,
+  commit: string | null = ""
+) {
+  h.scribe.commit.mockImplementation(() => {
+    if (commit !== null) scribe().onCommittedTranscript?.({ text: commit })
+  })
+  await act(async () => {
+    await hook.result.current.stop()
+  })
+}
+
 /** Starts a capture and lets the token and the connection settle. */
 async function started(hook: ReturnType<typeof setup>) {
   await act(async () => {
@@ -64,6 +84,7 @@ async function started(hook: ReturnType<typeof setup>) {
 beforeEach(() => {
   h.scribe.connect.mockReset().mockResolvedValue(undefined)
   h.scribe.disconnect.mockReset()
+  h.scribe.commit.mockReset()
   h.api.POST.mockReset().mockResolvedValue(token("tok-1"))
   h.options = null
 })
@@ -78,7 +99,7 @@ describe("useCommandCapture", () => {
     const hook = setup()
 
     await started(hook)
-    act(() => hook.result.current.stop())
+    await released(hook)
     await started(hook)
 
     expect(h.api.POST).toHaveBeenCalledTimes(2)
@@ -129,7 +150,7 @@ describe("useCommandCapture", () => {
       "Tech creators. Doing reviews under two thousand"
     )
 
-    act(() => hook.result.current.stop())
+    await released(hook)
 
     expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
       "Tech creators. Doing reviews under two thousand"
@@ -143,7 +164,7 @@ describe("useCommandCapture", () => {
 
     act(() => scribe().onPartialTranscript?.({ text: "tech creat" }))
     act(() => scribe().onCommittedTranscript?.({ text: "Tech creators" }))
-    act(() => hook.result.current.stop())
+    await released(hook)
 
     expect(hook.handlers.onFinal).toHaveBeenCalledWith("Tech creators")
   })
@@ -152,18 +173,19 @@ describe("useCommandCapture", () => {
     const hook = setup()
     await started(hook)
 
-    act(() => hook.result.current.stop())
+    await released(hook)
 
     expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith("")
   })
 
-  it("stop without a capture does nothing", () => {
+  it("stop without a capture does nothing", async () => {
     const hook = setup()
 
-    act(() => hook.result.current.stop())
+    await act(async () => hook.result.current.stop())
 
     expect(hook.handlers.onFinal).not.toHaveBeenCalled()
     expect(h.scribe.disconnect).not.toHaveBeenCalled()
+    expect(h.scribe.commit).not.toHaveBeenCalled()
   })
 
   it("releasing before the token arrives cancels the capture", async () => {
@@ -175,22 +197,24 @@ describe("useCommandCapture", () => {
     act(() => {
       starting = hook.result.current.start()
     })
-    act(() => hook.result.current.stop())
+    await act(async () => hook.result.current.stop())
     await act(async () => {
       release(token("late"))
       await starting
     })
 
     expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith("")
-    // The microphone is never opened for a press that is already over.
+    // The microphone is never opened for a press that is already over, and there is
+    // no session to commit.
     expect(h.scribe.connect).not.toHaveBeenCalled()
+    expect(h.scribe.commit).not.toHaveBeenCalled()
     expect(hook.handlers.onError).not.toHaveBeenCalled()
   })
 
   it("ignores events that arrive after stop", async () => {
     const hook = setup()
     await started(hook)
-    act(() => hook.result.current.stop())
+    await released(hook)
     hook.handlers.onPartial.mockClear()
 
     act(() => scribe().onPartialTranscript?.({ text: "late words" }))
@@ -207,11 +231,11 @@ describe("useCommandCapture", () => {
     const hook = setup()
     await started(hook)
     act(() => scribe().onCommittedTranscript?.({ text: "first" }))
-    act(() => hook.result.current.stop())
+    await released(hook)
 
     await started(hook)
     act(() => scribe().onPartialTranscript?.({ text: "second" }))
-    act(() => hook.result.current.stop())
+    await released(hook)
 
     expect(hook.handlers.onFinal).toHaveBeenLastCalledWith("second")
   })
@@ -224,6 +248,211 @@ describe("useCommandCapture", () => {
 
     expect(h.api.POST).toHaveBeenCalledTimes(1)
     expect(h.scribe.connect).toHaveBeenCalledTimes(1)
+  })
+
+  describe("releasing", () => {
+    /** Lets go and leaves the commit unanswered, as Scribe does until it has caught up. */
+    function letGo(hook: ReturnType<typeof setup>) {
+      h.scribe.commit.mockReset()
+      let stopping!: Promise<void>
+      act(() => {
+        stopping = hook.result.current.stop()
+      })
+      return stopping
+    }
+
+    it("commits what was said and waits for it instead of dropping the last words", async () => {
+      const hook = setup()
+      await started(hook)
+      act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
+
+      const stopping = letGo(hook)
+
+      expect(h.scribe.commit).toHaveBeenCalledTimes(1)
+      // Still listening for the committed words: nothing is reported or cut off yet.
+      expect(hook.handlers.onFinal).not.toHaveBeenCalled()
+      expect(h.scribe.disconnect).not.toHaveBeenCalled()
+
+      act(() =>
+        scribe().onCommittedTranscript?.({ text: "Select the top ten." })
+      )
+      await act(async () => stopping)
+
+      // The committed text carries the words that were still in flight.
+      expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
+        "Select the top ten."
+      )
+      expect(h.scribe.disconnect).toHaveBeenCalledTimes(1)
+    })
+
+    it("keeps the words committed earlier in front of the final commit", async () => {
+      const hook = setup()
+      await started(hook)
+      act(() => scribe().onCommittedTranscript?.({ text: "Tech creators." }))
+      act(() => scribe().onPartialTranscript?.({ text: "under two" }))
+
+      const stopping = letGo(hook)
+      act(() =>
+        scribe().onCommittedTranscript?.({ text: "Under two thousand." })
+      )
+      await act(async () => stopping)
+
+      expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
+        "Tech creators. Under two thousand."
+      )
+    })
+
+    it("falls back to what was heard if the commit never arrives", async () => {
+      vi.useFakeTimers()
+      try {
+        const hook = setup()
+        await started(hook)
+        act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
+
+        const stopping = letGo(hook)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(COMMIT_WAIT_MS - 1)
+        })
+        expect(hook.handlers.onFinal).not.toHaveBeenCalled()
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1)
+          await stopping
+        })
+
+        expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
+          "select the top"
+        )
+        expect(h.scribe.disconnect).toHaveBeenCalledTimes(1)
+        expect(hook.handlers.onError).not.toHaveBeenCalled()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it("does not wait out the clock once the commit is in", async () => {
+      vi.useFakeTimers()
+      try {
+        const hook = setup()
+        await started(hook)
+
+        const stopping = letGo(hook)
+        act(() => scribe().onCommittedTranscript?.({ text: "Go to packages" }))
+        await act(async () => stopping)
+
+        expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
+          "Go to packages"
+        )
+        // A leftover timer would fire a second report later.
+        expect(vi.getTimerCount()).toBe(0)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it("an empty commit does not erase what was heard", async () => {
+      const hook = setup()
+      await started(hook)
+      act(() => scribe().onPartialTranscript?.({ text: "open review" }))
+
+      const stopping = letGo(hook)
+      act(() => scribe().onCommittedTranscript?.({ text: "" }))
+      await act(async () => stopping)
+
+      expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
+        "open review"
+      )
+    })
+
+    it("a press too short to commit is simply over", async () => {
+      const hook = setup()
+      await started(hook)
+      h.scribe.commit.mockReset().mockImplementation(() => {
+        throw new Error("WebSocket is not connected")
+      })
+
+      await act(async () => hook.result.current.stop())
+
+      expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith("")
+      expect(h.scribe.disconnect).toHaveBeenCalledTimes(1)
+      expect(hook.handlers.onError).not.toHaveBeenCalled()
+    })
+
+    it("a hiccup from Scribe while waiting still delivers what was heard", async () => {
+      const hook = setup()
+      await started(hook)
+      act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
+
+      const stopping = letGo(hook)
+      // Say, a commit with too little audio behind it.
+      act(() => scribe().onError?.(new Error("insufficient audio activity")))
+      await act(async () => stopping)
+
+      expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
+        "select the top"
+      )
+      expect(hook.handlers.onError).not.toHaveBeenCalled()
+    })
+
+    it("the socket closing while waiting delivers what was heard", async () => {
+      const hook = setup()
+      await started(hook)
+      act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
+
+      const stopping = letGo(hook)
+      act(() => scribe().onDisconnect?.())
+      await act(async () => stopping)
+
+      expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
+        "select the top"
+      )
+      expect(hook.handlers.onError).not.toHaveBeenCalled()
+    })
+
+    it("a fatal failure while waiting is still a failure, not a command", async () => {
+      const hook = setup()
+      await started(hook)
+      act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
+
+      const stopping = letGo(hook)
+      act(() => scribe().onQuotaExceededError?.({ error: "quota" }))
+      act(() => scribe().onError?.(new Error("quota")))
+      await act(async () => stopping)
+
+      expect(hook.handlers.onError).toHaveBeenCalledExactlyOnceWith({
+        reason: "Voice usage limit reached",
+        fatal: true,
+      })
+      expect(hook.handlers.onFinal).not.toHaveBeenCalled()
+    })
+
+    it("letting go twice reports the command once", async () => {
+      const hook = setup()
+      await started(hook)
+
+      const first = letGo(hook)
+      const second = hook.result.current.stop()
+      act(() => scribe().onCommittedTranscript?.({ text: "Hello" }))
+      await act(async () => {
+        await first
+        await second
+      })
+
+      expect(h.scribe.commit).toHaveBeenCalledTimes(1)
+      expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith("Hello")
+    })
+
+    it("ignores words that arrive after the report", async () => {
+      const hook = setup()
+      await started(hook)
+      await released(hook, "Hello")
+      hook.handlers.onPartial.mockClear()
+
+      act(() => scribe().onCommittedTranscript?.({ text: "Hello again" }))
+
+      expect(hook.handlers.onPartial).not.toHaveBeenCalled()
+      expect(hook.handlers.onFinal).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe("failures", () => {

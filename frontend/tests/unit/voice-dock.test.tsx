@@ -112,7 +112,16 @@ function renderDock(onIntent: (intent: VoiceIntent) => void = vi.fn()) {
 
 const space = { key: " ", code: "Space" }
 
+/**
+ * Keys go to whatever has focus, as they do for a person: `document.body` only when
+ * nothing does. Aiming them at the body hid a bug (Space after a mouse click).
+ */
+let user: ReturnType<typeof userEvent.setup>
+const hold = () => user.keyboard("[Space>]")
+const letGo = () => user.keyboard("[/Space]")
+
 beforeEach(() => {
+  user = userEvent.setup()
   h.capture.start.mockReset().mockResolvedValue(undefined)
   h.capture.stop.mockReset()
   h.api.POST.mockReset()
@@ -145,7 +154,6 @@ describe("VoiceDock: starting and stopping a capture", () => {
   })
 
   it("space inside input does not start capture", async () => {
-    const user = userEvent.setup()
     renderDock()
     const field = screen.getByLabelText("Page field") as HTMLInputElement
 
@@ -261,11 +269,11 @@ describe("VoiceDock: starting and stopping a capture", () => {
     a.remove()
   })
 
-  it("leaves chorded space alone", () => {
+  it("leaves chorded space alone", async () => {
     renderDock()
 
-    fireEvent.keyDown(document.body, { ...space, ctrlKey: true })
-    fireEvent.keyDown(document.body, { ...space, metaKey: true })
+    await user.keyboard("{Control>}[Space]{/Control}")
+    await user.keyboard("{Meta>}[Space]{/Meta}")
 
     expect(h.capture.start).not.toHaveBeenCalled()
   })
@@ -281,16 +289,20 @@ describe("VoiceDock: starting and stopping a capture", () => {
     expect(h.capture.start).not.toHaveBeenCalled()
   })
 
-  it("space on the focused orb is push-to-talk like anywhere else", () => {
+  it("space on the focused orb is push-to-talk like anywhere else", async () => {
     renderDock()
     const orb = screen.getByRole("button", { name: "Hold to speak" })
+    const clicked = vi.fn()
+    orb.addEventListener("click", clicked)
+    orb.focus()
 
-    fireEvent.keyDown(orb, space)
+    await hold()
     expect(h.capture.start).toHaveBeenCalledTimes(1)
 
-    // The release is not also taken as a click on the button.
-    expect(fireEvent.keyUp(orb, space)).toBe(false)
+    await letGo()
     expect(h.capture.stop).toHaveBeenCalledTimes(1)
+    // The release is not also taken as a click on the button.
+    expect(clicked).not.toHaveBeenCalled()
   })
 
   it("ignores a key release that no capture is waiting for", () => {
@@ -301,7 +313,6 @@ describe("VoiceDock: starting and stopping a capture", () => {
   })
 
   it("press-and-hold on the orb starts, letting go stops", async () => {
-    const user = userEvent.setup()
     renderDock()
     const orb = screen.getByRole("button", { name: "Hold to speak" })
 
@@ -313,38 +324,38 @@ describe("VoiceDock: starting and stopping a capture", () => {
     expect(h.capture.stop).toHaveBeenCalledTimes(1)
   })
 
-  it("stops when the window loses focus mid-hold, so the key release is not missed", () => {
+  it("stops when the window loses focus mid-hold, so the key release is not missed", async () => {
     renderDock()
-    fireEvent.keyDown(document.body, space)
+    await hold()
 
     fireEvent.blur(window)
 
     expect(h.capture.stop).toHaveBeenCalledTimes(1)
   })
 
-  it("does not start a second capture while one is running", () => {
+  it("does not start a second capture while one is running", async () => {
     renderDock()
-    fireEvent.keyDown(document.body, space)
+    await hold()
     act(() => capture().onConnected?.())
 
-    fireEvent.keyUp(document.body, space)
+    await letGo()
     act(() => capture().onFinal(""))
-    fireEvent.keyDown(document.body, space)
+    await hold()
 
     // The new press is fine once the first is over...
     expect(h.capture.start).toHaveBeenCalledTimes(2)
     // ...but not while it is still held.
-    fireEvent.keyDown(document.body, space)
+    await hold()
     expect(h.capture.start).toHaveBeenCalledTimes(2)
   })
 })
 
 describe("VoiceDock: what it shows", () => {
-  it("shows the live transcript while listening", () => {
+  it("shows the live transcript while listening", async () => {
     renderDock()
     expect(screen.getByText("Hold Space to speak")).toBeTruthy()
 
-    fireEvent.keyDown(document.body, space)
+    await hold()
     expect(screen.getByText("Connecting…")).toBeTruthy()
 
     act(() => capture().onConnected?.())
@@ -355,11 +366,11 @@ describe("VoiceDock: what it shows", () => {
     expect(screen.getByText("tech creators under two thousand")).toBeTruthy()
   })
 
-  it("releasing with nothing heard goes back to idle without routing", () => {
+  it("releasing with nothing heard goes back to idle without routing", async () => {
     renderDock()
-    fireEvent.keyDown(document.body, space)
+    await hold()
     act(() => capture().onConnected?.())
-    fireEvent.keyUp(document.body, space)
+    await letGo()
 
     act(() => capture().onFinal("  "))
 
@@ -367,13 +378,13 @@ describe("VoiceDock: what it shows", () => {
     expect(screen.getByText("Hold Space to speak")).toBeTruthy()
   })
 
-  it("maps the dock's mode onto the Orb and mounts it only while working", () => {
+  it("maps the dock's mode onto the Orb and mounts it only while working", async () => {
     h.reduced.current = false
     renderDock()
     // Idle: a static disc, no WebGL.
     expect(screen.queryByTestId("orb")).toBeNull()
 
-    fireEvent.keyDown(document.body, space)
+    await hold()
     expect(screen.getByTestId("orb").dataset.agentState).toBe("thinking")
 
     act(() => capture().onConnected?.())
@@ -382,16 +393,16 @@ describe("VoiceDock: what it shows", () => {
     expect(screen.getByTestId("orb").dataset.colors).toBe("#f6623d,#ffaf76")
 
     h.api.POST.mockReturnValue(new Promise(() => {}))
-    fireEvent.keyUp(document.body, space)
+    await letGo()
     act(() => capture().onFinal("hello"))
     expect(screen.getByTestId("orb").dataset.agentState).toBe("thinking")
   })
 
-  it("never mounts the Orb under reduced motion", () => {
+  it("never mounts the Orb under reduced motion", async () => {
     h.reduced.current = true
     renderDock()
 
-    fireEvent.keyDown(document.body, space)
+    await hold()
     act(() => capture().onConnected?.())
 
     expect(screen.queryByTestId("orb")).toBeNull()
@@ -419,12 +430,54 @@ describe("VoiceDock: what it shows", () => {
 
 describe("VoiceDock: routing a command", () => {
   async function speak(text: string) {
-    fireEvent.keyDown(document.body, space)
+    await hold()
     act(() => capture().onConnected?.())
     act(() => capture().onPartial(text))
-    fireEvent.keyUp(document.body, space)
+    await letGo()
     await act(async () => capture().onFinal(text))
   }
+
+  it("letting go waits for the last words, shows it is working, then routes them all", async () => {
+    h.api.POST.mockResolvedValue(ok(intent()))
+    renderDock()
+    await hold()
+    act(() => capture().onConnected?.())
+    act(() => capture().onPartial("select the top"))
+
+    await letGo()
+
+    // The speaker is done, but the capture has not reported yet: nothing is sent, and a
+    // new press cannot begin until it has.
+    expect(screen.getByRole("status").textContent).toBe("Working on it")
+    expect(screen.getByText("select the top")).toBeTruthy()
+    expect(h.api.POST).not.toHaveBeenCalled()
+    await hold()
+    expect(h.capture.start).toHaveBeenCalledTimes(1)
+    await letGo()
+
+    await act(async () => capture().onFinal("Select the top ten"))
+
+    expect(h.api.POST).toHaveBeenCalledTimes(1)
+    expect(h.api.POST.mock.calls[0][1].body.transcript).toBe(
+      "Select the top ten"
+    )
+  })
+
+  it("a failure while the last words are awaited shows the failure", async () => {
+    renderDock()
+    await hold()
+    act(() => capture().onConnected?.())
+    await letGo()
+
+    act(() =>
+      capture().onError({ reason: "Voice usage limit reached", fatal: true })
+    )
+
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Voice usage limit reached"
+    )
+    expect(h.api.POST).not.toHaveBeenCalled()
+  })
 
   it("routed intent is delivered to the registered screen handler", async () => {
     const onIntent = vi.fn()
@@ -617,7 +670,6 @@ describe("VoiceDock: routing a command", () => {
   })
 
   it("tapping a suggestion sends it as the command", async () => {
-    const user = userEvent.setup()
     const onIntent = vi.fn()
     h.api.POST.mockResolvedValueOnce(
       ok(
@@ -702,7 +754,6 @@ describe("VoiceDock: routing a command", () => {
   })
 
   it("keeps the words of a failed command for a retry by typing", async () => {
-    const user = userEvent.setup()
     h.api.POST.mockResolvedValue({ error: {}, response: { status: 503 } })
     renderDock()
     await speak("tech creators")
@@ -747,9 +798,9 @@ describe("VoiceDock: routing a command", () => {
 })
 
 describe("VoiceDock: falling back to typing", () => {
-  it("a fatal failure switches to the text box and says why", () => {
+  it("a fatal failure switches to the text box and says why", async () => {
     renderDock()
-    fireEvent.keyDown(document.body, space)
+    await hold()
 
     act(() => capture().onError({ reason: "Microphone blocked", fatal: true }))
 
@@ -760,13 +811,12 @@ describe("VoiceDock: falling back to typing", () => {
     expect(screen.getByLabelText("Type a command")).toBeTruthy()
     expect(screen.getByRole("alert").textContent).toBe("Microphone blocked")
     // Space no longer tries the microphone that just failed.
-    fireEvent.keyUp(document.body, space)
-    fireEvent.keyDown(document.body, space)
+    await letGo()
+    await hold()
     expect(h.capture.start).toHaveBeenCalledTimes(1)
   })
 
   it("a fatal failure during a press-and-hold does not leave the press stuck", async () => {
-    const user = userEvent.setup()
     renderDock()
     const orb = screen.getByRole("button", { name: "Hold to speak" })
     await user.pointer({ keys: "[MouseLeft>]", target: orb })
@@ -778,13 +828,13 @@ describe("VoiceDock: falling back to typing", () => {
 
     // Back to voice (say, after allowing the microphone): Space works again.
     await user.click(screen.getByRole("button", { name: "Use voice" }))
-    fireEvent.keyDown(document.body, space)
+    await hold()
     expect(h.capture.start).toHaveBeenCalledTimes(2)
   })
 
-  it("a recoverable failure keeps voice and does not toast", () => {
+  it("a recoverable failure keeps voice and does not toast", async () => {
     renderDock()
-    fireEvent.keyDown(document.body, space)
+    await hold()
 
     act(() =>
       capture().onError({ reason: "Voice connection dropped", fatal: false })
@@ -797,13 +847,12 @@ describe("VoiceDock: falling back to typing", () => {
     )
 
     // And the next press tries again.
-    fireEvent.keyUp(document.body, space)
-    fireEvent.keyDown(document.body, space)
+    await letGo()
+    await hold()
     expect(h.capture.start).toHaveBeenCalledTimes(2)
   })
 
   it("text submit routes like voice", async () => {
-    const user = userEvent.setup()
     const onIntent = vi.fn()
     h.api.POST.mockResolvedValue(
       ok(intent({ kind: "open_review", heard: "Open review" }))
@@ -832,7 +881,6 @@ describe("VoiceDock: falling back to typing", () => {
   })
 
   it("will not send an empty command", async () => {
-    const user = userEvent.setup()
     renderDock()
     await user.click(
       screen.getByRole("button", { name: "Type a command instead" })
@@ -851,7 +899,6 @@ describe("VoiceDock: falling back to typing", () => {
   })
 
   it("switches back to voice on request", async () => {
-    const user = userEvent.setup()
     renderDock()
     await user.click(
       screen.getByRole("button", { name: "Type a command instead" })
@@ -861,12 +908,32 @@ describe("VoiceDock: falling back to typing", () => {
     await user.click(screen.getByRole("button", { name: "Use voice" }))
 
     expect(screen.queryByLabelText("Type a command")).toBeNull()
-    fireEvent.keyDown(document.body, space)
+    // Focus lands on the orb, so Space is push-to-talk and not a second press of the
+    // toggle that was just clicked.
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Hold to speak" })
+    )
+    await hold()
     expect(h.capture.start).toHaveBeenCalledTimes(1)
+    await letGo()
+    expect(screen.queryByLabelText("Type a command")).toBeNull()
+    expect(
+      screen.getByRole("button", { name: "Type a command instead" })
+    ).toBeTruthy()
+  })
+
+  it("leaves focus alone until the user has switched back to voice", async () => {
+    renderDock()
+
+    expect(document.activeElement).toBe(document.body)
+
+    await user.click(
+      screen.getByRole("button", { name: "Type a command instead" })
+    )
+    expect(document.activeElement).toBe(screen.getByLabelText("Type a command"))
   })
 
   it("the orb is not a button to press while typing is chosen", async () => {
-    const user = userEvent.setup()
     renderDock()
     await user.click(
       screen.getByRole("button", { name: "Type a command instead" })
@@ -882,14 +949,13 @@ describe("VoiceDock: falling back to typing", () => {
   })
 
   it("tapping the Heard chip puts the text in the box for editing", async () => {
-    const user = userEvent.setup()
     h.api.POST.mockResolvedValue(
       ok(intent({ heard: "Tech creators under $2,000" }))
     )
     renderDock()
-    fireEvent.keyDown(document.body, space)
+    await hold()
     act(() => capture().onConnected?.())
-    fireEvent.keyUp(document.body, space)
+    await letGo()
     await act(async () => capture().onFinal("tech creators"))
 
     await user.click(
@@ -903,16 +969,169 @@ describe("VoiceDock: falling back to typing", () => {
   })
 
   it("dismissing the Heard chip removes it", async () => {
-    const user = userEvent.setup()
     h.api.POST.mockResolvedValue(ok(intent()))
     renderDock()
-    fireEvent.keyDown(document.body, space)
+    await hold()
     act(() => capture().onConnected?.())
-    fireEvent.keyUp(document.body, space)
+    await letGo()
     await act(async () => capture().onFinal("tech creators"))
 
     await user.click(screen.getByRole("button", { name: "Dismiss" }))
 
     expect(screen.queryByText("Heard:")).toBeNull()
+  })
+})
+
+describe("VoiceDock: Space after the mouse", () => {
+  const onFilters = vi.fn()
+
+  function renderWithControls() {
+    onFilters.mockReset()
+    return render(
+      <VoiceScreenProvider>
+        <Page onIntent={vi.fn()} />
+        <input type="checkbox" aria-label="Select Priya" />
+        <button type="button" onClick={onFilters}>
+          Filters
+        </button>
+        <VoiceDock />
+      </VoiceScreenProvider>
+    )
+  }
+  const checkbox = () =>
+    screen.getByRole("checkbox", { name: "Select Priya" }) as HTMLInputElement
+
+  it("after Use voice, Space starts a capture and does not flip the dock back to typing", async () => {
+    renderDock()
+    await user.click(
+      screen.getByRole("button", { name: "Type a command instead" })
+    )
+    await user.click(screen.getByRole("button", { name: "Use voice" }))
+
+    await hold()
+
+    expect(h.capture.start).toHaveBeenCalledTimes(1)
+    expect(screen.queryByLabelText("Type a command")).toBeNull()
+  })
+
+  it("after a mouse click on a checkbox, Space is push-to-talk and the checkbox stays as clicked", async () => {
+    renderWithControls()
+    await user.click(checkbox())
+    expect(checkbox().checked).toBe(true)
+
+    await hold()
+    expect(h.capture.start).toHaveBeenCalledTimes(1)
+    await letGo()
+
+    expect(h.capture.stop).toHaveBeenCalledTimes(1)
+    expect(checkbox().checked).toBe(true)
+  })
+
+  it("after a mouse click on a button, Space is push-to-talk and does not press it again", async () => {
+    renderWithControls()
+    await user.click(screen.getByRole("button", { name: "Filters" }))
+    expect(onFilters).toHaveBeenCalledTimes(1)
+
+    await hold()
+    await letGo()
+
+    expect(h.capture.start).toHaveBeenCalledTimes(1)
+    expect(onFilters).toHaveBeenCalledTimes(1)
+  })
+
+  it("holding Space again after a capture still speaks, not toggles", async () => {
+    renderWithControls()
+    await user.click(checkbox())
+
+    await hold()
+    await letGo()
+    act(() => capture().onFinal(""))
+    await hold()
+    await letGo()
+
+    expect(h.capture.start).toHaveBeenCalledTimes(2)
+    expect(checkbox().checked).toBe(true)
+  })
+
+  it("a checkbox reached with the keyboard keeps Space", async () => {
+    renderWithControls()
+    await user.tab()
+    await user.tab()
+    expect(document.activeElement).toBe(checkbox())
+
+    await user.keyboard("[Space]")
+
+    expect(checkbox().checked).toBe(true)
+    expect(h.capture.start).not.toHaveBeenCalled()
+  })
+
+  it("a key press after a click hands Space back to the focused control", async () => {
+    renderWithControls()
+    await user.click(checkbox())
+
+    // Tab away and back: the keyboard is in charge now.
+    await user.tab()
+    await user.tab({ shift: true })
+    expect(document.activeElement).toBe(checkbox())
+    await user.keyboard("[Space]")
+
+    expect(checkbox().checked).toBe(false)
+    expect(h.capture.start).not.toHaveBeenCalled()
+  })
+
+  it("holding a modifier does not count as keyboard use", async () => {
+    renderWithControls()
+    await user.click(checkbox())
+
+    await user.keyboard("{Shift>}")
+    await hold()
+    await letGo()
+    await user.keyboard("{/Shift}")
+
+    expect(h.capture.start).toHaveBeenCalledTimes(1)
+    expect(checkbox().checked).toBe(true)
+  })
+
+  it.each(["text", "search", "email", "number", "password", "date"])(
+    "a %s field keeps Space after a click, as it is being typed in",
+    async (type) => {
+      render(
+        <VoiceScreenProvider>
+          <input type={type} aria-label="Field" />
+          <VoiceDock />
+        </VoiceScreenProvider>
+      )
+      const field = screen.getByLabelText("Field")
+      await user.click(field)
+
+      await user.keyboard("[Space]")
+
+      expect(h.capture.start).not.toHaveBeenCalled()
+    }
+  )
+
+  it("a radio is pressed like a checkbox: Space after a click speaks", async () => {
+    render(
+      <VoiceScreenProvider>
+        <input type="radio" aria-label="Option" />
+        <VoiceDock />
+      </VoiceScreenProvider>
+    )
+    await user.click(screen.getByRole("radio", { name: "Option" }))
+
+    await hold()
+
+    expect(h.capture.start).toHaveBeenCalledTimes(1)
+  })
+
+  it("typing fields keep Space after a click too", async () => {
+    renderWithControls()
+    const field = screen.getByLabelText("Page field") as HTMLInputElement
+    await user.click(field)
+
+    await user.keyboard("a b")
+
+    expect(field.value).toBe("a b")
+    expect(h.capture.start).not.toHaveBeenCalled()
   })
 })
