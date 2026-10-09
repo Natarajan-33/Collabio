@@ -7,6 +7,12 @@ import * as THREE from "three"
 
 export type AgentState = null | "thinking" | "listening" | "talking"
 
+/**
+ * The flow-noise texture the shader samples. Vendored from the ElevenLabs UI
+ * registry so the Orb never fetches it from a third-party host at runtime.
+ */
+const PERLIN_NOISE_URL = "/orb/perlin-noise.png"
+
 type OrbProps = {
   colors?: [string, string]
   colorsRef?: React.RefObject<[string, string]>
@@ -98,9 +104,7 @@ function Scene({
   const targetColor1Ref = useRef(new THREE.Color(colors[0]))
   const targetColor2Ref = useRef(new THREE.Color(colors[1]))
   const animSpeedRef = useRef(0.1)
-  const perlinNoiseTexture = useTexture(
-    "https://storage.googleapis.com/eleven-public-cdn/images/perlin-noise.png"
-  )
+  const perlinNoiseTexture = useTexture(PERLIN_NOISE_URL)
 
   const agentRef = useRef<AgentState>(agentState)
   const modeRef = useRef<"auto" | "manual">(volumeMode)

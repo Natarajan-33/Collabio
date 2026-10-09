@@ -2,11 +2,12 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   ChartColumn,
   Compass,
   Handshake,
+  LogOut,
   Package,
   type LucideIcon,
 } from "lucide-react"
@@ -16,6 +17,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { VoiceDock } from "@/components/voice/voice-dock"
+import { VoiceScreenProvider } from "@/components/voice/voice-screen"
+import { getSupabaseBrowser } from "@/lib/supabase/browser"
 import { cn } from "@/lib/utils"
 
 export type ShellRole = "brand" | "creator"
@@ -149,68 +153,116 @@ function RailSoon({ item }: { item: NavItem }) {
   )
 }
 
+/**
+ * Ends the session and returns to sign-in, so another account (a demo persona, say)
+ * can be used without clearing cookies by hand.
+ */
+function SignOut() {
+  const router = useRouter()
+  const [leaving, setLeaving] = React.useState(false)
+
+  async function signOut() {
+    setLeaving(true)
+    try {
+      await getSupabaseBrowser().auth.signOut()
+    } catch {
+      // Leave for sign-in regardless: the user asked to go.
+    }
+    router.replace("/sign-in")
+    router.refresh()
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            disabled={leaving}
+            onClick={signOut}
+            className={cn(
+              itemBase,
+              "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground disabled:opacity-50"
+            )}
+          />
+        }
+      >
+        <LogOut className="size-5" aria-hidden />
+        Sign out
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        Sign out of Collabio
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 type AppShellProps = {
   role: ShellRole
   children: React.ReactNode
-  /** The Voice Dock. Floats bottom-centre over the page, clear of the rail. */
-  dock?: React.ReactNode
 }
 
-export function AppShell({ role, children, dock }: AppShellProps) {
+export function AppShell({ role, children }: AppShellProps) {
   const pathname = usePathname()
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
-      <aside
-        data-slot="app-rail"
-        className="fixed inset-y-0 left-0 z-30 flex w-(--rail-width) flex-col items-center border-r border-sidebar-border bg-sidebar py-3 text-sidebar-foreground"
-      >
-        <div
-          role="img"
-          aria-label="Collabio"
-          className="flex size-9 items-center justify-center rounded-lg bg-foreground font-display text-2xl leading-none text-background italic"
+    <VoiceScreenProvider>
+      <div className="min-h-svh bg-background text-foreground">
+        <aside
+          data-slot="app-rail"
+          className="fixed inset-y-0 left-0 z-30 flex w-(--rail-width) flex-col items-center border-r border-sidebar-border bg-sidebar py-3 text-sidebar-foreground"
         >
-          C
+          <div
+            role="img"
+            aria-label="Collabio"
+            className="flex size-9 items-center justify-center rounded-lg bg-foreground font-display text-2xl leading-none text-background italic"
+          >
+            C
+          </div>
+
+          <nav
+            aria-label="Primary"
+            className="mt-6 flex flex-1 flex-col items-center gap-1"
+          >
+            {NAV[role].map((item) =>
+              item.href ? (
+                <RailLink
+                  key={item.label}
+                  item={item}
+                  href={item.href}
+                  active={isActive(pathname, item.href)}
+                />
+              ) : (
+                <RailSoon key={item.label} item={item} />
+              )
+            )}
+          </nav>
+
+          <SignOut />
+
+          <p className="mt-3 text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase [writing-mode:vertical-rl]">
+            {ROLE_LABEL[role]}
+          </p>
+        </aside>
+
+        <div className="pl-(--rail-width)">
+          <main
+            id="main"
+            className="mx-auto min-h-svh w-full max-w-[96rem] px-6 pt-6 pb-32"
+          >
+            {children}
+          </main>
         </div>
 
-        <nav
-          aria-label="Primary"
-          className="mt-6 flex flex-1 flex-col items-center gap-1"
+        <div
+          data-slot="voice-dock"
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-4 pl-(--rail-width)"
         >
-          {NAV[role].map((item) =>
-            item.href ? (
-              <RailLink
-                key={item.label}
-                item={item}
-                href={item.href}
-                active={isActive(pathname, item.href)}
-              />
-            ) : (
-              <RailSoon key={item.label} item={item} />
-            )
-          )}
-        </nav>
-
-        <p className="text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase [writing-mode:vertical-rl]">
-          {ROLE_LABEL[role]}
-        </p>
-      </aside>
-
-      <div className="pl-(--rail-width)">
-        <main
-          id="main"
-          className="mx-auto min-h-svh w-full max-w-[96rem] px-6 pt-6 pb-32"
-        >
-          {children}
-        </main>
+          <div className="pointer-events-auto">
+            <VoiceDock />
+          </div>
+        </div>
       </div>
-
-      <div
-        data-slot="voice-dock"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-4 pl-(--rail-width)"
-      >
-        {dock ? <div className="pointer-events-auto">{dock}</div> : null}
-      </div>
-    </div>
+    </VoiceScreenProvider>
   )
 }

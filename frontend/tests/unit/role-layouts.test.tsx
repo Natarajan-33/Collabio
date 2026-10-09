@@ -32,6 +32,8 @@ vi.mock("@/lib/supabase/browser", () => ({
 }))
 vi.mock("@/lib/auth/guard", () => ({ guardRoute }))
 vi.mock("@/lib/auth/me", () => ({ getMe }))
+// The dock needs the API client and a microphone; these tests are about the layouts.
+vi.mock("@/components/voice/voice-dock", () => ({ VoiceDock: () => null }))
 
 beforeEach(() => {
   router.replace.mockReset()
