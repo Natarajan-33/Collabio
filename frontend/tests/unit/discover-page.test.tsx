@@ -274,7 +274,7 @@ describe("Discover: what is on the page", () => {
 
     await screen.findByRole("group", { name: "Creator 1" })
     expect(searchBodies()).toEqual([
-      { query: null, filters: OPEN_FILTERS, limit: 24 },
+      { query: null, filters: OPEN_FILTERS, limit: 48 },
     ])
     expect(screen.getAllByRole("checkbox")).toHaveLength(14)
     expect(screen.getByRole("status").textContent).toContain("14")
@@ -333,7 +333,7 @@ describe("Discover: what is on the page", () => {
     expect(lastSearch()).toEqual({
       query: "gadgets",
       filters: { niches: ["consumer_tech"], content_types: [] },
-      limit: 24,
+      limit: 48,
     })
     expect(
       screen.getByRole("button", { name: "Remove filter Consumer tech" })
@@ -381,7 +381,7 @@ describe("Discover: voice search", () => {
         content_types: ["short_video"],
         max_price_cents: 200000,
       },
-      limit: 24,
+      limit: 48,
     })
     // Said again, the query is on screen too.
     expect(screen.getByText(/for “short-form reviews”/)).toBeTruthy()

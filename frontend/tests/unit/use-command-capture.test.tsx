@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   COMMIT_WAIT_MS,
+  CONNECT_WAIT_MS,
   useCommandCapture,
 } from "@/lib/voice/use-command-capture"
 
@@ -24,9 +25,12 @@ const h = vi.hoisted(() => ({
     connect: vi.fn(),
     disconnect: vi.fn(),
     commit: vi.fn(),
+    sendAudio: vi.fn(),
   },
   options: null as unknown,
   api: { POST: vi.fn() },
+  mic: { pipe: vi.fn(), stop: vi.fn(), close: vi.fn() },
+  openMicrophone: vi.fn(),
 }))
 
 /** The callbacks the hook gave `useScribe`: how tests play Scribe's side. */
@@ -34,13 +38,24 @@ function scribe() {
   return h.options as ScribeOptions
 }
 
+/** The microphone handing `chunks` to whatever the hook piped it to. */
+function hear(...chunks: string[]) {
+  const send = h.mic.pipe.mock.lastCall?.[0] as (chunk: string) => void
+  for (const chunk of chunks) send(chunk)
+}
+
 vi.mock("@elevenlabs/react", () => ({
+  AudioFormat: { PCM_16000: "pcm_16000" },
   useScribe: (options: unknown) => {
     h.options = options
     return h.scribe
   },
 }))
 vi.mock("@/hooks/use-api", () => ({ useApi: () => h.api }))
+vi.mock("@/lib/voice/microphone", () => ({
+  PCM_SAMPLE_RATE: 16000,
+  openMicrophone: h.openMicrophone,
+}))
 
 const token = (value: string) => ({
   data: { token: value, expires_at: "2099-01-01T00:00:00Z" },
@@ -74,25 +89,36 @@ async function released(
   })
 }
 
-/** Starts a capture and lets the token and the connection settle. */
-async function started(hook: ReturnType<typeof setup>) {
+/** Presses: the microphone opens, the token and the connection settle. */
+async function pressed(hook: ReturnType<typeof setup>) {
   await act(async () => {
     await hook.result.current.start()
   })
+}
+
+/** Presses and lets Scribe start, so what is heard streams to it. */
+async function started(hook: ReturnType<typeof setup>) {
+  await pressed(hook)
+  act(() => scribe().onSessionStarted?.())
 }
 
 beforeEach(() => {
   h.scribe.connect.mockReset().mockResolvedValue(undefined)
   h.scribe.disconnect.mockReset()
   h.scribe.commit.mockReset()
+  h.scribe.sendAudio.mockReset()
   h.api.POST.mockReset().mockResolvedValue(token("tok-1"))
+  h.mic.pipe.mockReset()
+  h.mic.stop.mockReset().mockResolvedValue(undefined)
+  h.mic.close.mockReset()
+  h.openMicrophone.mockReset().mockResolvedValue(h.mic)
   h.options = null
 })
 
 afterEach(cleanup)
 
 describe("useCommandCapture", () => {
-  it("mints a fresh token for each capture and opens the microphone with it", async () => {
+  it("mints a fresh token for each capture and connects with it for 16 kHz PCM", async () => {
     h.api.POST.mockResolvedValueOnce(token("tok-1")).mockResolvedValueOnce(
       token("tok-2")
     )
@@ -106,12 +132,15 @@ describe("useCommandCapture", () => {
     expect(h.api.POST).toHaveBeenCalledWith("/api/v1/voice/scribe-token")
     expect(h.scribe.connect).toHaveBeenNthCalledWith(1, {
       token: "tok-1",
-      microphone: { echoCancellation: true, noiseSuppression: true },
+      audioFormat: "pcm_16000",
+      sampleRate: 16000,
     })
     expect(h.scribe.connect).toHaveBeenNthCalledWith(2, {
       token: "tok-2",
-      microphone: { echoCancellation: true, noiseSuppression: true },
+      audioFormat: "pcm_16000",
+      sampleRate: 16000,
     })
+    expect(h.openMicrophone).toHaveBeenCalledTimes(2)
   })
 
   it("uses the realtime Scribe model", () => {
@@ -120,13 +149,41 @@ describe("useCommandCapture", () => {
     expect(scribe().modelId).toBe("scribe_v2_realtime")
   })
 
-  it("reports when the session is live", async () => {
+  it("opens the microphone at once, without waiting for the token", async () => {
+    h.api.POST.mockReturnValue(new Promise(() => {}))
     const hook = setup()
-    await started(hook)
+
+    await act(async () => {
+      void hook.result.current.start()
+      await Promise.resolve()
+    })
+
+    expect(h.openMicrophone).toHaveBeenCalledTimes(1)
+    // Listening from here on, though Scribe is not up yet.
+    expect(hook.handlers.onConnected).toHaveBeenCalledTimes(1)
+    expect(h.scribe.connect).not.toHaveBeenCalled()
+  })
+
+  it("sends what was heard while connecting once Scribe starts, then the rest as it comes", async () => {
+    const hook = setup()
+    await pressed(hook)
+    expect(h.mic.pipe).not.toHaveBeenCalled()
 
     act(() => scribe().onSessionStarted?.())
+    hear("chunk-1", "chunk-2")
 
-    expect(hook.handlers.onConnected).toHaveBeenCalledTimes(1)
+    expect(h.mic.pipe).toHaveBeenCalledTimes(1)
+    expect(h.scribe.sendAudio.mock.calls).toEqual([["chunk-1"], ["chunk-2"]])
+  })
+
+  it("a chunk for a socket that has closed is dropped", async () => {
+    const hook = setup()
+    await started(hook)
+    h.scribe.sendAudio.mockImplementation(() => {
+      throw new Error("WebSocket is not open")
+    })
+
+    expect(() => hear("chunk")).not.toThrow()
   })
 
   it("reports what is heard as it forms", async () => {
@@ -188,9 +245,48 @@ describe("useCommandCapture", () => {
     expect(h.scribe.commit).not.toHaveBeenCalled()
   })
 
-  it("releasing before the token arrives cancels the capture", async () => {
+  it("words said before the token arrives are still heard once Scribe starts", async () => {
     let release!: (value: unknown) => void
     h.api.POST.mockReturnValue(new Promise((resolve) => (release = resolve)))
+    const hook = setup()
+    let starting!: Promise<void>
+    await act(async () => {
+      starting = hook.result.current.start()
+      await Promise.resolve()
+    })
+    expect(hook.handlers.onConnected).toHaveBeenCalledTimes(1)
+
+    // A quick command: let go while the token is still on its way.
+    let stopping!: Promise<void>
+    act(() => {
+      stopping = hook.result.current.stop()
+    })
+    await act(async () => {
+      release(token("late"))
+      await starting
+    })
+    expect(h.mic.stop).toHaveBeenCalledTimes(1)
+    expect(h.scribe.connect).toHaveBeenCalledTimes(1)
+    expect(hook.handlers.onFinal).not.toHaveBeenCalled()
+
+    h.scribe.commit.mockImplementation(() =>
+      scribe().onCommittedTranscript?.({ text: "Go to packages." })
+    )
+    act(() => scribe().onSessionStarted?.())
+    hear("held-1", "held-2")
+    await act(async () => stopping)
+
+    expect(h.scribe.sendAudio.mock.calls).toEqual([["held-1"], ["held-2"]])
+    expect(h.scribe.commit).toHaveBeenCalledTimes(1)
+    expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
+      "Go to packages."
+    )
+    expect(hook.handlers.onError).not.toHaveBeenCalled()
+  })
+
+  it("a press let go before the microphone opens is simply over", async () => {
+    let open!: (mic: unknown) => void
+    h.openMicrophone.mockReturnValue(new Promise((resolve) => (open = resolve)))
     const hook = setup()
 
     let starting!: Promise<void>
@@ -199,16 +295,48 @@ describe("useCommandCapture", () => {
     })
     await act(async () => hook.result.current.stop())
     await act(async () => {
-      release(token("late"))
+      open(h.mic)
       await starting
     })
 
     expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith("")
-    // The microphone is never opened for a press that is already over, and there is
-    // no session to commit.
+    // The microphone that opened late is let go, and nothing connects.
+    expect(h.mic.close).toHaveBeenCalled()
+    expect(hook.handlers.onConnected).not.toHaveBeenCalled()
     expect(h.scribe.connect).not.toHaveBeenCalled()
     expect(h.scribe.commit).not.toHaveBeenCalled()
-    expect(hook.handlers.onError).not.toHaveBeenCalled()
+  })
+
+  it("gives up on a Scribe that never starts after the press is let go", async () => {
+    vi.useFakeTimers()
+    try {
+      const hook = setup()
+      await pressed(hook)
+
+      let stopping!: Promise<void>
+      act(() => {
+        stopping = hook.result.current.stop()
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(CONNECT_WAIT_MS - 1)
+      })
+      expect(hook.handlers.onError).not.toHaveBeenCalled()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1)
+        await stopping
+      })
+
+      expect(hook.handlers.onError).toHaveBeenCalledExactlyOnceWith({
+        reason: "Voice connection failed",
+        fatal: false,
+      })
+      expect(hook.handlers.onFinal).not.toHaveBeenCalled()
+      expect(h.mic.close).toHaveBeenCalled()
+      expect(h.scribe.commit).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("ignores events that arrive after stop", async () => {
@@ -247,26 +375,66 @@ describe("useCommandCapture", () => {
     await started(hook)
 
     expect(h.api.POST).toHaveBeenCalledTimes(1)
+    expect(h.openMicrophone).toHaveBeenCalledTimes(1)
     expect(h.scribe.connect).toHaveBeenCalledTimes(1)
   })
 
+  it("going away lets the microphone go", async () => {
+    const hook = setup()
+    await started(hook)
+
+    hook.unmount()
+
+    expect(h.mic.close).toHaveBeenCalled()
+  })
+
   describe("releasing", () => {
-    /** Lets go and leaves the commit unanswered, as Scribe does until it has caught up. */
-    function letGo(hook: ReturnType<typeof setup>) {
+    /**
+     * Lets go, lets the microphone finish its tail (at once here), and leaves the
+     * commit unanswered, as Scribe does until it has caught up.
+     */
+    async function letGo(hook: ReturnType<typeof setup>) {
       h.scribe.commit.mockReset()
       let stopping!: Promise<void>
-      act(() => {
+      await act(async () => {
         stopping = hook.result.current.stop()
+        for (let tick = 0; tick < 5; tick++) await Promise.resolve()
       })
-      return stopping
+      return { stopping }
     }
+
+    it("lets the microphone hear the last syllable before committing", async () => {
+      let finish!: () => void
+      h.mic.stop.mockReturnValue(
+        new Promise<void>((resolve) => (finish = resolve))
+      )
+      const hook = setup()
+      await started(hook)
+
+      const { stopping } = await letGo(hook)
+      expect(h.mic.stop).toHaveBeenCalledTimes(1)
+      expect(h.scribe.commit).not.toHaveBeenCalled()
+
+      h.scribe.commit.mockImplementation(() =>
+        scribe().onCommittedTranscript?.({ text: "Select the top ten." })
+      )
+      await act(async () => {
+        finish()
+        await stopping
+      })
+
+      expect(h.scribe.commit).toHaveBeenCalledTimes(1)
+      expect(hook.handlers.onFinal).toHaveBeenCalledExactlyOnceWith(
+        "Select the top ten."
+      )
+    })
 
     it("commits what was said and waits for it instead of dropping the last words", async () => {
       const hook = setup()
       await started(hook)
       act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
 
-      const stopping = letGo(hook)
+      const { stopping } = await letGo(hook)
 
       expect(h.scribe.commit).toHaveBeenCalledTimes(1)
       // Still listening for the committed words: nothing is reported or cut off yet.
@@ -291,7 +459,7 @@ describe("useCommandCapture", () => {
       act(() => scribe().onCommittedTranscript?.({ text: "Tech creators." }))
       act(() => scribe().onPartialTranscript?.({ text: "under two" }))
 
-      const stopping = letGo(hook)
+      const { stopping } = await letGo(hook)
       act(() =>
         scribe().onCommittedTranscript?.({ text: "Under two thousand." })
       )
@@ -309,7 +477,7 @@ describe("useCommandCapture", () => {
         await started(hook)
         act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
 
-        const stopping = letGo(hook)
+        const { stopping } = await letGo(hook)
         await act(async () => {
           await vi.advanceTimersByTimeAsync(COMMIT_WAIT_MS - 1)
         })
@@ -336,7 +504,7 @@ describe("useCommandCapture", () => {
         const hook = setup()
         await started(hook)
 
-        const stopping = letGo(hook)
+        const { stopping } = await letGo(hook)
         act(() => scribe().onCommittedTranscript?.({ text: "Go to packages" }))
         await act(async () => stopping)
 
@@ -355,7 +523,7 @@ describe("useCommandCapture", () => {
       await started(hook)
       act(() => scribe().onPartialTranscript?.({ text: "open review" }))
 
-      const stopping = letGo(hook)
+      const { stopping } = await letGo(hook)
       act(() => scribe().onCommittedTranscript?.({ text: "" }))
       await act(async () => stopping)
 
@@ -383,7 +551,7 @@ describe("useCommandCapture", () => {
       await started(hook)
       act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
 
-      const stopping = letGo(hook)
+      const { stopping } = await letGo(hook)
       // Say, a commit with too little audio behind it.
       act(() => scribe().onError?.(new Error("insufficient audio activity")))
       await act(async () => stopping)
@@ -399,7 +567,7 @@ describe("useCommandCapture", () => {
       await started(hook)
       act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
 
-      const stopping = letGo(hook)
+      const { stopping } = await letGo(hook)
       act(() => scribe().onDisconnect?.())
       await act(async () => stopping)
 
@@ -414,7 +582,7 @@ describe("useCommandCapture", () => {
       await started(hook)
       act(() => scribe().onPartialTranscript?.({ text: "select the top" }))
 
-      const stopping = letGo(hook)
+      const { stopping } = await letGo(hook)
       act(() => scribe().onQuotaExceededError?.({ error: "quota" }))
       act(() => scribe().onError?.(new Error("quota")))
       await act(async () => stopping)
@@ -430,7 +598,7 @@ describe("useCommandCapture", () => {
       const hook = setup()
       await started(hook)
 
-      const first = letGo(hook)
+      const { stopping: first } = await letGo(hook)
       const second = hook.result.current.stop()
       act(() => scribe().onCommittedTranscript?.({ text: "Hello" }))
       await act(async () => {
@@ -457,17 +625,18 @@ describe("useCommandCapture", () => {
 
   describe("failures", () => {
     it.each([503, 401])(
-      "a %s from the token endpoint is fatal and never opens the microphone",
+      "a %s from the token endpoint is fatal and lets the microphone go",
       async (status) => {
         h.api.POST.mockResolvedValue({ error: {}, response: { status } })
         const hook = setup()
 
-        await started(hook)
+        await pressed(hook)
 
         expect(hook.handlers.onError).toHaveBeenCalledExactlyOnceWith({
           reason: "Voice is unavailable",
           fatal: true,
         })
+        expect(h.mic.close).toHaveBeenCalled()
         expect(h.scribe.connect).not.toHaveBeenCalled()
         expect(hook.handlers.onFinal).not.toHaveBeenCalled()
       }
@@ -498,20 +667,33 @@ describe("useCommandCapture", () => {
     })
 
     it.each([
-      ["Permission denied", "Microphone blocked"],
-      ["NotAllowedError: Permission dismissed", "Microphone blocked"],
-      ["The request is not allowed by the user agent", "Microphone blocked"],
-      ["Requested device not found", "No microphone found"],
-    ])("a microphone error (%s) is fatal", async (message, reason) => {
+      ["NotAllowedError", "Microphone blocked"],
+      ["SecurityError", "Microphone blocked"],
+      ["NotFoundError", "No microphone found"],
+      ["OverconstrainedError", "No microphone found"],
+      ["NotReadableError", "Microphone unavailable"],
+      ["TypeError", "Microphone unavailable"],
+    ])("a microphone that fails with %s is fatal", async (name, reason) => {
+      h.openMicrophone.mockRejectedValue(new DOMException("No", name))
       const hook = setup()
-      await started(hook)
 
-      act(() => scribe().onError?.(new Error(message)))
+      await pressed(hook)
 
       expect(hook.handlers.onError).toHaveBeenCalledExactlyOnceWith({
         reason,
         fatal: true,
       })
+      expect(hook.handlers.onConnected).not.toHaveBeenCalled()
+      expect(h.scribe.connect).not.toHaveBeenCalled()
+    })
+
+    it("a failure lets the microphone go", async () => {
+      const hook = setup()
+      await started(hook)
+
+      act(() => scribe().onError?.(new Error("WebSocket error")))
+
+      expect(h.mic.close).toHaveBeenCalled()
       expect(h.scribe.disconnect).toHaveBeenCalled()
     })
 

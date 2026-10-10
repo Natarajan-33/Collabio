@@ -34,8 +34,11 @@ export type DiscoverState = {
 /** How many creators one batch may hold. */
 export const MAX_SELECTED = 10
 export const SELECTION_CAP_MESSAGE = "Batches are limited to 10 creators"
-/** How many creators one search asks for (the API allows up to 48). */
-export const SEARCH_LIMIT = 24
+/**
+ * How many creators one search asks for: the most the API allows. Fewer would hide
+ * the least-followed creators from the open grid however recently they published.
+ */
+export const SEARCH_LIMIT = 48
 
 export const SELECTION_KEY = "collabio:selection"
 export const SEARCH_KEY = "collabio:search"

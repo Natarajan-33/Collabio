@@ -603,7 +603,7 @@ describe("Review: voice", () => {
         content_types: [],
         max_price_cents: 100000,
       },
-      limit: 24,
+      limit: 48,
     })
     // The batch goes with the brand.
     expect(loadSelection()).toEqual(["creator-1", "creator-2", "creator-3"])

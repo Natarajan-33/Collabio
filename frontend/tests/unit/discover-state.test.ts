@@ -11,6 +11,7 @@ import {
   loadSelection,
   packageFits,
   removeFilter,
+  requestFor,
   saveSearch,
   saveSelection,
   selectionOverflow,
@@ -495,5 +496,17 @@ describe("clearDiscoverSession", () => {
 
     expect(() => clearDiscoverSession()).not.toThrow()
     blocked.mockRestore()
+  })
+})
+
+describe("requestFor", () => {
+  it("asks for as many creators as the API allows, so the open grid shows everyone", () => {
+    // The marketplace holds 40 creators. At 24 the least-followed 16 (Priya among
+    // them) could never appear without a search that happened to rank them.
+    expect(requestFor(emptyDiscover)).toEqual({
+      query: null,
+      filters: emptyDiscover.filters,
+      limit: 48,
+    })
   })
 })
