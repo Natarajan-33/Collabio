@@ -13,6 +13,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.adapters.db import Database
 from app.adapters.elevenlabs import ElevenLabsClient, ElevenLabsPort
+from app.adapters.email import EmailPort, ResendClient
 from app.adapters.gemini import GeminiClient, GeminiPort
 from app.config import get_settings
 from app.modules.me import service as me_service
@@ -69,6 +70,15 @@ def get_elevenlabs() -> ElevenLabsPort:
         return ElevenLabsClient(get_settings())
     except ValueError as exc:  # no ELEVENLABS_API_KEY
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "elevenlabs_unavailable") from exc
+
+
+@lru_cache
+def get_email() -> EmailPort:
+    """The process-wide Resend client, built on first use."""
+    try:
+        return ResendClient(get_settings())
+    except ValueError as exc:  # no RESEND_API_KEY
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "email_unavailable") from exc
 
 
 @lru_cache

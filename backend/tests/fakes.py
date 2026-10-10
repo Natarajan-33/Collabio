@@ -7,6 +7,11 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from app.adapters.elevenlabs import (
+    ConversationSnapshot,
+    ElevenLabsUnavailable,
+)
+from app.adapters.email import OutboundEmail
 from app.adapters.gemini import (
     EMBED_DIMENSIONS,
     GeminiInvalidOutput,
@@ -80,14 +85,83 @@ class FakeGemini:
 
 
 class FakeElevenLabs:
-    """ElevenLabsPort without the network: hands out `token`, or raises `failure` if given."""
+    """ElevenLabsPort without the network.
+
+    `mint_scribe_token` hands out a fixed token, or raises `failure` if given.
+    `mint_conversation_token` records the agent id in `conversation_tokens`.
+    `place_call` records its kwargs in `calls`, raises `call_failure` if set, and
+    returns `conv_1`, `conv_2`, ... `get_conversation` serves `snapshots` by id; a
+    missing id raises `ElevenLabsUnavailable`.
+    """
 
     def __init__(self, *, failure: Exception | None = None) -> None:
         self.mint_calls = 0
         self._failure = failure
+        self.conversation_tokens: list[str] = []
+        self.calls: list[dict[str, Any]] = []
+        self.call_failure: Exception | None = None
+        self.snapshots: dict[str, ConversationSnapshot] = {}
 
     async def mint_scribe_token(self) -> ScribeToken:
         self.mint_calls += 1
         if self._failure is not None:
             raise self._failure
         return ScribeToken(token="fake-scribe-token", expires_at="2026-10-09T12:15:00+00:00")
+
+    async def mint_conversation_token(self, agent_id: str) -> str:
+        self.conversation_tokens.append(agent_id)
+        return f"fake-conversation-token-{len(self.conversation_tokens)}"
+
+    async def place_call(
+        self,
+        *,
+        agent_id: str,
+        phone_number_id: str,
+        to_number: str,
+        dynamic_variables: dict[str, str],
+    ) -> str:
+        self.calls.append(
+            {
+                "agent_id": agent_id,
+                "phone_number_id": phone_number_id,
+                "to_number": to_number,
+                "dynamic_variables": dynamic_variables,
+            }
+        )
+        if self.call_failure is not None:
+            raise self.call_failure
+        return f"conv_{len(self.calls)}"
+
+    async def get_conversation(self, conversation_id: str) -> ConversationSnapshot:
+        try:
+            return self.snapshots[conversation_id]
+        except KeyError:
+            raise ElevenLabsUnavailable(f"no snapshot for {conversation_id}") from None
+
+
+class FakeEmail:
+    """EmailPort without the network; dedupes by idempotency key, like Resend.
+
+    `sent` holds `(email, idempotency_key)` per distinct key. `failures` maps a
+    recipient address to the exception its send raises (nothing is recorded).
+    With `crash_after_send` the send is recorded, then `RuntimeError("crash")` is raised,
+    as when the process dies between Resend accepting the mail and the app noting it.
+    """
+
+    def __init__(self) -> None:
+        self.sent: list[tuple[OutboundEmail, str]] = []
+        self.failures: dict[str, Exception] = {}
+        self.crash_after_send = False
+        self._ids: dict[str, str] = {}
+
+    async def send(self, email: OutboundEmail, *, idempotency_key: str) -> str:
+        if email.to in self.failures:
+            raise self.failures[email.to]
+        email_id = self._ids.get(idempotency_key)
+        if email_id is None:
+            email_id = f"email_{len(self._ids) + 1}"
+            self._ids[idempotency_key] = email_id
+            self.sent.append((email, idempotency_key))
+        if self.crash_after_send:
+            raise RuntimeError("crash")
+        return email_id

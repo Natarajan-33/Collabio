@@ -19,10 +19,10 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.adapters.db import Database
-from app.api.deps import get_db, get_elevenlabs, get_gemini, get_jwks_client
+from app.api.deps import get_db, get_elevenlabs, get_email, get_gemini, get_jwks_client
 from app.config import get_settings
 from app.main import create_app
-from tests.fakes import FakeElevenLabs, FakeGemini
+from tests.fakes import FakeElevenLabs, FakeEmail, FakeGemini
 from tests.tokens import TEST_JWKS, StaticJWKSClient, auth_header
 
 
@@ -146,6 +146,14 @@ def fake_elevenlabs(app: FastAPI) -> FakeElevenLabs:
     elevenlabs = FakeElevenLabs()
     app.dependency_overrides[get_elevenlabs] = lambda: elevenlabs
     return elevenlabs
+
+
+@pytest.fixture
+def fake_email(app: FastAPI) -> FakeEmail:
+    """Send email through FakeEmail instead of Resend."""
+    email = FakeEmail()
+    app.dependency_overrides[get_email] = lambda: email
+    return email
 
 
 async def _auth_user_id(db: Database, email: str) -> uuid.UUID:
