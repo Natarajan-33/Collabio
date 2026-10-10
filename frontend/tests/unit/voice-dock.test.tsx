@@ -82,8 +82,16 @@ const CREATORS = [
 ]
 const pageContext: VoiceContext = { visible_creators: CREATORS }
 
-function intent(over: Partial<VoiceIntent> = {}): VoiceIntent {
-  return { kind: "search", heard: "Tech creators", suggestions: [], ...over }
+// `navigate` is typed loosely so tests can send routes the API never would.
+function intent(
+  over: Omit<Partial<VoiceIntent>, "navigate"> & { navigate?: string | null } = {}
+): VoiceIntent {
+  return {
+    kind: "search",
+    heard: "Tech creators",
+    suggestions: [],
+    ...over,
+  } as VoiceIntent
 }
 
 function ok(data: VoiceIntent) {

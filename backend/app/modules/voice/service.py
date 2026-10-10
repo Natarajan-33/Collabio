@@ -15,6 +15,7 @@ from app.modules.voice.prompts import ROUTER_SYSTEM, router_prompt
 from app.schemas.packages import PackageDraft
 from app.schemas.voice import (
     ALLOWED_INTENTS,
+    OpenThreadArgs,
     RoutedIntent,
     SelectArgs,
     VoiceCommandRequest,
@@ -42,6 +43,8 @@ DEFAULT_SUGGESTIONS: dict[VoiceScreen, list[str]] = {
         "Add a thumbnail pack for fifty dollars",
         "Lead time is five days",
     ],
+    "brief": ["Go to the board", "Go to discover"],
+    "board": ["Open Priya's thread", "Sort by price", "Sort by best value"],
     "any": ["Go to discover", "Go to my packages"],
 }
 
@@ -106,6 +109,13 @@ def _to_intent(req: VoiceCommandRequest, routed: RoutedIntent) -> VoiceIntent:
             current = req.context.package_draft or PackageDraft()
             merged = merge_package_draft(current, routed.package_draft)
             return VoiceIntent(kind=kind, heard=heard, package_draft=merged)
+        case "open_thread" if routed.open_thread_name:
+            ids = resolve_creator_refs([routed.open_thread_name], req.context.visible_creators)
+            if ids:
+                open_thread = OpenThreadArgs(creator_id=ids[0])
+                return VoiceIntent(kind=kind, heard=heard, open_thread=open_thread)
+        case "sort" if routed.sort is not None:
+            return VoiceIntent(kind=kind, heard=heard, sort=routed.sort)
         case "navigate" if routed.navigate is not None:
             return VoiceIntent(kind=kind, heard=heard, navigate=routed.navigate)
     return unclear  # the kind's payload is missing, or names matched no visible creator

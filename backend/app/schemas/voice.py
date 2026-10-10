@@ -12,18 +12,32 @@ from pydantic import BaseModel, Field
 from app.schemas.discovery import SearchRequest
 from app.schemas.packages import PackageDraft
 
-VoiceScreen = Literal["discover", "review", "packages", "any"]
+VoiceScreen = Literal["discover", "review", "packages", "brief", "board", "any"]
 # The pages a spoken "go to ..." may open; the model cannot name any other route.
-NavigateRoute = Literal["/brand/discover", "/brand/discover/review", "/creator/packages"]
-IntentKind = Literal[
-    "search", "select", "clear_selection", "open_review", "package_draft", "navigate", "unclear"
+NavigateRoute = Literal[
+    "/brand/discover", "/brand/discover/review", "/brand/batches", "/creator/packages"
 ]
+IntentKind = Literal[
+    "search",
+    "select",
+    "clear_selection",
+    "open_review",
+    "package_draft",
+    "open_thread",
+    "sort",
+    "navigate",
+    "unclear",
+]
+# How the board orders its threads, spoken as "cheapest", "best value", "by status", "newest".
+BoardSortKey = Literal["best_value", "price", "status", "recent"]
 
 # `unclear` is always allowed: it is how a router says "nothing here applies".
 ALLOWED_INTENTS: dict[VoiceScreen, set[str]] = {
     "discover": {"search", "select", "clear_selection", "open_review", "navigate"},
     "review": {"search", "select", "clear_selection", "open_review", "navigate"},
     "packages": {"package_draft", "navigate"},
+    "brief": {"navigate"},  # the conversation agent handles the brief itself
+    "board": {"open_thread", "sort", "navigate"},
     "any": {"navigate"},
 }
 
@@ -63,6 +77,12 @@ class SelectArgs(BaseModel):
     top_n: int | None = Field(None, ge=1, le=48)
 
 
+class OpenThreadArgs(BaseModel):
+    """Whose thread to open on the board."""
+
+    creator_id: UUID
+
+
 class RoutedSelect(BaseModel):
     """`SelectArgs` as the model gives it: creators by the name the user said."""
 
@@ -78,6 +98,8 @@ class RoutedIntent(BaseModel):
     search: SearchRequest | None = None
     select: RoutedSelect | None = None
     package_draft: PackageDraft | None = None
+    open_thread_name: str | None = None
+    sort: BoardSortKey | None = None
     navigate: NavigateRoute | None = None
     suggestions: list[str] = []
 
@@ -91,5 +113,7 @@ class VoiceIntent(BaseModel):
     search: SearchRequest | None = None
     select: SelectArgs | None = None
     package_draft: PackageDraft | None = None
-    navigate: str | None = None
+    open_thread: OpenThreadArgs | None = None
+    sort: BoardSortKey | None = None
+    navigate: NavigateRoute | None = None
     suggestions: list[str] = []

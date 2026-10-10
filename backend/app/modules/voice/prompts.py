@@ -79,7 +79,15 @@ means select.top_n = N. Do not mix the two unless both were said.
 - open_review: open the side-by-side comparison of the selected creators ("compare", "open review").
 - package_draft: the creator is dictating a package. Fill package_draft by the package field \
 rules below.
-- navigate: go to another page. navigate is one of the routes {", ".join(get_args(NavigateRoute))}.
+- open_thread: on the board, "open/show X's thread/card" opens one creator's thread. Set \
+open_thread_name to the creator's name exactly as the user said it (match against the visible \
+creators if one is close).
+- sort: on the board, reorder the threads. Set sort to one of best_value, price, status, recent: \
+"sort by price", "cheapest" -> price; "best value", "best deal" -> best_value; "by status" -> \
+status; "newest", "latest" -> recent.
+- navigate: go to another page. navigate is one of the routes {", ".join(get_args(NavigateRoute))}. \
+"Go to the board" navigates to /brand/batches. On the brief screen only navigate applies (the \
+conversation agent handles the brief itself), so anything else there is unclear.
 - unclear: you are not sure what was meant, or the command does not fit the screen. Set \
 suggestions to 2 or 3 short example commands that would work on this screen.
 

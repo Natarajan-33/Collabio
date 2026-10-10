@@ -107,3 +107,24 @@ async def test_readme_demo_phrase_fills_the_package_draft(settings):
     assert (addon.price_cents, addon.unit) == (35000, "video")
     assert draft.extras == []
     assert draft.name is None  # never said: the one field the creator still has to fill
+
+
+@pytest.mark.live
+@pytest.mark.parametrize(
+    ("phrase", "kind"),
+    [
+        ("open Priya's thread", "open_thread"),
+        ("sort by cheapest", "sort"),
+        ("show me the best value first", "sort"),
+        ("go to the board", "navigate"),
+    ],
+)
+async def test_board_phrases(settings, phrase, kind):
+    priya = CreatorRef(id=UUID(int=3), name="Priya Nair", handle="priyanair")
+    arjun = CreatorRef(id=UUID(int=2), name="Arjun Mehta", handle="arjuntech")
+
+    intent = await route(settings, "board", phrase, visible_creators=[priya, arjun])
+
+    assert intent.kind == kind
+    if kind == "open_thread":
+        assert intent.open_thread.creator_id == priya.id

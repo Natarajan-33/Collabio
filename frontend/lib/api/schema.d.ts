@@ -1207,6 +1207,17 @@ export interface components {
             open_questions: string[];
         };
         /**
+         * OpenThreadArgs
+         * @description Whose thread to open on the board.
+         */
+        OpenThreadArgs: {
+            /**
+             * Creator Id
+             * Format: uuid
+             */
+            creator_id: string;
+        };
+        /**
          * PackageDelta
          * @description How the brief's ask (and the creator's latest terms) differ from the listed package.
          *
@@ -1626,7 +1637,7 @@ export interface components {
              * Screen
              * @enum {string}
              */
-            screen: "discover" | "review" | "packages" | "any";
+            screen: "discover" | "review" | "packages" | "brief" | "board" | "any";
             /** Transcript */
             transcript: string;
             context: components["schemas"]["VoiceContext"];
@@ -1653,14 +1664,17 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "search" | "select" | "clear_selection" | "open_review" | "package_draft" | "navigate" | "unclear";
+            kind: "search" | "select" | "clear_selection" | "open_review" | "package_draft" | "open_thread" | "sort" | "navigate" | "unclear";
             /** Heard */
             heard: string;
             search?: components["schemas"]["SearchRequest"] | null;
             select?: components["schemas"]["SelectArgs"] | null;
             package_draft?: components["schemas"]["PackageDraft"] | null;
+            open_thread?: components["schemas"]["OpenThreadArgs"] | null;
+            /** Sort */
+            sort?: ("best_value" | "price" | "status" | "recent") | null;
             /** Navigate */
-            navigate?: string | null;
+            navigate?: ("/brand/discover" | "/brand/discover/review" | "/brand/batches" | "/creator/packages") | null;
             /**
              * Suggestions
              * @default []

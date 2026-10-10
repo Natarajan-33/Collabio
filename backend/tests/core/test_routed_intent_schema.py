@@ -22,6 +22,12 @@ ROUTED_INTENT_REPLY = {
     "heard": "tech creators under two grand",
     "search": {"filters": {"niches": ["consumer_tech"], "max_price_cents": 200000, "region": "IN"}},
 }
+OPEN_THREAD_REPLY = {
+    "kind": "open_thread",
+    "heard": "open Priya's thread",
+    "open_thread_name": "priya",
+}
+SORT_REPLY = {"kind": "sort", "heard": "sort by price", "sort": "price"}
 EXTRACTED_DRAFT_REPLY = {
     "heard": "two videos for a thousand with a thumbnail pack for fifty",
     "draft": {
@@ -40,7 +46,12 @@ def settings() -> Settings:
 
 @pytest.mark.parametrize(
     ("schema", "reply"),
-    [(RoutedIntent, ROUTED_INTENT_REPLY), (ExtractedDraft, EXTRACTED_DRAFT_REPLY)],
+    [
+        (RoutedIntent, ROUTED_INTENT_REPLY),
+        (RoutedIntent, OPEN_THREAD_REPLY),
+        (RoutedIntent, SORT_REPLY),
+        (ExtractedDraft, EXTRACTED_DRAFT_REPLY),
+    ],
 )
 async def test_the_sdk_accepts_our_response_schemas(settings, respx_mock, schema, reply):
     candidate = {"content": {"role": "model", "parts": [{"text": json.dumps(reply)}]}}

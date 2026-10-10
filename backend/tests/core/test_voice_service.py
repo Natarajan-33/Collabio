@@ -23,6 +23,7 @@ from tests.fakes import FakeGemini
 
 MAYA = CreatorRef(id=uuid4(), name="Maya Chen", handle="mayatech")
 ARJUN = CreatorRef(id=uuid4(), name="Arjun Mehta", handle="arjuntech")
+PRIYA = CreatorRef(id=uuid4(), name="Priya Nair", handle="priyanair")
 
 
 def request(
@@ -168,6 +169,69 @@ async def test_a_route_outside_the_app_is_unclear(gemini):
     assert intent.kind == "unclear" and intent.navigate is None
 
 
+# Board and brief ------------------------------------------------------------
+
+
+async def test_open_thread_resolves_a_visible_creator(gemini):
+    reply = RoutedIntent(kind="open_thread", heard="open Priya's thread", open_thread_name="priya")
+
+    intent = await route(gemini, request("board", visible_creators=[PRIYA, ARJUN]), reply)
+
+    assert intent.kind == "open_thread"
+    assert intent.open_thread.creator_id == PRIYA.id
+    assert intent.sort is None and intent.navigate is None
+
+
+async def test_open_thread_for_an_unknown_name_is_unclear(gemini):
+    reply = RoutedIntent(kind="open_thread", heard="open Zed's thread", open_thread_name="zed")
+
+    intent = await route(gemini, request("board", visible_creators=[PRIYA, ARJUN]), reply)
+
+    assert intent.kind == "unclear" and intent.open_thread is None and intent.suggestions
+
+
+async def test_open_thread_without_a_name_is_unclear(gemini):
+    intent = await route(gemini, request("board"), RoutedIntent(kind="open_thread", heard="x"))
+    assert intent.kind == "unclear"
+
+
+@pytest.mark.parametrize("key", ["best_value", "price", "status", "recent"])
+async def test_sort_passes_through(gemini, key):
+    reply = RoutedIntent(kind="sort", heard="sort by price", sort=key)
+    intent = await route(gemini, request("board"), reply)
+    assert (intent.kind, intent.sort) == ("sort", key)
+
+
+async def test_sort_without_a_key_is_unclear(gemini):
+    intent = await route(gemini, request("board"), RoutedIntent(kind="sort", heard="sort"))
+    assert intent.kind == "unclear"
+
+
+async def test_open_thread_is_not_allowed_on_discover(gemini):
+    reply = RoutedIntent(kind="open_thread", heard="open Priya's thread", open_thread_name="priya")
+
+    intent = await route(gemini, request("discover", visible_creators=[PRIYA]), reply)
+
+    assert intent.kind == "unclear" and intent.open_thread is None
+
+
+async def test_the_brief_screen_only_navigates(gemini):
+    reply = RoutedIntent(kind="sort", heard="sort by price", sort="price")
+    intent = await route(gemini, request("brief"), reply)
+    assert intent.kind == "unclear" and intent.sort is None
+
+
+async def test_go_to_the_board_navigates_from_the_brief(gemini):
+    reply = RoutedIntent(kind="navigate", heard="go to the board", navigate="/brand/batches")
+    intent = await route(gemini, request("brief"), reply)
+    assert (intent.kind, intent.navigate) == ("navigate", "/brand/batches")
+
+
+def test_the_board_and_brief_allow_their_own_intents():
+    assert ALLOWED_INTENTS["brief"] == {"navigate"}
+    assert ALLOWED_INTENTS["board"] == {"open_thread", "sort", "navigate"}
+
+
 # Unclear --------------------------------------------------------------------
 
 
@@ -209,7 +273,7 @@ async def test_the_models_own_suggestions_are_kept_up_to_three(gemini):
     assert intent.suggestions == ["a", "b", "c"] and MAX_SUGGESTIONS == 3
 
 
-@pytest.mark.parametrize("screen", ["discover", "review", "packages", "any"])
+@pytest.mark.parametrize("screen", ["discover", "review", "packages", "any", "brief", "board"])
 async def test_no_suggestions_from_the_model_falls_back_to_screen_examples(gemini, screen):
     intent = await route(gemini, request(screen), RoutedIntent(kind="unclear", heard="mumble"))
     assert 2 <= len(intent.suggestions) <= MAX_SUGGESTIONS
