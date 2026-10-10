@@ -14,10 +14,12 @@ from uuid import UUID
 
 import asyncpg
 
-from app.core.thread_state import check_transition
+from app.core.thread_state import IllegalTransition, check_transition
 from app.schemas.negotiation import Actor, EventType, NegotiationTerms
 
 TermsSource = Literal["brand", "creator"]
+
+SELECT_STATUS = "select status from public.threads where id = $1"
 
 SELECT_REF = "select id, batch_id, brand_id, creator_id from public.threads where id = $1"
 INSERT_EVENT = """
@@ -172,3 +174,32 @@ async def update_latest_terms(
 ) -> None:
     """Set the thread's latest terms without changing its status."""
     await conn.execute(UPDATE_TERMS, thread_id, _terms_json(terms), source)
+
+
+async def fail_thread(conn: asyncpg.Connection, thread_id: UUID, reason: str) -> None:
+    """Move a thread to `failed` with a `failed` event carrying `reason`.
+
+    Does nothing when the thread's status cannot move to `failed` or someone else moves it
+    first; a failure is never worth an error of its own.
+    """
+    thread = await load_ref(conn, thread_id)
+    current = await conn.fetchval(SELECT_STATUS, thread_id)
+    if thread is None or current is None:
+        return
+    try:
+        check_transition(current, "failed")
+    except IllegalTransition:
+        return
+    try:
+        await apply_event(
+            conn,
+            thread,
+            expected={current},
+            target="failed",
+            type="failed",
+            actor="system",
+            payload={"reason": reason},
+            last_error=reason,
+        )
+    except StaleThread:
+        return

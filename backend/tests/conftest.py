@@ -29,7 +29,7 @@ from app.api.deps import (
     get_jwks_client,
     optional_gemini,
 )
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.main import create_app
 from app.modules.briefs.service import BriefService
 from app.schemas.briefs import LaunchRequest
@@ -151,6 +151,24 @@ def fake_gemini(app: FastAPI) -> FakeGemini:
     app.dependency_overrides[get_gemini] = lambda: gemini
     app.dependency_overrides[optional_gemini] = lambda: gemini
     return gemini
+
+
+@pytest.fixture
+def m2_settings(app: FastAPI) -> Settings:
+    """Settings with the M2 ElevenLabs and Resend values filled in, served wherever the app
+    (or a test) asks for `get_settings` through `Depends`."""
+    settings = get_settings().model_copy(
+        update={
+            "elevenlabs_negotiation_agent_id": "agent_neg",
+            "elevenlabs_phone_number_id": "phnum_1",
+            "elevenlabs_tool_secret": "tool-secret",
+            "elevenlabs_webhook_secret": "hook-secret",
+            "elevenlabs_brief_agent_id": "agent_brief",
+            "resend_from": "Lumen Audio <outreach@test.collabio.dev>",
+        }
+    )
+    app.dependency_overrides[get_settings] = lambda: settings
+    return settings
 
 
 @pytest.fixture
