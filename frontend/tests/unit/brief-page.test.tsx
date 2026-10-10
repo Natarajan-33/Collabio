@@ -1,6 +1,7 @@
 import {
   act,
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -34,6 +35,29 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "brief-1" }),
 }))
 vi.mock("sonner", () => ({ toast: { error: h.toastError } }))
+// The conversation itself is covered by agent-session.test.tsx: here the stub only
+// shows what the page hands it and lets a test play the agent.
+vi.mock("@/components/brief/agent-session", () => ({
+  AgentSession: (props: {
+    edited: ReadonlySet<string>
+    onSaved: (brief: DealBrief) => void
+    onHighlight: (creatorId: string) => void
+    onReady: () => void
+  }) => (
+    <div data-slot="agent-session">
+      <output data-testid="edited">{[...props.edited].join(",")}</output>
+      <button
+        onClick={() =>
+          props.onSaved(complete({ ask_price_cents: 90000, missing: [] }))
+        }
+      >
+        agent saves ask
+      </button>
+      <button onClick={() => props.onHighlight("priya")}>agent shows</button>
+      <button onClick={() => props.onReady()}>agent ready</button>
+    </div>
+  ),
+}))
 
 const BRIEF_PATH = "/api/v1/briefs/{brief_id}"
 const PREVIEW_PATH = "/api/v1/briefs/{brief_id}/preview"
@@ -399,5 +423,69 @@ describe("Brief page", () => {
     await renderPage()
 
     expect(document.querySelector('[data-slot="agent-session"]')).not.toBeNull()
+  })
+
+  it("shows what the agent saved, but tells the agent only about the brand's edits", async () => {
+    const user = userEvent.setup()
+    await renderPage()
+
+    await user.click(screen.getByRole("button", { name: "agent saves ask" }))
+
+    await waitFor(() =>
+      expect(row("ask_price_cents").dataset.state).toBe("changed")
+    )
+    expect(within(row("ask_price_cents")).getByText("$900")).toBeTruthy()
+    expect(screen.getByTestId("edited").textContent).toBe("")
+    await waitFor(() =>
+      expect(
+        h.api.GET.mock.calls.filter(([p]) => p === PREVIEW_PATH)
+      ).toHaveLength(2)
+    )
+
+    h.api.PATCH.mockImplementation(async () => {
+      current = complete({ ask_price_cents: 80000 })
+      return { data: current, response: { status: 200 } }
+    })
+    await user.click(screen.getByRole("button", { name: "Edit Opening ask" }))
+    const input = screen.getByLabelText("Opening ask")
+    await user.clear(input)
+    await user.type(input, "800")
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() =>
+      expect(screen.getByTestId("edited").textContent).toBe("ask_price_cents")
+    )
+  })
+
+  it("outlines the creator the agent names, then lets go", async () => {
+    await renderPage()
+    vi.useFakeTimers()
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "agent shows" }))
+
+      const priya = screen.getByRole("listitem", { name: "Priya Shah" })
+      expect(priya.dataset.highlighted).toBe("true")
+      expect(
+        screen.getByRole("listitem", { name: "Arjun Rao" }).dataset.highlighted
+      ).toBeUndefined()
+
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+      expect(priya.dataset.highlighted).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("draws the eye to Launch when the agent says the brief is ready", async () => {
+    const user = userEvent.setup()
+    await renderPage()
+    const pulse = () => document.querySelector("[data-pulse]")
+    expect(pulse()).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "agent ready" }))
+
+    expect(pulse()?.getAttribute("data-pulse")).toBe("true")
   })
 })

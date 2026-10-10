@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import * as React from "react"
 import { toast } from "sonner"
 
+import { AgentSession } from "@/components/brief/agent-session"
 import { BriefCard } from "@/components/brief/brief-card"
 import { CreatorsPanel } from "@/components/brief/creators-panel"
 import { LaunchBar } from "@/components/brief/launch-bar"
@@ -32,6 +33,8 @@ type Policy = components["schemas"]["LaunchRequest"]["follow_up_policy"]
 type Phase = "loading" | "ready" | "failed"
 
 const NO_CHANGES: ReadonlySet<BriefFieldKey> = new Set()
+/** How long a creator the agent named stays outlined. */
+const HIGHLIGHT_MS = 5000
 const REVIEW_PATH = "/brand/discover/review"
 
 function boardPath(batchId: string): string {
@@ -53,6 +56,12 @@ export default function BriefPage() {
   )
   const [changed, setChanged] =
     React.useState<ReadonlySet<BriefFieldKey>>(NO_CHANGES)
+  // The fields the brand changed by hand: the agent is told about these, not about its own.
+  const [edited, setEdited] =
+    React.useState<ReadonlySet<BriefFieldKey>>(NO_CHANGES)
+  // The creator the agent just named, and whether it has said the brief is complete.
+  const [highlighted, setHighlighted] = React.useState<string | null>(null)
+  const [ready, setReady] = React.useState(false)
   const [policy, setPolicy] = React.useState<Policy>("suggest")
   const [launching, setLaunching] = React.useState(false)
   // Set at once, unlike state, so a double click cannot launch twice.
@@ -133,6 +142,24 @@ export default function BriefPage() {
     if (batchId) router.replace(boardPath(batchId))
   }, [batchId, router])
 
+  // The ring around a named creator fades after a few seconds.
+  React.useEffect(() => {
+    if (!highlighted) return
+    const timer = setTimeout(() => setHighlighted(null), HIGHLIGHT_MS)
+    return () => clearTimeout(timer)
+  }, [highlighted])
+
+  // A brief saved from outside the card (the agent): mark what changed and re-compare.
+  const applySaved = React.useCallback(
+    (saved: DealBrief) => {
+      setChanged(changedFields(briefRef.current, saved))
+      commit(saved)
+      setReady(false)
+      void refreshPreview()
+    },
+    [commit, refreshPreview]
+  )
+
   const edit = React.useCallback(
     async (_key: BriefFieldKey, patch: BriefPatch): Promise<string | null> => {
       let reply
@@ -146,9 +173,8 @@ export default function BriefPage() {
       }
 
       if (reply.data) {
-        setChanged(changedFields(briefRef.current, reply.data))
-        commit(reply.data)
-        void refreshPreview()
+        setEdited(changedFields(briefRef.current, reply.data))
+        applySaved(reply.data)
         return null
       }
       switch (reply.response.status) {
@@ -167,7 +193,7 @@ export default function BriefPage() {
           return "Couldn't save. Try again."
       }
     },
-    [api, path, commit, refreshPreview, refreshBrief]
+    [api, path, applySaved, refreshBrief]
   )
 
   // Who the launch reaches: everyone who has not opted out of contact.
@@ -313,14 +339,22 @@ export default function BriefPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div className="flex flex-col gap-4">
-          {/* The brief agent's session goes here (Task 19); it takes no room until then. */}
-          <div data-slot="agent-session" className="empty:hidden" />
+          <AgentSession
+            briefId={id}
+            brief={brief}
+            preview={creators}
+            edited={edited}
+            onSaved={applySaved}
+            onHighlight={setHighlighted}
+            onReady={() => setReady(true)}
+          />
           <BriefCard brief={brief} changed={changed} onEdit={edit} />
         </div>
 
         <div className="flex flex-col gap-4">
           <CreatorsPanel
             creators={creators}
+            highlighted={highlighted}
             channels={channels}
             onChannel={(creatorId, plan) =>
               setChannels((current) => ({ ...current, [creatorId]: plan }))
@@ -334,6 +368,7 @@ export default function BriefPage() {
             onPolicy={setPolicy}
             onLaunch={() => void launch()}
             launching={launching}
+            pulse={ready}
           />
         </div>
       </div>
