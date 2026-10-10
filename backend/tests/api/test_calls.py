@@ -162,6 +162,27 @@ async def test_call_placement_failure_recorded(
     assert await events(api_db, thread_id, "call_placed") == []
 
 
+async def test_placement_failure_never_leaks_the_phone_number(
+    api_db, launched_batch, fake_elevenlabs, m2_settings
+):
+    thread_id = await claim_arjun(api_db, launched_batch)
+    phone = await phone_of(api_db, thread_id)
+    digits = phone.lstrip("+")
+    fake_elevenlabs.call_failure = CallPlacementFailed(
+        f"The number {phone} is unverified; also {digits}, ({digits}) and "
+        f"{phone[:2]} {digits[1:4]}-{digits[4:7]}-{digits[7:]}"
+    )
+
+    await run(api_db, thread_id, elevenlabs=fake_elevenlabs, settings=m2_settings)
+
+    reason = "Call couldn't be placed: The number the creator's number is unverified; also "
+    reason += "the creator's number, (the creator's number) and the creator's number"
+    await assert_failed(api_db, thread_id, reason)
+    row = await thread_row(api_db, thread_id)
+    everything = json.dumps(await events(api_db, thread_id), default=str) + row["last_error"]
+    assert digits not in everything
+
+
 async def test_voice_service_unavailable_recorded(
     api_db, launched_batch, fake_elevenlabs, m2_settings
 ):

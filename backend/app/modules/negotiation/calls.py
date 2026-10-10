@@ -7,6 +7,7 @@ The creator's phone number is used only to dial: it never goes into an event pay
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from datetime import date
 from uuid import UUID
@@ -127,6 +128,17 @@ def dynamic_variables(ctx: CallContext) -> dict[str, str]:
     }
 
 
+def _scrub_phone(message: str, phone: str) -> str:
+    """`message` with the number (with or without `+`, digits only, or split by spaces, dots,
+    dashes and brackets) replaced: ElevenLabs' refusals can name the dialed number, and the
+    reason is brand-facing."""
+    digits = re.sub(r"\D", "", phone)
+    if not digits:
+        return message
+    pattern = r"\+?" + r"[\s().-]*".join(digits)
+    return re.sub(pattern, "the creator's number", message)
+
+
 async def _fail(db: Database, thread_id: UUID, reason: str) -> None:
     async with db.transaction() as conn:
         await repo.fail_thread(conn, thread_id, reason)
@@ -173,7 +185,7 @@ async def start_call(
             dynamic_variables=dynamic_variables(ctx),
         )
     except CallPlacementFailed as exc:
-        await _fail(db, thread_id, f"Call couldn't be placed: {exc}")
+        await _fail(db, thread_id, f"Call couldn't be placed: {_scrub_phone(str(exc), ctx.phone)}")
         return
     except ElevenLabsUnavailable:
         await _fail(db, thread_id, VOICE_UNAVAILABLE)

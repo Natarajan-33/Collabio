@@ -142,6 +142,8 @@ class ElevenLabsClient:
                 conversation_initiation_client_data=ConversationInitiationClientDataRequestInput(
                     dynamic_variables=dict(dynamic_variables)
                 ),
+                # A call is never retried: a 5xx after it was dialed would ring the creator twice.
+                request_options={"max_retries": 0},
             )
         except (ApiError, httpx.TransportError) as exc:
             raise ElevenLabsUnavailable(f"ElevenLabs call request failed: {exc}") from exc

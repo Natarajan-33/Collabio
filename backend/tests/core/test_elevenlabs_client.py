@@ -130,6 +130,20 @@ async def test_place_call_passes_dynamic_variables(settings):
     }
 
 
+async def test_place_call_is_never_retried_by_the_sdk(settings):
+    # A 5xx after the call was dialed would otherwise be retried and ring the creator again.
+    twilio = StubTwilio(
+        TwilioOutboundCallResponse(success=True, message="ok", conversation_id="conv_9")
+    )
+
+    await stubbed(settings, twilio=twilio).place_call(
+        agent_id="a", phone_number_id="p", to_number="+14155550100", dynamic_variables={}
+    )
+
+    [call] = twilio.calls
+    assert call["request_options"] == {"max_retries": 0}
+
+
 async def test_place_call_unsuccessful_raises_call_placement_failed(settings):
     twilio = StubTwilio(TwilioOutboundCallResponse(success=False, message="Number is invalid"))
     with pytest.raises(CallPlacementFailed, match="Number is invalid"):
