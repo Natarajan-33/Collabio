@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.adapters.db import Database
 from app.api.routers import (
+    board,
     briefs,
     creators,
     discovery,
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
     api.include_router(packages.router)
     api.include_router(voice.router)
     api.include_router(briefs.router)
+    api.include_router(board.router)
     api.include_router(unsubscribe.router)
     api.include_router(webhooks.router)
     app.include_router(api)

@@ -576,6 +576,756 @@
           }
         ]
       }
+    },
+    "/api/v1/briefs": {
+      "post": {
+        "tags": [
+          "briefs"
+        ],
+        "summary": "Create Brief",
+        "description": "Start a draft brief for these creators, prefilled from the brand and its product.",
+        "operationId": "create_brief_api_v1_briefs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBriefRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealBrief"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`detail` is `{error: unknown_creators, creator_ids: [...]}`"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/briefs/{brief_id}": {
+      "get": {
+        "tags": [
+          "briefs"
+        ],
+        "summary": "Get Brief",
+        "description": "The brief with what it still needs and which rules it breaks.",
+        "operationId": "get_brief_api_v1_briefs__brief_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brief_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Brief Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealBrief"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`brief_not_found`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "briefs"
+        ],
+        "summary": "Update Brief",
+        "description": "Change the fields sent; fields left out stay as they are and `null` clears one.",
+        "operationId": "update_brief_api_v1_briefs__brief_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brief_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Brief Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BriefPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealBrief"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`brief_not_found`"
+          },
+          "409": {
+            "description": "`brief_launched`"
+          },
+          "422": {
+            "description": "`detail` is `{error: invalid_field, field, message}`"
+          }
+        }
+      }
+    },
+    "/api/v1/briefs/{brief_id}/preview": {
+      "get": {
+        "tags": [
+          "briefs"
+        ],
+        "summary": "Preview Brief",
+        "description": "Each creator's anchor package, how the brief differs from it, and the default channel.",
+        "operationId": "preview_brief_api_v1_briefs__brief_id__preview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brief_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Brief Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`brief_not_found`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/briefs/{brief_id}/launch": {
+      "post": {
+        "tags": [
+          "briefs"
+        ],
+        "summary": "Launch Brief",
+        "description": "Launch a complete brief: one batch, and a queued negotiation thread per creator.",
+        "operationId": "launch_brief_api_v1_briefs__brief_id__launch_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brief_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Brief Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`brief_not_found`"
+          },
+          "409": {
+            "description": "`brief_launched`"
+          },
+          "422": {
+            "description": "`detail` is `{error: brief_incomplete, missing, violations}`, `{error: channel_not_allowed, creator_id, message}` or `{error: no_creators}`"
+          }
+        }
+      }
+    },
+    "/api/v1/briefs/{brief_id}/voice-session": {
+      "post": {
+        "tags": [
+          "briefs"
+        ],
+        "summary": "Voice Session",
+        "description": "A token to talk the brief through with the brief agent, and what the agent should know.",
+        "operationId": "voice_session_api_v1_briefs__brief_id__voice_session_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brief_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Brief Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceSessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`brief_not_found`"
+          },
+          "409": {
+            "description": "`brief_launched`"
+          },
+          "503": {
+            "description": "`voice_unavailable`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/batches": {
+      "get": {
+        "tags": [
+          "board"
+        ],
+        "summary": "List Batches",
+        "description": "The brand's launched batches, newest first.",
+        "operationId": "list_batches_api_v1_batches_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BatchListItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Batches Api V1 Batches Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/batches/{batch_id}": {
+      "get": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Get Batch",
+        "description": "The batch's cards ranked by best value, with the brief summary and the KPIs.",
+        "operationId": "get_batch_api_v1_batches__batch_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Batch Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`batch_not_found`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{thread_id}": {
+      "get": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Get Thread",
+        "description": "The thread's card with its event log and transcripts.",
+        "operationId": "get_thread_api_v1_threads__thread_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{thread_id}/retry": {
+      "post": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Retry Thread",
+        "description": "Requeue a failed thread; the worker picks it up again.",
+        "operationId": "retry_thread_api_v1_threads__thread_id__retry_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadCard"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "409": {
+            "description": "`thread_not_failed`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/unsubscribe/{reply_token}": {
+      "get": {
+        "tags": [
+          "unsubscribe"
+        ],
+        "summary": "Unsubscribe Get",
+        "operationId": "unsubscribe_get_api_v1_unsubscribe__reply_token__get",
+        "parameters": [
+          {
+            "name": "reply_token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reply Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "unsubscribe"
+        ],
+        "summary": "Unsubscribe Post",
+        "operationId": "unsubscribe_post_api_v1_unsubscribe__reply_token__post",
+        "parameters": [
+          {
+            "name": "reply_token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reply Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/elevenlabs/post-call": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Post Call",
+        "description": "A finished call or brief conversation. Every validly signed body answers 200, even one\nwe cannot use, so that ElevenLabs stops retrying it.",
+        "operationId": "post_call_api_v1_webhooks_elevenlabs_post_call_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object",
+                  "title": "Response Post Call Api V1 Webhooks Elevenlabs Post Call Post"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_signature`"
+          },
+          "503": {
+            "description": "`webhook_unconfigured`"
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/elevenlabs/tools/check-counter": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Check Counter",
+        "operationId": "check_counter_api_v1_webhooks_elevenlabs_tools_check_counter_post",
+        "parameters": [
+          {
+            "name": "x-collabio-tool-secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Collabio-Tool-Secret"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckCounterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckCounterResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "409": {
+            "description": "`thread_not_in_call`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/elevenlabs/tools/log-offer": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Log Offer",
+        "operationId": "log_offer_api_v1_webhooks_elevenlabs_tools_log_offer_post",
+        "parameters": [
+          {
+            "name": "x-collabio-tool-secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Collabio-Tool-Secret"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogOfferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogOfferResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "409": {
+            "description": "`thread_not_in_call`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -607,6 +1357,204 @@
         ],
         "title": "Addon",
         "description": "A priced add-on. `unit=\"video\"` means one more video at this price."
+      },
+      "BatchKpis": {
+        "properties": {
+          "contacted": {
+            "type": "integer",
+            "title": "Contacted"
+          },
+          "replied": {
+            "type": "integer",
+            "title": "Replied"
+          },
+          "countered": {
+            "type": "integer",
+            "title": "Countered"
+          },
+          "best_per_video_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Per Video Cents"
+          },
+          "launched_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Launched At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contacted",
+          "replied",
+          "countered",
+          "best_per_video_cents",
+          "launched_at"
+        ],
+        "title": "BatchKpis"
+      },
+      "BatchListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "brief_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Brief Id"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "launched_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Launched At"
+          },
+          "thread_count": {
+            "type": "integer",
+            "title": "Thread Count"
+          },
+          "contacted": {
+            "type": "integer",
+            "title": "Contacted"
+          },
+          "replied": {
+            "type": "integer",
+            "title": "Replied"
+          },
+          "countered": {
+            "type": "integer",
+            "title": "Countered"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "brief_id",
+          "product_name",
+          "launched_at",
+          "thread_count",
+          "contacted",
+          "replied",
+          "countered"
+        ],
+        "title": "BatchListItem"
+      },
+      "BatchView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "brief": {
+            "$ref": "#/components/schemas/BriefSummary"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/BatchKpis"
+          },
+          "threads": {
+            "items": {
+              "$ref": "#/components/schemas/ThreadCard"
+            },
+            "type": "array",
+            "title": "Threads"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "brief",
+          "kpis",
+          "threads"
+        ],
+        "title": "BatchView"
+      },
+      "BestValue": {
+        "properties": {
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "per_video_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Video Cents"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "ineligible_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ineligible Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thread_id",
+          "eligible",
+          "rank",
+          "score",
+          "per_video_cents",
+          "reasons",
+          "ineligible_reason"
+        ],
+        "title": "BestValue",
+        "description": "A thread's place in the best-value ranking, with the reasons that earned it."
       },
       "BrandOnboarding": {
         "properties": {
@@ -695,6 +1643,419 @@
         ],
         "title": "BrandSummary"
       },
+      "BriefCreatorPreview": {
+        "properties": {
+          "creator_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Creator Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          },
+          "initials": {
+            "type": "string",
+            "title": "Initials"
+          },
+          "package": {
+            "$ref": "#/components/schemas/PackageSummary"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageDelta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default_channel": {
+            "type": "string",
+            "enum": [
+              "email",
+              "call",
+              "email_then_call"
+            ],
+            "title": "Default Channel"
+          },
+          "call_allowed": {
+            "type": "boolean",
+            "title": "Call Allowed"
+          },
+          "excluded_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excluded Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "creator_id",
+          "name",
+          "handle",
+          "initials",
+          "package",
+          "delta",
+          "default_channel",
+          "call_allowed",
+          "excluded_reason"
+        ],
+        "title": "BriefCreatorPreview",
+        "description": "One creator of a brief: the package it is compared against and how to reach them."
+      },
+      "BriefPatch": {
+        "properties": {
+          "brand_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand Name"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "product_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Summary"
+          },
+          "deliverables_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliverables Count"
+          },
+          "deliverables_format": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "short_video",
+                  "long_video",
+                  "story",
+                  "live"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliverables Format"
+          },
+          "deliverable_length_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliverable Length S"
+          },
+          "go_live_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Go Live By"
+          },
+          "budget_ceiling_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Ceiling Cents"
+          },
+          "ask_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask Price Cents"
+          },
+          "negotiation_ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negotiation Ask"
+          },
+          "flexibility": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "timeline",
+                    "price",
+                    "deliverables",
+                    "none"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flexibility"
+          },
+          "flexibility_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flexibility Note"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "intake_conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intake Conversation Id"
+          }
+        },
+        "type": "object",
+        "title": "BriefPatch",
+        "description": "Changes to a brief. Only the fields the client sent are applied; an explicit `null`\nclears a field (`flexibility: null` empties the list)."
+      },
+      "BriefPreview": {
+        "properties": {
+          "creators": {
+            "items": {
+              "$ref": "#/components/schemas/BriefCreatorPreview"
+            },
+            "type": "array",
+            "title": "Creators"
+          }
+        },
+        "type": "object",
+        "required": [
+          "creators"
+        ],
+        "title": "BriefPreview"
+      },
+      "BriefSummary": {
+        "properties": {
+          "brief_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Brief Id"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "deliverables_count": {
+            "type": "integer",
+            "title": "Deliverables Count"
+          },
+          "deliverables_format": {
+            "type": "string",
+            "enum": [
+              "short_video",
+              "long_video",
+              "story",
+              "live"
+            ],
+            "title": "Deliverables Format"
+          },
+          "ask_price_cents": {
+            "type": "integer",
+            "title": "Ask Price Cents"
+          },
+          "budget_ceiling_cents": {
+            "type": "integer",
+            "title": "Budget Ceiling Cents"
+          },
+          "go_live_by": {
+            "type": "string",
+            "format": "date",
+            "title": "Go Live By"
+          },
+          "follow_up_policy": {
+            "type": "string",
+            "enum": [
+              "off",
+              "suggest",
+              "auto"
+            ],
+            "title": "Follow Up Policy"
+          }
+        },
+        "type": "object",
+        "required": [
+          "brief_id",
+          "product_name",
+          "deliverables_count",
+          "deliverables_format",
+          "ask_price_cents",
+          "budget_ceiling_cents",
+          "go_live_by",
+          "follow_up_policy"
+        ],
+        "title": "BriefSummary",
+        "description": "The brief behind a batch. `budget_ceiling_cents` is brand-only (the board is too)."
+      },
+      "CheckCounterRequest": {
+        "properties": {
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "price_usd": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Price Usd"
+          },
+          "videos": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Videos"
+          },
+          "conditions": {
+            "type": "string",
+            "title": "Conditions",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "thread_id",
+          "price_usd",
+          "videos"
+        ],
+        "title": "CheckCounterRequest",
+        "description": "The agent asks whether the creator's price fits. Agents speak dollars (Ruling 9)."
+      },
+      "CheckCounterResponse": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "within",
+              "over"
+            ],
+            "title": "Verdict"
+          },
+          "suggested_counter_price_usd": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Counter Price Usd"
+          },
+          "talking_point": {
+            "type": "string",
+            "title": "Talking Point"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict",
+          "suggested_counter_price_usd",
+          "talking_point"
+        ],
+        "title": "CheckCounterResponse"
+      },
+      "CreateBriefRequest": {
+        "properties": {
+          "creator_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Creator Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "creator_ids"
+        ],
+        "title": "CreateBriefRequest",
+        "description": "The creators a new brief is for, in the order the brand picked them."
+      },
       "CreatorCard": {
         "properties": {
           "id": {
@@ -769,6 +2130,36 @@
         ],
         "title": "CreatorCard",
         "description": "A creator with their published packages, cheapest first.\n\n`engagement_rate` is in percentage points (5.8 means 5.8%)."
+      },
+      "CreatorChip": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle"
+          },
+          "initials": {
+            "type": "string",
+            "title": "Initials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "handle",
+          "initials"
+        ],
+        "title": "CreatorChip",
+        "description": "Who a thread is with; never their contact details."
       },
       "CreatorOnboarding": {
         "properties": {
@@ -895,6 +2286,235 @@
         ],
         "title": "CreatorSummary"
       },
+      "DealBrief": {
+        "properties": {
+          "brand_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand Name"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "product_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Summary"
+          },
+          "deliverables_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliverables Count"
+          },
+          "deliverables_format": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "short_video",
+                  "long_video",
+                  "story",
+                  "live"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliverables Format"
+          },
+          "deliverable_length_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliverable Length S"
+          },
+          "go_live_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Go Live By"
+          },
+          "budget_ceiling_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Ceiling Cents"
+          },
+          "ask_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask Price Cents"
+          },
+          "negotiation_ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negotiation Ask"
+          },
+          "flexibility": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "timeline",
+                "price",
+                "deliverables",
+                "none"
+              ]
+            },
+            "type": "array",
+            "title": "Flexibility",
+            "default": []
+          },
+          "flexibility_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flexibility Note"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "ready",
+              "launched"
+            ],
+            "title": "Status"
+          },
+          "creator_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Creator Ids"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/RuleViolation"
+            },
+            "type": "array",
+            "title": "Violations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "creator_ids",
+          "approved_at",
+          "batch_id",
+          "missing",
+          "violations"
+        ],
+        "title": "DealBrief",
+        "description": "A brief as the brand sees it. `missing` and `violations` are computed on every read."
+      },
       "DraftFromSpeechRequest": {
         "properties": {
           "transcript": {
@@ -948,6 +2568,37 @@
         "title": "DraftResult",
         "description": "The open draft after the latest dictation, what it still needs, and what it breaks.\n\n`missing` lists the required fields with no value yet, in the order the editor asks\nfor them. `violations` are the publishing rules already broken by the values present."
       },
+      "EmailPreview": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body_text": {
+            "type": "string",
+            "title": "Body Text"
+          },
+          "delivered": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "body_text",
+          "delivered"
+        ],
+        "title": "EmailPreview",
+        "description": "The outreach email as drafted; `delivered` is False for a test address, None until sent."
+      },
       "Extra": {
         "properties": {
           "name": {
@@ -994,6 +2645,170 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "LaunchExclusion": {
+        "properties": {
+          "creator_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Creator Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "creator_id",
+          "reason"
+        ],
+        "title": "LaunchExclusion",
+        "description": "A creator the launch left out, and why."
+      },
+      "LaunchRequest": {
+        "properties": {
+          "channels": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "email",
+                "call",
+                "email_then_call"
+              ]
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Channels",
+            "default": {}
+          },
+          "follow_up_policy": {
+            "type": "string",
+            "enum": [
+              "off",
+              "suggest",
+              "auto"
+            ],
+            "title": "Follow Up Policy",
+            "default": "off"
+          }
+        },
+        "type": "object",
+        "title": "LaunchRequest",
+        "description": "How to launch: the channel per creator (a missing creator gets the default for their\npackage and contact details) and what to do with creators who never reply."
+      },
+      "LaunchResponse": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Batch Id"
+          },
+          "thread_count": {
+            "type": "integer",
+            "title": "Thread Count"
+          },
+          "excluded": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchExclusion"
+            },
+            "type": "array",
+            "title": "Excluded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "thread_count",
+          "excluded"
+        ],
+        "title": "LaunchResponse"
+      },
+      "LogOfferRequest": {
+        "properties": {
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "price_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Usd"
+          },
+          "videos": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Videos"
+          },
+          "go_live_by": {
+            "type": "string",
+            "title": "Go Live By",
+            "default": ""
+          },
+          "conditions": {
+            "type": "string",
+            "title": "Conditions",
+            "default": ""
+          },
+          "stance": {
+            "type": "string",
+            "enum": [
+              "offer",
+              "counter",
+              "accept",
+              "decline",
+              "question",
+              "no_commitment"
+            ],
+            "title": "Stance"
+          },
+          "speaker": {
+            "type": "string",
+            "enum": [
+              "creator",
+              "agent"
+            ],
+            "title": "Speaker"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thread_id",
+          "stance",
+          "speaker"
+        ],
+        "title": "LogOfferRequest",
+        "description": "The agent logs what was just said on the call, by either side."
+      },
+      "LogOfferResponse": {
+        "properties": {
+          "logged": {
+            "type": "boolean",
+            "title": "Logged"
+          }
+        },
+        "type": "object",
+        "required": [
+          "logged"
+        ],
+        "title": "LogOfferResponse"
       },
       "MeResponse": {
         "properties": {
@@ -1237,6 +3052,255 @@
         ],
         "title": "MyPackage",
         "description": "A package card plus what only its creator sees or edits: status, private floor and\nthe terms a card leaves out (`included`, `freebies`, `extras`, `slots_per_month`)."
+      },
+      "NegotiationTerms": {
+        "properties": {
+          "videos": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Videos"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "short_video",
+                  "long_video",
+                  "story",
+                  "live"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Cents"
+          },
+          "go_live_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Go Live By"
+          },
+          "conditions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conditions",
+            "default": []
+          },
+          "addons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Addons",
+            "default": []
+          },
+          "stance": {
+            "type": "string",
+            "enum": [
+              "offer",
+              "counter",
+              "accept",
+              "decline",
+              "question",
+              "no_commitment"
+            ],
+            "title": "Stance"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "call",
+              "email",
+              "in_app"
+            ],
+            "title": "Source"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "open_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Open Questions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "stance",
+          "source",
+          "confidence"
+        ],
+        "title": "NegotiationTerms",
+        "description": "Terms as stated by one side in one message or call; every deal field is optional."
+      },
+      "PackageDelta": {
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Package Id"
+          },
+          "package_name": {
+            "type": "string",
+            "title": "Package Name"
+          },
+          "listed_videos": {
+            "type": "integer",
+            "title": "Listed Videos"
+          },
+          "ask_videos": {
+            "type": "integer",
+            "title": "Ask Videos"
+          },
+          "latest_videos": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Videos"
+          },
+          "listed_price_cents": {
+            "type": "integer",
+            "title": "Listed Price Cents"
+          },
+          "ask_price_cents": {
+            "type": "integer",
+            "title": "Ask Price Cents"
+          },
+          "latest_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Price Cents"
+          },
+          "listed_per_video_cents": {
+            "type": "integer",
+            "title": "Listed Per Video Cents"
+          },
+          "ask_per_video_cents": {
+            "type": "integer",
+            "title": "Ask Per Video Cents"
+          },
+          "latest_per_video_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Per Video Cents"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "days_to_go_live": {
+            "type": "integer",
+            "title": "Days To Go Live"
+          },
+          "headline": {
+            "type": "string",
+            "title": "Headline"
+          },
+          "latest_headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Headline"
+          },
+          "flags": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "below_base_price",
+                "lead_time_conflict",
+                "estimated"
+              ]
+            },
+            "type": "array",
+            "title": "Flags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "package_id",
+          "package_name",
+          "listed_videos",
+          "ask_videos",
+          "latest_videos",
+          "listed_price_cents",
+          "ask_price_cents",
+          "latest_price_cents",
+          "listed_per_video_cents",
+          "ask_per_video_cents",
+          "latest_per_video_cents",
+          "lead_time_days",
+          "days_to_go_live",
+          "headline",
+          "latest_headline",
+          "flags"
+        ],
+        "title": "PackageDelta",
+        "description": "How the brief's ask (and the creator's latest terms) differ from the listed package.\n\n`listed_price_cents` is the listed price for the ask's video count, not the base price."
       },
       "PackageDraft": {
         "properties": {
@@ -1895,6 +3959,355 @@
         "title": "SelectArgs",
         "description": "Which creators to select: those named (`creator_ids`) or the first `top_n` shown."
       },
+      "ThreadCard": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/CreatorChip"
+          },
+          "channel_plan": {
+            "type": "string",
+            "enum": [
+              "email",
+              "call",
+              "email_then_call"
+            ],
+            "title": "Channel Plan"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "drafting",
+              "awaiting_reply",
+              "calling",
+              "in_call",
+              "countered",
+              "accepted",
+              "declined",
+              "needs_review",
+              "failed",
+              "awarded",
+              "closed_lost",
+              "no_response",
+              "follow_up_suggested"
+            ],
+            "title": "Status"
+          },
+          "package": {
+            "$ref": "#/components/schemas/PackageSummary"
+          },
+          "latest_terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NegotiationTerms"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_terms_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "brand",
+                  "creator"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Terms Source"
+          },
+          "delta": {
+            "$ref": "#/components/schemas/PackageDelta"
+          },
+          "last_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThreadEventView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmailPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "live_offers": {
+            "items": {
+              "$ref": "#/components/schemas/NegotiationTerms"
+            },
+            "type": "array",
+            "title": "Live Offers"
+          },
+          "best_value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BestValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "creator",
+          "channel_plan",
+          "status",
+          "package",
+          "latest_terms",
+          "latest_terms_source",
+          "delta",
+          "last_event",
+          "email",
+          "live_offers",
+          "best_value",
+          "last_error",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ThreadCard",
+        "description": "One creator's negotiation on the board."
+      },
+      "ThreadDetail": {
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/ThreadCard"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ThreadEventView"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "transcripts": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptView"
+            },
+            "type": "array",
+            "title": "Transcripts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card",
+          "events",
+          "transcripts"
+        ],
+        "title": "ThreadDetail"
+      },
+      "ThreadEventView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "email_drafted",
+              "email_sent",
+              "email_bounced",
+              "call_placed",
+              "call_started",
+              "call_offer_logged",
+              "call_ended",
+              "email_received",
+              "counter_submitted",
+              "brand_counter_sent",
+              "accepted",
+              "declined",
+              "follow_up_suggested",
+              "follow_up_approved",
+              "awarded",
+              "closed_lost",
+              "needs_review",
+              "failed",
+              "retried"
+            ],
+            "title": "Type"
+          },
+          "actor": {
+            "type": "string",
+            "enum": [
+              "brand",
+              "brand_agent",
+              "creator",
+              "system"
+            ],
+            "title": "Actor"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NegotiationTerms"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "actor",
+          "created_at",
+          "payload",
+          "terms"
+        ],
+        "title": "ThreadEventView"
+      },
+      "TranscriptTurn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "user"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "t": {
+            "type": "number",
+            "title": "T"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "text",
+          "t"
+        ],
+        "title": "TranscriptTurn",
+        "description": "One spoken turn of a call: who spoke, what they said, and seconds from the start."
+      },
+      "TranscriptView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "body_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Text"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTurn"
+            },
+            "type": "array",
+            "title": "Turns"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "created_at",
+          "subject",
+          "body_text",
+          "turns",
+          "summary"
+        ],
+        "title": "TranscriptView"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -2066,6 +4479,28 @@
         ],
         "title": "VoiceIntent",
         "description": "What the screen should do. Only the field for `kind` is set; `unclear` carries\n`suggestions` of what to say instead."
+      },
+      "VoiceSessionResponse": {
+        "properties": {
+          "conversation_token": {
+            "type": "string",
+            "title": "Conversation Token"
+          },
+          "dynamic_variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Dynamic Variables"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversation_token",
+          "dynamic_variables"
+        ],
+        "title": "VoiceSessionResponse",
+        "description": "What the browser needs to start a conversation with the brief agent."
       }
     },
     "securitySchemes": {

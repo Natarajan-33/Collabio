@@ -248,6 +248,263 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/briefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Brief
+         * @description Start a draft brief for these creators, prefilled from the brand and its product.
+         */
+        post: operations["create_brief_api_v1_briefs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/briefs/{brief_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Brief
+         * @description The brief with what it still needs and which rules it breaks.
+         */
+        get: operations["get_brief_api_v1_briefs__brief_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Brief
+         * @description Change the fields sent; fields left out stay as they are and `null` clears one.
+         */
+        patch: operations["update_brief_api_v1_briefs__brief_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/briefs/{brief_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Brief
+         * @description Each creator's anchor package, how the brief differs from it, and the default channel.
+         */
+        get: operations["preview_brief_api_v1_briefs__brief_id__preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/briefs/{brief_id}/launch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Launch Brief
+         * @description Launch a complete brief: one batch, and a queued negotiation thread per creator.
+         */
+        post: operations["launch_brief_api_v1_briefs__brief_id__launch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/briefs/{brief_id}/voice-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Voice Session
+         * @description A token to talk the brief through with the brief agent, and what the agent should know.
+         */
+        post: operations["voice_session_api_v1_briefs__brief_id__voice_session_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Batches
+         * @description The brand's launched batches, newest first.
+         */
+        get: operations["list_batches_api_v1_batches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/batches/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Batch
+         * @description The batch's cards ranked by best value, with the brief summary and the KPIs.
+         */
+        get: operations["get_batch_api_v1_batches__batch_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{thread_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Thread
+         * @description The thread's card with its event log and transcripts.
+         */
+        get: operations["get_thread_api_v1_threads__thread_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{thread_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Thread
+         * @description Requeue a failed thread; the worker picks it up again.
+         */
+        post: operations["retry_thread_api_v1_threads__thread_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/unsubscribe/{reply_token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Unsubscribe Get */
+        get: operations["unsubscribe_get_api_v1_unsubscribe__reply_token__get"];
+        put?: never;
+        /** Unsubscribe Post */
+        post: operations["unsubscribe_post_api_v1_unsubscribe__reply_token__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/elevenlabs/post-call": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Call
+         * @description A finished call or brief conversation. Every validly signed body answers 200, even one
+         *     we cannot use, so that ElevenLabs stops retrying it.
+         */
+        post: operations["post_call_api_v1_webhooks_elevenlabs_post_call_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/elevenlabs/tools/check-counter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Counter */
+        post: operations["check_counter_api_v1_webhooks_elevenlabs_tools_check_counter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/elevenlabs/tools/log-offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log Offer */
+        post: operations["log_offer_api_v1_webhooks_elevenlabs_tools_log_offer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -266,6 +523,85 @@ export interface components {
              * @enum {string}
              */
             unit: "video" | "item";
+        };
+        /** BatchKpis */
+        BatchKpis: {
+            /** Contacted */
+            contacted: number;
+            /** Replied */
+            replied: number;
+            /** Countered */
+            countered: number;
+            /** Best Per Video Cents */
+            best_per_video_cents: number | null;
+            /**
+             * Launched At
+             * Format: date-time
+             */
+            launched_at: string;
+        };
+        /** BatchListItem */
+        BatchListItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Brief Id
+             * Format: uuid
+             */
+            brief_id: string;
+            /** Product Name */
+            product_name: string;
+            /**
+             * Launched At
+             * Format: date-time
+             */
+            launched_at: string;
+            /** Thread Count */
+            thread_count: number;
+            /** Contacted */
+            contacted: number;
+            /** Replied */
+            replied: number;
+            /** Countered */
+            countered: number;
+        };
+        /** BatchView */
+        BatchView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            brief: components["schemas"]["BriefSummary"];
+            kpis: components["schemas"]["BatchKpis"];
+            /** Threads */
+            threads: components["schemas"]["ThreadCard"][];
+        };
+        /**
+         * BestValue
+         * @description A thread's place in the best-value ranking, with the reasons that earned it.
+         */
+        BestValue: {
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            /** Eligible */
+            eligible: boolean;
+            /** Rank */
+            rank: number | null;
+            /** Score */
+            score: number | null;
+            /** Per Video Cents */
+            per_video_cents: number | null;
+            /** Reasons */
+            reasons: string[];
+            /** Ineligible Reason */
+            ineligible_reason: string | null;
         };
         /**
          * BrandOnboarding
@@ -304,6 +640,148 @@ export interface components {
             category: string | null;
         };
         /**
+         * BriefCreatorPreview
+         * @description One creator of a brief: the package it is compared against and how to reach them.
+         */
+        BriefCreatorPreview: {
+            /**
+             * Creator Id
+             * Format: uuid
+             */
+            creator_id: string;
+            /** Name */
+            name: string;
+            /** Handle */
+            handle: string;
+            /** Initials */
+            initials: string;
+            package: components["schemas"]["PackageSummary"];
+            delta: components["schemas"]["PackageDelta"] | null;
+            /**
+             * Default Channel
+             * @enum {string}
+             */
+            default_channel: "email" | "call" | "email_then_call";
+            /** Call Allowed */
+            call_allowed: boolean;
+            /** Excluded Reason */
+            excluded_reason: string | null;
+        };
+        /**
+         * BriefPatch
+         * @description Changes to a brief. Only the fields the client sent are applied; an explicit `null`
+         *     clears a field (`flexibility: null` empties the list).
+         */
+        BriefPatch: {
+            /** Brand Name */
+            brand_name?: string | null;
+            /** Product Name */
+            product_name?: string | null;
+            /** Product Summary */
+            product_summary?: string | null;
+            /** Deliverables Count */
+            deliverables_count?: number | null;
+            /** Deliverables Format */
+            deliverables_format?: ("short_video" | "long_video" | "story" | "live") | null;
+            /** Deliverable Length S */
+            deliverable_length_s?: number | null;
+            /** Go Live By */
+            go_live_by?: string | null;
+            /** Budget Ceiling Cents */
+            budget_ceiling_cents?: number | null;
+            /** Ask Price Cents */
+            ask_price_cents?: number | null;
+            /** Negotiation Ask */
+            negotiation_ask?: string | null;
+            /** Flexibility */
+            flexibility?: ("timeline" | "price" | "deliverables" | "none")[] | null;
+            /** Flexibility Note */
+            flexibility_note?: string | null;
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Intake Conversation Id */
+            intake_conversation_id?: string | null;
+        };
+        /** BriefPreview */
+        BriefPreview: {
+            /** Creators */
+            creators: components["schemas"]["BriefCreatorPreview"][];
+        };
+        /**
+         * BriefSummary
+         * @description The brief behind a batch. `budget_ceiling_cents` is brand-only (the board is too).
+         */
+        BriefSummary: {
+            /**
+             * Brief Id
+             * Format: uuid
+             */
+            brief_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Deliverables Count */
+            deliverables_count: number;
+            /**
+             * Deliverables Format
+             * @enum {string}
+             */
+            deliverables_format: "short_video" | "long_video" | "story" | "live";
+            /** Ask Price Cents */
+            ask_price_cents: number;
+            /** Budget Ceiling Cents */
+            budget_ceiling_cents: number;
+            /**
+             * Go Live By
+             * Format: date
+             */
+            go_live_by: string;
+            /**
+             * Follow Up Policy
+             * @enum {string}
+             */
+            follow_up_policy: "off" | "suggest" | "auto";
+        };
+        /**
+         * CheckCounterRequest
+         * @description The agent asks whether the creator's price fits. Agents speak dollars (Ruling 9).
+         */
+        CheckCounterRequest: {
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            /** Price Usd */
+            price_usd: number;
+            /** Videos */
+            videos: number;
+            /**
+             * Conditions
+             * @default
+             */
+            conditions: string;
+        };
+        /** CheckCounterResponse */
+        CheckCounterResponse: {
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "within" | "over";
+            /** Suggested Counter Price Usd */
+            suggested_counter_price_usd: number | null;
+            /** Talking Point */
+            talking_point: string;
+        };
+        /**
+         * CreateBriefRequest
+         * @description The creators a new brief is for, in the order the brand picked them.
+         */
+        CreateBriefRequest: {
+            /** Creator Ids */
+            creator_ids: string[];
+        };
+        /**
          * CreatorCard
          * @description A creator with their published packages, cheapest first.
          *
@@ -331,6 +809,23 @@ export interface components {
             engagement_rate: number | null;
             /** Packages */
             packages: components["schemas"]["PackageSummary"][];
+        };
+        /**
+         * CreatorChip
+         * @description Who a thread is with; never their contact details.
+         */
+        CreatorChip: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Handle */
+            handle: string;
+            /** Initials */
+            initials: string;
         };
         /**
          * CreatorOnboarding
@@ -386,6 +881,61 @@ export interface components {
             region: string | null;
         };
         /**
+         * DealBrief
+         * @description A brief as the brand sees it. `missing` and `violations` are computed on every read.
+         */
+        DealBrief: {
+            /** Brand Name */
+            brand_name?: string | null;
+            /** Product Name */
+            product_name?: string | null;
+            /** Product Summary */
+            product_summary?: string | null;
+            /** Deliverables Count */
+            deliverables_count?: number | null;
+            /** Deliverables Format */
+            deliverables_format?: ("short_video" | "long_video" | "story" | "live") | null;
+            /** Deliverable Length S */
+            deliverable_length_s?: number | null;
+            /** Go Live By */
+            go_live_by?: string | null;
+            /** Budget Ceiling Cents */
+            budget_ceiling_cents?: number | null;
+            /** Ask Price Cents */
+            ask_price_cents?: number | null;
+            /** Negotiation Ask */
+            negotiation_ask?: string | null;
+            /**
+             * Flexibility
+             * @default []
+             */
+            flexibility: ("timeline" | "price" | "deliverables" | "none")[];
+            /** Flexibility Note */
+            flexibility_note?: string | null;
+            /** Contact Email */
+            contact_email?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "ready" | "launched";
+            /** Creator Ids */
+            creator_ids: string[];
+            /** Approved At */
+            approved_at: string | null;
+            /** Batch Id */
+            batch_id: string | null;
+            /** Missing */
+            missing: string[];
+            /** Violations */
+            violations: components["schemas"]["RuleViolation"][];
+        };
+        /**
          * DraftFromSpeechRequest
          * @description What the creator just said about a package, and the draft it is to be folded into.
          */
@@ -411,6 +961,18 @@ export interface components {
             heard: string;
         };
         /**
+         * EmailPreview
+         * @description The outreach email as drafted; `delivered` is False for a test address, None until sent.
+         */
+        EmailPreview: {
+            /** Subject */
+            subject: string;
+            /** Body Text */
+            body_text: string;
+            /** Delivered */
+            delivered: boolean | null;
+        };
+        /**
          * Extra
          * @description A priced extra that is not a deliverable (raw footage, a thumbnail pack).
          */
@@ -432,6 +994,91 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * LaunchExclusion
+         * @description A creator the launch left out, and why.
+         */
+        LaunchExclusion: {
+            /**
+             * Creator Id
+             * Format: uuid
+             */
+            creator_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * LaunchRequest
+         * @description How to launch: the channel per creator (a missing creator gets the default for their
+         *     package and contact details) and what to do with creators who never reply.
+         */
+        LaunchRequest: {
+            /**
+             * Channels
+             * @default {}
+             */
+            channels: {
+                [key: string]: "email" | "call" | "email_then_call";
+            };
+            /**
+             * Follow Up Policy
+             * @default off
+             * @enum {string}
+             */
+            follow_up_policy: "off" | "suggest" | "auto";
+        };
+        /** LaunchResponse */
+        LaunchResponse: {
+            /**
+             * Batch Id
+             * Format: uuid
+             */
+            batch_id: string;
+            /** Thread Count */
+            thread_count: number;
+            /** Excluded */
+            excluded: components["schemas"]["LaunchExclusion"][];
+        };
+        /**
+         * LogOfferRequest
+         * @description The agent logs what was just said on the call, by either side.
+         */
+        LogOfferRequest: {
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            /** Price Usd */
+            price_usd?: number | null;
+            /** Videos */
+            videos?: number | null;
+            /**
+             * Go Live By
+             * @default
+             */
+            go_live_by: string;
+            /**
+             * Conditions
+             * @default
+             */
+            conditions: string;
+            /**
+             * Stance
+             * @enum {string}
+             */
+            stance: "offer" | "counter" | "accept" | "decline" | "question" | "no_commitment";
+            /**
+             * Speaker
+             * @enum {string}
+             */
+            speaker: "creator" | "agent";
+        };
+        /** LogOfferResponse */
+        LogOfferResponse: {
+            /** Logged */
+            logged: boolean;
         };
         /**
          * MeResponse
@@ -517,6 +1164,90 @@ export interface components {
             extras: components["schemas"]["Extra"][];
             /** Slots Per Month */
             slots_per_month: number | null;
+        };
+        /**
+         * NegotiationTerms
+         * @description Terms as stated by one side in one message or call; every deal field is optional.
+         */
+        NegotiationTerms: {
+            /** Videos */
+            videos?: number | null;
+            /** Format */
+            format?: ("short_video" | "long_video" | "story" | "live") | null;
+            /** Price Cents */
+            price_cents?: number | null;
+            /** Go Live By */
+            go_live_by?: string | null;
+            /**
+             * Conditions
+             * @default []
+             */
+            conditions: string[];
+            /**
+             * Addons
+             * @default []
+             */
+            addons: string[];
+            /**
+             * Stance
+             * @enum {string}
+             */
+            stance: "offer" | "counter" | "accept" | "decline" | "question" | "no_commitment";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "call" | "email" | "in_app";
+            /** Confidence */
+            confidence: number;
+            /**
+             * Open Questions
+             * @default []
+             */
+            open_questions: string[];
+        };
+        /**
+         * PackageDelta
+         * @description How the brief's ask (and the creator's latest terms) differ from the listed package.
+         *
+         *     `listed_price_cents` is the listed price for the ask's video count, not the base price.
+         */
+        PackageDelta: {
+            /**
+             * Package Id
+             * Format: uuid
+             */
+            package_id: string;
+            /** Package Name */
+            package_name: string;
+            /** Listed Videos */
+            listed_videos: number;
+            /** Ask Videos */
+            ask_videos: number;
+            /** Latest Videos */
+            latest_videos: number | null;
+            /** Listed Price Cents */
+            listed_price_cents: number;
+            /** Ask Price Cents */
+            ask_price_cents: number;
+            /** Latest Price Cents */
+            latest_price_cents: number | null;
+            /** Listed Per Video Cents */
+            listed_per_video_cents: number;
+            /** Ask Per Video Cents */
+            ask_per_video_cents: number;
+            /** Latest Per Video Cents */
+            latest_per_video_cents: number | null;
+            /** Lead Time Days */
+            lead_time_days: number | null;
+            /** Days To Go Live */
+            days_to_go_live: number;
+            /** Headline */
+            headline: string;
+            /** Latest Headline */
+            latest_headline: string | null;
+            /** Flags */
+            flags: ("below_base_price" | "lead_time_conflict" | "estimated")[];
         };
         /**
          * PackageDraft
@@ -761,6 +1492,121 @@ export interface components {
             /** Top N */
             top_n?: number | null;
         };
+        /**
+         * ThreadCard
+         * @description One creator's negotiation on the board.
+         */
+        ThreadCard: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            creator: components["schemas"]["CreatorChip"];
+            /**
+             * Channel Plan
+             * @enum {string}
+             */
+            channel_plan: "email" | "call" | "email_then_call";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "drafting" | "awaiting_reply" | "calling" | "in_call" | "countered" | "accepted" | "declined" | "needs_review" | "failed" | "awarded" | "closed_lost" | "no_response" | "follow_up_suggested";
+            package: components["schemas"]["PackageSummary"];
+            latest_terms: components["schemas"]["NegotiationTerms"] | null;
+            /** Latest Terms Source */
+            latest_terms_source: ("brand" | "creator") | null;
+            delta: components["schemas"]["PackageDelta"];
+            last_event: components["schemas"]["ThreadEventView"] | null;
+            email: components["schemas"]["EmailPreview"] | null;
+            /** Live Offers */
+            live_offers: components["schemas"]["NegotiationTerms"][];
+            best_value: components["schemas"]["BestValue"] | null;
+            /** Last Error */
+            last_error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ThreadDetail */
+        ThreadDetail: {
+            card: components["schemas"]["ThreadCard"];
+            /** Events */
+            events: components["schemas"]["ThreadEventView"][];
+            /** Transcripts */
+            transcripts: components["schemas"]["TranscriptView"][];
+        };
+        /** ThreadEventView */
+        ThreadEventView: {
+            /** Id */
+            id: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "queued" | "email_drafted" | "email_sent" | "email_bounced" | "call_placed" | "call_started" | "call_offer_logged" | "call_ended" | "email_received" | "counter_submitted" | "brand_counter_sent" | "accepted" | "declined" | "follow_up_suggested" | "follow_up_approved" | "awarded" | "closed_lost" | "needs_review" | "failed" | "retried";
+            /**
+             * Actor
+             * @enum {string}
+             */
+            actor: "brand" | "brand_agent" | "creator" | "system";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            terms: components["schemas"]["NegotiationTerms"] | null;
+        };
+        /**
+         * TranscriptTurn
+         * @description One spoken turn of a call: who spoke, what they said, and seconds from the start.
+         */
+        TranscriptTurn: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "agent" | "user";
+            /** Text */
+            text: string;
+            /** T */
+            t: number;
+        };
+        /** TranscriptView */
+        TranscriptView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Subject */
+            subject: string | null;
+            /** Body Text */
+            body_text: string | null;
+            /** Turns */
+            turns: components["schemas"]["TranscriptTurn"][];
+            /** Summary */
+            summary: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -820,6 +1666,18 @@ export interface components {
              * @default []
              */
             suggestions: string[];
+        };
+        /**
+         * VoiceSessionResponse
+         * @description What the browser needs to start a conversation with the brief agent.
+         */
+        VoiceSessionResponse: {
+            /** Conversation Token */
+            conversation_token: string;
+            /** Dynamic Variables */
+            dynamic_variables: {
+                [key: string]: string;
+            };
         };
     };
     responses: never;
@@ -1261,6 +2119,596 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    create_brief_api_v1_briefs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBriefRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealBrief"];
+                };
+            };
+            /** @description `detail` is `{error: unknown_creators, creator_ids: [...]}` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_brief_api_v1_briefs__brief_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brief_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealBrief"];
+                };
+            };
+            /** @description `brief_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_brief_api_v1_briefs__brief_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brief_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BriefPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealBrief"];
+                };
+            };
+            /** @description `brief_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `brief_launched` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `detail` is `{error: invalid_field, field, message}` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    preview_brief_api_v1_briefs__brief_id__preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brief_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefPreview"];
+                };
+            };
+            /** @description `brief_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    launch_brief_api_v1_briefs__brief_id__launch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brief_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LaunchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LaunchResponse"];
+                };
+            };
+            /** @description `brief_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `brief_launched` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `detail` is `{error: brief_incomplete, missing, violations}`, `{error: channel_not_allowed, creator_id, message}` or `{error: no_creators}` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    voice_session_api_v1_briefs__brief_id__voice_session_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brief_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSessionResponse"];
+                };
+            };
+            /** @description `brief_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `brief_launched` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description `voice_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_batches_api_v1_batches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchListItem"][];
+                };
+            };
+        };
+    };
+    get_batch_api_v1_batches__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchView"];
+                };
+            };
+            /** @description `batch_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_thread_api_v1_threads__thread_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDetail"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_thread_api_v1_threads__thread_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadCard"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `thread_not_failed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unsubscribe_get_api_v1_unsubscribe__reply_token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reply_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unsubscribe_post_api_v1_unsubscribe__reply_token__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reply_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_call_api_v1_webhooks_elevenlabs_post_call_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description `invalid_signature` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `webhook_unconfigured` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    check_counter_api_v1_webhooks_elevenlabs_tools_check_counter_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-collabio-tool-secret"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckCounterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCounterResponse"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `thread_not_in_call` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    log_offer_api_v1_webhooks_elevenlabs_tools_log_offer_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-collabio-tool-secret"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogOfferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogOfferResponse"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `thread_not_in_call` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
