@@ -9,6 +9,8 @@ Two steps, so tests can run the database half inside a rolled-back transaction:
 * `seed_marketplace` replaces the Collabio rows of the seeded creators and the demo
   accounts, and loads each creator's embedding from the committed cache. It never calls
   Gemini (`scripts.build_embedding_cache` does) and never touches `auth.users`.
+* `delete_leftover_test_users` also clears the throwaway logins that interrupted test runs
+  leave behind (`<id>@test.collabio.invalid`), and nobody else.
 
 The demo accounts come from DEMO_* in backend/.env; the three logins share DEMO_PASSWORD.
 """
@@ -39,6 +41,8 @@ DEMO_PRODUCT_SUMMARY = "Wireless earbuds with 40-hour battery and adaptive noise
 # Seeded rows get ids derived from their handle, so they survive a re-seed unchanged.
 SEED_NAMESPACE = uuid.UUID("5d0f6c1e-2b7a-4c3e-9a41-0c0ffee0ab10")
 SEEDED_EMAIL_PATTERN = "%@example.com"
+# The throwaway logins the tests create (tests/conftest.py, tests/db/conftest.py).
+TEST_USER_EMAIL_PATTERN = "%@test.collabio.invalid"
 E164 = re.compile(r"^\+[1-9][0-9]{1,14}$")
 
 ADMIN_USERS_PATH = "/auth/v1/admin/users"
@@ -184,6 +188,13 @@ delete from public.creators
 where handle = any($1::text[])
    or (profile_id is null and email like $2)
 """
+# Deleting a login cascades to its profile and the brand, products or creator row under it.
+# The demo logins are kept even if their email happens to be on the test domain.
+DELETE_TEST_USERS = """
+delete from auth.users
+where email like $1 and id <> all($2::uuid[])
+returning id
+"""
 INSERT_PROFILE = "insert into public.profiles (id, role, display_name) values ($1, $2, $3)"
 INSERT_BRAND = """
 insert into public.brands (profile_id, company_name, category, contact_email)
@@ -298,6 +309,17 @@ async def seed_marketplace(
     return len(creator_rows)
 
 
+async def delete_leftover_test_users(conn: asyncpg.Connection, keep: list[uuid.UUID]) -> int:
+    """Delete the throwaway test logins left in `auth.users`; returns how many.
+
+    Only emails ending in `@test.collabio.invalid` go, and never the ids in `keep` (the demo
+    logins). Runs in the caller's transaction. It is a step of its own: `seed_marketplace`
+    leaves every user's rows alone.
+    """
+    rows = await conn.fetch(DELETE_TEST_USERS, TEST_USER_EMAIL_PATTERN, keep)
+    return len(rows)
+
+
 def _seed_id(*parts: str) -> uuid.UUID:
     return uuid.uuid5(SEED_NAMESPACE, "/".join(parts))
 
@@ -340,10 +362,12 @@ async def run(settings: Settings) -> str:
     await db.connect(settings.supabase_db_url, max_size=1)
     try:
         async with db.transaction() as conn:
+            removed = await delete_leftover_test_users(conn, demo.user_ids)
             count = await seed_marketplace(conn, creators, cache, demo)
     finally:
         await db.close()
-    return f"seeded {count} creators, 3 demo accounts"
+    message = f"seeded {count} creators, 3 demo accounts"
+    return f"{message}, removed {removed} leftover test users" if removed else message
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -354,7 +378,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--reset",
         action="store_true",
-        help="confirm that the seeded creators and the demo accounts' rows are deleted first",
+        help="confirm that the seeded creators, the demo accounts' rows and leftover test "
+        "logins (@test.collabio.invalid) are deleted first",
     )
     args = parser.parse_args(argv)
     if not args.reset:

@@ -4,6 +4,8 @@ Demo logins are `factory.user` rows (the Auth Admin API half is covered with moc
 tests/core/test_seed_demo_users.py), so nothing here outlives the test.
 """
 
+import uuid
+
 import pytest
 
 from scripts.seed import (
@@ -12,6 +14,7 @@ from scripts.seed import (
     DemoAccounts,
     DemoUser,
     SeedError,
+    delete_leftover_test_users,
     plus_address,
     seed_marketplace,
 )
@@ -153,3 +156,66 @@ async def test_stale_cache_names_the_creator_and_changes_nothing(db_conn):
         await seed_marketplace(db_conn, CREATORS, stale, None)
 
     assert await seeded_ids(db_conn) == before
+
+
+async def test_reset_deletes_leftover_test_users_and_only_those(db_conn, factory):
+    # `factory.user` makes `<id>@test.collabio.invalid` logins, as the API tests do.
+    leftover_brand = await factory.brand()
+    leftover_creator = await factory.creator()
+    demo = await demo_accounts(factory)
+    real_user = uuid.uuid4()
+    await db_conn.execute(
+        "insert into auth.users (id, email, aud, role)"
+        " values ($1, 'someone.real@example.com', 'authenticated', 'authenticated')",
+        real_user,
+    )
+    lookalike = uuid.uuid4()
+    await db_conn.execute(
+        "insert into auth.users (id, email, aud, role)"
+        " values ($1, 'x@test.collabio.invalid.example.com', 'authenticated', 'authenticated')",
+        lookalike,
+    )
+
+    removed = await delete_leftover_test_users(db_conn, demo.user_ids)
+
+    # The two leftovers' logins (and, by cascade, their profile rows) are gone...
+    assert removed >= 2
+    for gone in (leftover_brand.profile_id, leftover_creator.profile_id):
+        assert await db_conn.fetchval("select id from auth.users where id = $1", gone) is None
+        assert await db_conn.fetchval("select id from public.profiles where id = $1", gone) is None
+    # ...and nobody else: not an unrelated user, not a lookalike domain, not the demo users.
+    for kept in (real_user, lookalike, *demo.user_ids):
+        assert await db_conn.fetchval("select id from auth.users where id = $1", kept) == kept
+
+
+async def test_reset_keeps_a_demo_user_even_on_the_test_domain(db_conn, factory):
+    demo = await demo_accounts(factory)  # factory users: all on the test domain
+
+    removed = await delete_leftover_test_users(db_conn, demo.user_ids)
+
+    survivors = await db_conn.fetch(
+        "select id from auth.users where id = any($1::uuid[])", demo.user_ids
+    )
+    assert {r["id"] for r in survivors} == set(demo.user_ids)
+    assert removed >= 0
+
+
+async def test_reset_leaves_the_seeded_marketplace_and_demo_logins_alone(db_conn):
+    before = await db_conn.fetchval(
+        "select count(*) from public.creators where handle = any($1::text[])", HANDLES
+    )
+
+    await delete_leftover_test_users(db_conn, [])
+
+    assert (
+        await db_conn.fetchval(
+            "select count(*) from public.creators where handle = any($1::text[])", HANDLES
+        )
+        == before
+    )
+    assert (
+        await db_conn.fetchval(
+            "select count(*) from auth.users where email like '%@test.collabio.invalid'"
+        )
+        == 0
+    )
