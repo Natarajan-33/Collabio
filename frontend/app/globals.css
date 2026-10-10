@@ -193,6 +193,21 @@
   animation: voice-pulse 1.8s ease-in-out infinite;
 }
 
+/* A brief field the user just saved: an ember wash that fades over 1.2 s. The card also
+   says "Updated", so the cue survives reduced motion, where the wash is a single frame. */
+@keyframes field-flash {
+  from {
+    background-color: color-mix(in oklch, var(--voice) 28%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@utility field-flash {
+  animation: field-flash 1200ms ease-out;
+}
+
 /* Motion only signals state change. Honour the OS setting for everything
    driven by CSS (tooltips, dialogs, transitions); JS-driven animation checks
    prefers-reduced-motion itself. */
