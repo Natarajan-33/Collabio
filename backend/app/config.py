@@ -39,6 +39,20 @@ class Settings(BaseSettings):
     gemini_embed_model: str = "gemini-embedding-2"
 
     elevenlabs_api_key: str = Field("", repr=False)
+    elevenlabs_brief_agent_id: str = ""
+    elevenlabs_negotiation_agent_id: str = ""
+    elevenlabs_phone_number_id: str = ""
+    elevenlabs_webhook_secret: str = Field("", repr=False)
+    elevenlabs_tool_secret: str = Field("", repr=False)
+
+    resend_api_key: str = Field("", repr=False)
+    resend_from: str = ""
+    resend_inbound_domain: str = ""
+
+    # Where ElevenLabs reaches the tool webhooks, and where emailed links point.
+    public_backend_url: str = "http://localhost:8000"
+    public_frontend_url: str = "http://localhost:3000"
+    workers_enabled: bool = True
 
     frontend_origin: str = "http://localhost:3000"
 

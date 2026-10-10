@@ -9,6 +9,7 @@ The `db` fixture, and when these tests skip, are in tests/conftest.py.
 """
 
 import json
+import secrets
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
@@ -74,6 +75,17 @@ INSERT_PACKAGE = (
     " (creator_id, name, content_type, niche, volume_count, volume_basis,"
     " base_price_cents, preferred_channel, status)"
     " values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id"
+)
+INSERT_THREAD = (
+    "insert into public.threads"
+    " (batch_id, brand_id, creator_id, package_id, channel_plan, status, reply_token)"
+    " values ($1, $2, $3, $4, $5, $6, $7) returning id"
+)
+INSERT_EVENT = (
+    "insert into public.thread_events"
+    " (thread_id, batch_id, brand_id, creator_id, type, actor, payload, external_id)"
+    " select t.id, t.batch_id, t.brand_id, t.creator_id, $2, $3, $4::jsonb, $5"
+    " from public.threads t where t.id = $1 returning id"
 )
 INSERT_FLOOR = "insert into public.package_floors (package_id, floor_price_cents) values ($1, $2)"
 
@@ -152,6 +164,57 @@ class Factory:
         if floor_price_cents is not None:
             await self.conn.execute(INSERT_FLOOR, package_id, floor_price_cents)
         return package_id
+
+    async def brief(self, brand: Brand, **cols: object) -> uuid.UUID:
+        """A brief for `brand`; `cols` override or add columns (e.g. `status="ready"`)."""
+        cols = {"brand_id": brand.id, **cols}
+        names = ", ".join(cols)
+        marks = ", ".join(f"${i}" for i in range(1, len(cols) + 1))
+        return await self.conn.fetchval(
+            f"insert into public.briefs ({names}) values ({marks}) returning id", *cols.values()
+        )
+
+    async def batch(self, brief_id: uuid.UUID, brand: Brand) -> uuid.UUID:
+        return await self.conn.fetchval(
+            "insert into public.batches (brief_id, brand_id) values ($1, $2) returning id",
+            brief_id,
+            brand.id,
+        )
+
+    async def thread(
+        self,
+        batch_id: uuid.UUID,
+        brand: Brand,
+        creator: Creator,
+        package_id: uuid.UUID,
+        *,
+        status: str = "queued",
+        channel_plan: str = "email",
+    ) -> uuid.UUID:
+        return await self.conn.fetchval(
+            INSERT_THREAD,
+            batch_id,
+            brand.id,
+            creator.id,
+            package_id,
+            channel_plan,
+            status,
+            secrets.token_urlsafe(24),
+        )
+
+    async def event(
+        self,
+        thread_id: uuid.UUID,
+        type: str,
+        *,
+        actor: str = "system",
+        payload: dict[str, object] | None = None,
+        external_id: str | None = None,
+    ) -> int:
+        """An event on a thread; batch, brand and creator are read from the thread."""
+        return await self.conn.fetchval(
+            INSERT_EVENT, thread_id, type, actor, json.dumps(payload or {}), external_id
+        )
 
 
 @pytest.fixture
