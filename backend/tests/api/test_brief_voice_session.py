@@ -8,6 +8,7 @@ import pytest
 
 from app.adapters.elevenlabs import ElevenLabsUnavailable
 from app.api.deps import get_elevenlabs
+from app.config import get_settings
 from app.modules.briefs.voice_session import brief_dynamic_variables
 from app.schemas.briefs import DealBrief
 from tests.fakes import FakeElevenLabs
@@ -124,8 +125,11 @@ async def test_voice_session_returns_token_and_variables(
 
 
 async def test_voice_session_503_without_agent(
-    brand_client, fake_elevenlabs, brief_cleanup, seeded_ids
+    app, brand_client, m2_settings, fake_elevenlabs, brief_cleanup, seeded_ids
 ):
+    # Blank on purpose: backend/.env holds the real agent id once the agents are synced.
+    blank = m2_settings.model_copy(update={"elevenlabs_brief_agent_id": ""})
+    app.dependency_overrides[get_settings] = lambda: blank
     brief_id = await new_brief(brand_client, brief_cleanup, seeded_ids["priya"])
 
     r = await brand_client.post(f"{BASE}/{brief_id}/voice-session")
