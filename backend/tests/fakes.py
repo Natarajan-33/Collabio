@@ -90,8 +90,8 @@ class FakeElevenLabs:
     `mint_scribe_token` hands out a fixed token, or raises `failure` if given.
     `mint_conversation_token` records the agent id in `conversation_tokens`.
     `place_call` records its kwargs in `calls`, raises `call_failure` if set, and
-    returns `conv_1`, `conv_2`, ... `get_conversation` serves `snapshots` by id; a
-    missing id raises `ElevenLabsUnavailable`.
+    returns `conv_1`, `conv_2`, ... (a failed placement uses up no id).
+    `get_conversation` serves `snapshots` by id; a missing id raises `ElevenLabsUnavailable`.
     """
 
     def __init__(self, *, failure: Exception | None = None) -> None:
@@ -101,6 +101,7 @@ class FakeElevenLabs:
         self.calls: list[dict[str, Any]] = []
         self.call_failure: Exception | None = None
         self.snapshots: dict[str, ConversationSnapshot] = {}
+        self._placed = 0
 
     async def mint_scribe_token(self) -> ScribeToken:
         self.mint_calls += 1
@@ -130,7 +131,8 @@ class FakeElevenLabs:
         )
         if self.call_failure is not None:
             raise self.call_failure
-        return f"conv_{len(self.calls)}"
+        self._placed += 1
+        return f"conv_{self._placed}"
 
     async def get_conversation(self, conversation_id: str) -> ConversationSnapshot:
         try:

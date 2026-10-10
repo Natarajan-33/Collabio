@@ -109,13 +109,48 @@ async def test_500_three_times_raises_unavailable(client, respx_mock):
     assert route.call_count == 3
 
 
+@pytest.mark.parametrize("status", [501, 507])
+async def test_other_5xx_is_retried(client, respx_mock, status):
+    route = respx_mock.post(URL).mock(
+        side_effect=[
+            httpx.Response(status, json={"message": "x"}),
+            httpx.Response(200, json={"id": "em_4"}),
+        ]
+    )
+
+    assert await client.send(make_email(), idempotency_key="k1") == "em_4"
+    assert route.call_count == 2
+
+
+async def test_408_is_rejected_without_retry(client, respx_mock):
+    route = respx_mock.post(URL).mock(
+        return_value=httpx.Response(408, json={"message": "Request timeout"})
+    )
+
+    with pytest.raises(EmailRejected, match="Request timeout"):
+        await client.send(make_email(), idempotency_key="k1")
+
+    assert route.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "response",
+    [httpx.Response(200, text="<html>ok</html>"), httpx.Response(200, json={"no_id": 1})],
+)
+async def test_a_2xx_without_an_email_id_is_unavailable(client, respx_mock, response):
+    respx_mock.post(URL).mock(return_value=response)
+
+    with pytest.raises(EmailUnavailable):
+        await client.send(make_email(), idempotency_key="k1")
+
+
 def test_requires_api_key():
     with pytest.raises(ValueError):
-        ResendClient(Settings(_env_file=None))
+        ResendClient(Settings(_env_file=None, resend_api_key=""))
 
 
 def test_the_dependency_without_an_api_key_is_503(monkeypatch):
-    monkeypatch.setattr(deps, "get_settings", lambda: Settings(_env_file=None))
+    monkeypatch.setattr(deps, "get_settings", lambda: Settings(_env_file=None, resend_api_key=""))
     deps.get_email.cache_clear()
     try:
         with pytest.raises(HTTPException) as caught:

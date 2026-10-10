@@ -21,8 +21,8 @@ RESEND_EMAILS_URL = "https://api.resend.com/emails"
 REQUEST_TIMEOUT_SECONDS = 15.0
 RETRY_ATTEMPTS = 3
 RETRY_WAIT = wait_exponential_jitter(initial=0.5, max=4.0)
-# Rate limiting, request timeout and server-side failures; any other 4xx fails at once.
-TRANSIENT_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
+RATE_LIMITED = 429
+SERVER_ERROR = 500  # 5xx and up is transient; every other 4xx fails at once
 
 
 class OutboundEmail(BaseModel):
@@ -101,10 +101,14 @@ class ResendClient:
         response = await self._http.post(
             RESEND_EMAILS_URL, json=payload, headers={"Idempotency-Key": idempotency_key}
         )
-        if response.status_code in TRANSIENT_STATUS_CODES:
-            raise _TransientStatus(f"{response.status_code} {_error_message(response)}")
+        status_code = response.status_code
+        if status_code == RATE_LIMITED or status_code >= SERVER_ERROR:
+            raise _TransientStatus(f"{status_code} {_error_message(response)}")
         if response.is_client_error:
             raise EmailRejected(_error_message(response))
-        if response.is_error:
-            raise EmailUnavailable(f"{response.status_code} {_error_message(response)}")
-        return str(response.json()["id"])
+        try:
+            return str(response.json()["id"])
+        except (ValueError, KeyError, TypeError) as exc:
+            raise EmailUnavailable(
+                f"Resend answered {status_code} without an email id: {response.text[:200]}"
+            ) from exc

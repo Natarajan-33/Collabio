@@ -65,6 +65,10 @@ async def test_fake_elevenlabs_calls_tokens_and_snapshots():
     with pytest.raises(CallPlacementFailed):
         await fake.place_call(**kwargs)
 
+    fake.call_failure = None
+    assert await fake.place_call(**kwargs) == "conv_3"  # the failed attempt used no id
+    assert len(fake.calls) == 4  # but every attempt is recorded
+
     with pytest.raises(ElevenLabsUnavailable):
         await fake.get_conversation("conv_1")
     snapshot = ConversationSnapshot(
