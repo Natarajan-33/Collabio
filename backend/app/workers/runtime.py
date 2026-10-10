@@ -14,8 +14,9 @@ from app.adapters.email import EmailPort, ResendClient
 from app.adapters.gemini import GeminiClient, GeminiPort
 from app.config import Settings
 from app.modules.negotiation.calls import start_call
+from app.modules.negotiation.completion import complete_call, complete_intake
 from app.modules.outreach.service import send_outreach
-from app.workers.call_watcher import CallWatcher
+from app.workers.call_watcher import CallWatcher, CompleteCall, CompleteIntake
 from app.workers.orchestrator import Handler, Orchestrator
 from app.workers.sweep import sweep_loop, sweep_stuck
 
@@ -68,9 +69,18 @@ def _call_handler(db: Database, elevenlabs: ElevenLabsPort | None, settings: Set
     return handle
 
 
-async def _complete_call_placeholder(conversation_id: str, snapshot: ConversationSnapshot) -> None:
-    """Replaced by the real call completion in Task 13."""
-    logger.info("call completion arrives in Task 13 (conversation %s)", conversation_id)
+def _complete_call(db: Database, gemini: GeminiPort | None) -> CompleteCall:
+    async def complete(conversation_id: str, snapshot: ConversationSnapshot) -> bool:
+        return await complete_call(db, gemini, conversation_id, snapshot)
+
+    return complete
+
+
+def _complete_intake(db: Database) -> CompleteIntake:
+    async def complete(conversation_id: str, snapshot: ConversationSnapshot) -> bool:
+        return await complete_intake(db, conversation_id, snapshot)
+
+    return complete
 
 
 async def start_workers(app: FastAPI, settings: Settings) -> None:
@@ -95,7 +105,12 @@ async def start_workers(app: FastAPI, settings: Settings) -> None:
         asyncio.create_task(sweep_loop(db, on_requeued=orchestrator.wake), name="launch-sweep"),
     ]
     if elevenlabs is not None:
-        watcher = CallWatcher(db, elevenlabs, complete_call=_complete_call_placeholder)
+        watcher = CallWatcher(
+            db,
+            elevenlabs,
+            complete_call=_complete_call(db, gemini),
+            complete_intake=_complete_intake(db),
+        )
         tasks.append(asyncio.create_task(watcher.run(), name="call-watcher"))
     app.state.workers = Workers(
         orchestrator=orchestrator, tasks=tasks, gemini=gemini, elevenlabs=elevenlabs

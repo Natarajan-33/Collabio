@@ -20,6 +20,22 @@ logger = logging.getLogger(__name__)
 NO_ANSWER = "No answer."
 
 CompleteCall = Callable[[str, ConversationSnapshot], Awaitable[object]]
+CompleteIntake = Callable[[str, ConversationSnapshot], Awaitable[object]]
+
+# Brief conversations that ended in the last hour and have no transcript yet. With a batch
+# (tests), only that batch's brief.
+SELECT_PENDING_INTAKES = """
+select b.intake_conversation_id
+from public.briefs b
+where b.intake_conversation_id is not null
+  and b.updated_at > now() - interval '1 hour'
+  and not exists (
+    select 1 from public.transcripts x
+    where x.kind = 'intake' and x.external_id = b.intake_conversation_id
+  )
+  and ($1::uuid is null or b.id = (select ba.brief_id from public.batches ba where ba.id = $1::uuid))
+order by b.updated_at
+"""
 
 
 class CallWatcher:
@@ -29,11 +45,13 @@ class CallWatcher:
         elevenlabs: ElevenLabsPort,
         *,
         complete_call: CompleteCall,
+        complete_intake: CompleteIntake | None = None,
         poll_seconds: float = 2.0,
     ) -> None:
         self._db = db
         self._elevenlabs = elevenlabs
         self._complete_call = complete_call
+        self._complete_intake = complete_intake
         self._poll_seconds = poll_seconds
 
     async def check_once(self, *, batch_id: UUID | None = None) -> None:
@@ -51,6 +69,25 @@ class CallWatcher:
                     call.thread.id,
                     call.conversation_id,
                 )
+
+        if self._complete_intake is not None:
+            await self._check_intakes(batch_id)
+
+    async def _check_intakes(self, batch_id: UUID | None) -> None:
+        """Store the transcript of every recent brief conversation that has finished."""
+        assert self._complete_intake is not None
+        async with self._db.acquire() as conn:
+            rows = await conn.fetch(SELECT_PENDING_INTAKES, batch_id)
+        for row in rows:
+            conversation_id = row["intake_conversation_id"]
+            try:
+                snapshot = await self._elevenlabs.get_conversation(conversation_id)
+                if snapshot.status == "done":
+                    await self._complete_intake(conversation_id, snapshot)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Checking the brief conversation %s failed", conversation_id)
 
     async def run(self) -> None:
         """Check every `poll_seconds` until cancelled."""

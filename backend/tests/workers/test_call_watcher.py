@@ -213,3 +213,113 @@ async def test_live_calls_ignores_calling_threads_without_a_conversation(api_db,
 async def transition_to_in_call(api_db, thread_id) -> None:
     async with api_db.acquire() as conn:
         await transition(conn, thread_id, expected={"calling"}, target="in_call")
+
+
+# Intake polling ---------------------------------------------------------------------------
+
+
+class IntakeCompletions:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, ConversationSnapshot]] = []
+
+    async def __call__(self, conversation_id: str, snapshot: ConversationSnapshot) -> None:
+        self.calls.append((conversation_id, snapshot))
+
+
+async def set_intake_conversation(api_db, brief_id, conversation_id="conv_brief_w"):
+    async with api_db.acquire() as conn:
+        await conn.execute(
+            "update public.briefs set intake_conversation_id = $2 where id = $1",
+            brief_id,
+            conversation_id,
+        )
+
+
+def intake_watcher(api_db, fake_elevenlabs, intake) -> CallWatcher:
+    return CallWatcher(api_db, fake_elevenlabs, complete_call=Completions(), complete_intake=intake)
+
+
+async def test_watcher_completes_intake(api_db, launched_batch, fake_elevenlabs):
+    await set_intake_conversation(api_db, launched_batch.brief_id)
+    done = snapshot("conv_brief_w", "done", user_spoke=True)
+    fake_elevenlabs.snapshots["conv_brief_w"] = done
+    intake = IntakeCompletions()
+
+    await intake_watcher(api_db, fake_elevenlabs, intake).check_once(
+        batch_id=launched_batch.batch_id
+    )
+
+    assert intake.calls == [("conv_brief_w", done)]
+
+
+async def test_watcher_waits_for_an_unfinished_intake(api_db, launched_batch, fake_elevenlabs):
+    await set_intake_conversation(api_db, launched_batch.brief_id)
+    fake_elevenlabs.snapshots["conv_brief_w"] = snapshot("conv_brief_w", "in-progress")
+    intake = IntakeCompletions()
+
+    await intake_watcher(api_db, fake_elevenlabs, intake).check_once(
+        batch_id=launched_batch.batch_id
+    )
+
+    assert intake.calls == []
+
+
+async def test_watcher_skips_an_intake_that_already_has_a_transcript(
+    api_db, launched_batch, fake_elevenlabs
+):
+    await set_intake_conversation(api_db, launched_batch.brief_id)
+    async with api_db.acquire() as conn:
+        await conn.execute(
+            "insert into public.transcripts (brief_id, kind, external_id)"
+            " values ($1, 'intake', 'conv_brief_w')",
+            launched_batch.brief_id,
+        )
+    fake_elevenlabs.snapshots["conv_brief_w"] = snapshot("conv_brief_w", "done", user_spoke=True)
+    intake = IntakeCompletions()
+
+    await intake_watcher(api_db, fake_elevenlabs, intake).check_once(
+        batch_id=launched_batch.batch_id
+    )
+
+    assert intake.calls == []
+
+
+async def test_watcher_ignores_an_old_intake(api_db, launched_batch, fake_elevenlabs):
+    await set_intake_conversation(api_db, launched_batch.brief_id)
+    async with api_db.acquire() as conn, conn.transaction():
+        # Session-local: lets the update set `updated_at` past the touch trigger.
+        await conn.execute("set local session_replication_role = replica")
+        await conn.execute(
+            "update public.briefs set updated_at = now() - interval '2 hours' where id = $1",
+            launched_batch.brief_id,
+        )
+    fake_elevenlabs.snapshots["conv_brief_w"] = snapshot("conv_brief_w", "done", user_spoke=True)
+    intake = IntakeCompletions()
+
+    await intake_watcher(api_db, fake_elevenlabs, intake).check_once(
+        batch_id=launched_batch.batch_id
+    )
+
+    assert intake.calls == []
+
+
+async def test_intake_lookup_error_skipped(api_db, launched_batch, fake_elevenlabs):
+    await set_intake_conversation(api_db, launched_batch.brief_id)  # no snapshot: lookup raises
+    intake = IntakeCompletions()
+
+    await intake_watcher(api_db, fake_elevenlabs, intake).check_once(
+        batch_id=launched_batch.batch_id
+    )
+
+    assert intake.calls == []
+
+
+async def test_watcher_without_complete_intake_polls_no_briefs(
+    api_db, launched_batch, fake_elevenlabs
+):
+    await set_intake_conversation(api_db, launched_batch.brief_id)
+    fake_elevenlabs.snapshots["conv_brief_w"] = snapshot("conv_brief_w", "done", user_spoke=True)
+
+    await watcher(api_db, fake_elevenlabs, Completions()).check_once(
+        batch_id=launched_batch.batch_id
+    )  # nothing to assert beyond: it does not raise
