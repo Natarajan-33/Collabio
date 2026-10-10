@@ -15,16 +15,21 @@ from app.adapters.db import Database
 from app.core import brief_rules
 from app.core.delta import compute_delta, pick_anchor_package
 from app.core.guardrails import call_allowed, channel_violation, default_channel
+from app.core.reply_token import new_reply_token
 from app.modules.briefs import repo
+from app.modules.briefs.launch import LaunchCandidate, plan_launch
 from app.modules.discovery.service import initials, package_summary
+from app.modules.threads import repo as threads_repo
 from app.schemas.briefs import (
     BriefCreatorPreview,
     BriefFields,
     BriefPatch,
     BriefPreview,
     DealBrief,
+    LaunchRequest,
+    LaunchResponse,
 )
-from app.schemas.packages import PackageTerms
+from app.schemas.packages import PackageTerms, RuleViolation
 
 SUMMARY_MAX = 200
 
@@ -52,6 +57,19 @@ class UnknownCreators(Exception):
     def __init__(self, ids: list[UUID]) -> None:
         super().__init__(", ".join(str(i) for i in ids))
         self.ids = ids
+
+
+class BriefIncomplete(Exception):
+    """The brief still misses fields or breaks a rule, so it cannot launch."""
+
+    def __init__(self, missing: list[str], violations: list[RuleViolation]) -> None:
+        super().__init__(f"missing: {missing}; violations: {[v.field for v in violations]}")
+        self.missing = missing
+        self.violations = violations
+
+
+class NoCreators(Exception):
+    """Nobody is left to contact: every creator opted out or no longer has a published package."""
 
 
 async def find_brand_id(db: Database, profile_id: UUID) -> UUID | None:
@@ -211,3 +229,83 @@ class BriefService:
                 )
             )
         return BriefPreview(creators=creators)
+
+    async def launch(
+        self,
+        brief_id: UUID,
+        req: LaunchRequest,
+        *,
+        today: date,
+        embedding: list[float] | None,
+        hold: bool = False,
+    ) -> LaunchResponse:
+        """Turn a complete brief into a batch with one queued thread per creator.
+
+        The brief row is locked for the whole transaction, so two launches of one brief
+        cannot interleave (the loser sees it launched; `unique (brief_id)` on batches backs
+        that up). `embedding` is the brief's search embedding, None when Gemini failed.
+        Raises `BriefNotFound`, `BriefLaunched`, `BriefIncomplete`, `ChannelNotAllowed` and
+        `NoCreators`. `hold=True` is for tests only: it parks every new thread at
+        `next_action_at = 'infinity'` so a running worker never claims it.
+        """
+        async with self._db.transaction() as conn:
+            row = await repo.get_brief(conn, self._brand_id, brief_id, lock=True)
+            if row is None:
+                raise BriefNotFound
+            if row["status"] == "launched":
+                raise BriefLaunched
+            fields = _fields(row)
+            if not brief_rules.is_launchable(fields, today):
+                raise BriefIncomplete(
+                    brief_rules.missing_fields(fields), brief_rules.violations(fields, today)
+                )
+
+            candidates = []
+            for creator in await repo.preview_rows(conn, row["creator_ids"]):
+                packages = [(p["id"], PackageTerms.model_validate(p)) for p in creator["packages"]]
+                if not packages:  # unpublished since the brief was made
+                    continue
+                package_id, terms = pick_anchor_package(
+                    packages, fmt=fields.deliverables_format, videos=fields.deliverables_count
+                )
+                candidates.append(
+                    LaunchCandidate(
+                        creator_id=creator["id"],
+                        package_id=package_id,
+                        preferred_channel=terms.preferred_channel,
+                        phone=creator["phone"],
+                        phone_opt_in=creator["phone_opt_in"],
+                        contact_opt_out=creator["contact_opt_out"],
+                    )
+                )
+            planned, excluded = plan_launch(candidates, req.channels)
+            if not planned:
+                raise NoCreators
+
+            batch_id = await repo.insert_batch(
+                conn,
+                brief_id=brief_id,
+                brand_id=self._brand_id,
+                follow_up_policy=req.follow_up_policy,
+                embedding=embedding,
+            )
+            for plan in planned:
+                thread_id = await repo.insert_thread(
+                    conn,
+                    batch_id=batch_id,
+                    brand_id=self._brand_id,
+                    creator_id=plan.creator_id,
+                    package_id=plan.package_id,
+                    channel_plan=plan.channel_plan,
+                    reply_token=new_reply_token(),
+                    hold=hold,
+                )
+                ref = threads_repo.ThreadRef(
+                    id=thread_id,
+                    batch_id=batch_id,
+                    brand_id=self._brand_id,
+                    creator_id=plan.creator_id,
+                )
+                await threads_repo.record_event(conn, ref, type="queued", actor="brand")
+            await repo.mark_launched(conn, brief_id)
+        return LaunchResponse(batch_id=batch_id, thread_count=len(planned), excluded=excluded)

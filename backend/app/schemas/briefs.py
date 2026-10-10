@@ -104,3 +104,24 @@ class BriefCreatorPreview(BaseModel):
 
 class BriefPreview(BaseModel):
     creators: list[BriefCreatorPreview]
+
+
+class LaunchRequest(BaseModel):
+    """How to launch: the channel per creator (a missing creator gets the default for their
+    package and contact details) and what to do with creators who never reply."""
+
+    channels: dict[UUID, ChannelPlan] = {}
+    follow_up_policy: FollowUpPolicy = "off"
+
+
+class LaunchExclusion(BaseModel):
+    """A creator the launch left out, and why."""
+
+    creator_id: UUID
+    reason: str
+
+
+class LaunchResponse(BaseModel):
+    batch_id: UUID
+    thread_count: int
+    excluded: list[LaunchExclusion]

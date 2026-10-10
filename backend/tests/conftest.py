@@ -12,6 +12,8 @@ import ssl
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import NoReturn
 
 import pytest
@@ -19,9 +21,18 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.adapters.db import Database
-from app.api.deps import get_db, get_elevenlabs, get_email, get_gemini, get_jwks_client
+from app.api.deps import (
+    get_db,
+    get_elevenlabs,
+    get_email,
+    get_gemini,
+    get_jwks_client,
+    optional_gemini,
+)
 from app.config import get_settings
 from app.main import create_app
+from app.modules.briefs.service import BriefService
+from app.schemas.briefs import LaunchRequest
 from tests.fakes import FakeElevenLabs, FakeEmail, FakeGemini
 from tests.tokens import TEST_JWKS, StaticJWKSClient, auth_header
 
@@ -138,6 +149,7 @@ def fake_gemini(app: FastAPI) -> FakeGemini:
     """Serve embeddings from FakeGemini instead of the Gemini API."""
     gemini = FakeGemini()
     app.dependency_overrides[get_gemini] = lambda: gemini
+    app.dependency_overrides[optional_gemini] = lambda: gemini
     return gemini
 
 
@@ -282,6 +294,27 @@ async def seeded_ids(api_db: Database) -> dict[str, uuid.UUID]:
     return {"priya": ids[DEMO_PRIYA_HANDLE], "arjun": ids[DEMO_ARJUN_HANDLE]}
 
 
+FICTIONAL_HANDLES = ("mayamakestech", "danieldoesdevices")
+
+
+@pytest.fixture
+async def fictional_ids(api_db: Database) -> list[uuid.UUID]:
+    """Two seeded creators other than Priya and Arjun, whose email is a reserved
+    `@example.com` address. Every launch that succeeds through the API uses only these
+    (email channel): a dev worker sharing the database could otherwise claim the threads
+    and send real email or place a real call."""
+    async with api_db.acquire() as conn:
+        rows = await conn.fetch(
+            "select handle, id from public.creators"
+            " where handle = any($1) and email like '%@example.com'",
+            list(FICTIONAL_HANDLES),
+        )
+    ids = {row["handle"]: row["id"] for row in rows}
+    if len(ids) != len(FICTIONAL_HANDLES):
+        _skip(NOT_SEEDED)
+    return [ids[handle] for handle in FICTIONAL_HANDLES]
+
+
 @pytest.fixture
 async def brief_cleanup(api_db: Database) -> AsyncIterator[list[str]]:
     """Append the id of every brief a test creates; teardown deletes them, which cascades
@@ -295,3 +328,71 @@ async def brief_cleanup(api_db: Database) -> AsyncIterator[list[str]]:
                 await conn.execute(
                     "delete from public.briefs where id = any($1::uuid[])", brief_ids
                 )
+
+
+@dataclass(frozen=True)
+class LaunchedBatch:
+    brief_id: uuid.UUID
+    batch_id: uuid.UUID
+    threads: dict[str, uuid.UUID]  # creator handle -> thread id
+
+
+LAUNCHED_BRIEF = {
+    "deliverables_count": 3,
+    "deliverables_format": "short_video",
+    "budget_ceiling_cents": 123400,  # unusual on purpose, so leak tests can search for it
+    "ask_price_cents": 100000,
+    "negotiation_ask": "Three short reviews for the Lumen Pods launch",
+    "flexibility": ["timeline"],
+}
+
+
+@pytest.fixture
+async def launched_batch(
+    brand_client: AsyncClient,
+    api_db: Database,
+    brief_cleanup: list[str],
+    seeded_ids: dict[str, uuid.UUID],
+    fictional_ids: list[uuid.UUID],
+) -> LaunchedBatch:
+    """A launched batch of three threads: Priya (email), Arjun (call) and Maya (email).
+
+    The brief is created and completed through the API (3 short videos, ask $1,000, private
+    ceiling $1,234, go-live in 30 days) and launched with `hold=True`, which parks every thread
+    at `next_action_at = 'infinity'` so a running dev worker can never claim it: Arjun's thread
+    would otherwise place a real call. The brief is deleted at teardown (`brief_cleanup`).
+    """
+    priya, arjun, maya = seeded_ids["priya"], seeded_ids["arjun"], fictional_ids[0]
+    created = await brand_client.post(
+        "/api/v1/briefs", json={"creator_ids": [str(i) for i in (priya, arjun, maya)]}
+    )
+    assert created.status_code == 201, created.text
+    brief_id = uuid.UUID(created.json()["id"])
+    brief_cleanup.append(str(brief_id))
+    today = datetime.now(UTC).date()
+    patched = await brand_client.patch(
+        f"/api/v1/briefs/{brief_id}",
+        json=LAUNCHED_BRIEF | {"go_live_by": (today + timedelta(days=30)).isoformat()},
+    )
+    assert patched.status_code == 200, patched.text
+
+    async with api_db.acquire() as conn:
+        brand_id = await conn.fetchval("select brand_id from public.briefs where id = $1", brief_id)
+    launched = await BriefService(api_db, brand_id).launch(
+        brief_id,
+        LaunchRequest(channels={arjun: "call", priya: "email", maya: "email"}),
+        today=today,
+        embedding=None,
+        hold=True,
+    )
+    async with api_db.acquire() as conn:
+        rows = await conn.fetch(
+            "select c.handle, t.id from public.threads t join public.creators c on c.id = t.creator_id"
+            " where t.batch_id = $1",
+            launched.batch_id,
+        )
+    return LaunchedBatch(
+        brief_id=brief_id,
+        batch_id=launched.batch_id,
+        threads={row["handle"]: row["id"] for row in rows},
+    )

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
@@ -7,10 +8,21 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.adapters.db import Database
-from app.api.deps import CurrentUser, get_db, require_role
+from app.adapters.gemini import GeminiInvalidOutput, GeminiPort, GeminiUnavailable
+from app.api.deps import CurrentUser, get_db, optional_gemini, require_role
 from app.modules.briefs import service
+from app.modules.briefs.launch import ChannelNotAllowed
 from app.modules.briefs.service import BriefService
-from app.schemas.briefs import BriefPatch, BriefPreview, CreateBriefRequest, DealBrief
+from app.schemas.briefs import (
+    BriefPatch,
+    BriefPreview,
+    CreateBriefRequest,
+    DealBrief,
+    LaunchRequest,
+    LaunchResponse,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/briefs", tags=["briefs"])
 
@@ -50,6 +62,24 @@ def _http_errors() -> Iterator[None]:
     except service.UnknownCreators as exc:
         detail = {"error": "unknown_creators", "creator_ids": [str(i) for i in exc.ids]}
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail) from exc
+    except service.BriefIncomplete as exc:
+        detail = {
+            "error": "brief_incomplete",
+            "missing": exc.missing,
+            "violations": [v.model_dump(mode="json") for v in exc.violations],
+        }
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail) from exc
+    except ChannelNotAllowed as exc:
+        detail = {
+            "error": "channel_not_allowed",
+            "creator_id": str(exc.creator_id),
+            "message": exc.message,
+        }
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail) from exc
+    except service.NoCreators as exc:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, {"error": "no_creators"}
+        ) from exc
 
 
 @router.post(
@@ -95,3 +125,43 @@ async def preview_brief(brief_id: UUID, briefs: Briefs) -> BriefPreview:
     """Each creator's anchor package, how the brief differs from it, and the default channel."""
     with _http_errors():
         return await briefs.preview(brief_id, utc_today())
+
+
+async def _brief_embedding(brief: DealBrief, gemini: GeminiPort | None) -> list[float] | None:
+    """The brief's search embedding, or None when Gemini is missing or fails (launching goes on)."""
+    if gemini is None:
+        logger.warning("No Gemini key: launching without a brief embedding")
+        return None
+    text = f"{brief.product_name}: {brief.product_summary}. {brief.negotiation_ask}"
+    try:
+        return await gemini.embed_query(text)
+    except (GeminiUnavailable, GeminiInvalidOutput):
+        logger.warning("Brief embedding failed: launching without it", exc_info=True)
+        return None
+
+
+@router.post(
+    "/{brief_id}/launch",
+    status_code=status.HTTP_201_CREATED,
+    responses=NOT_FOUND
+    | {
+        status.HTTP_409_CONFLICT: {"description": "`brief_launched`"},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "`detail` is `{error: brief_incomplete, missing, violations}`, "
+            "`{error: channel_not_allowed, creator_id, message}` or `{error: no_creators}`"
+        },
+    },
+)
+async def launch_brief(
+    brief_id: UUID,
+    req: LaunchRequest,
+    briefs: Briefs,
+    gemini: Annotated[GeminiPort | None, Depends(optional_gemini)],
+) -> LaunchResponse:
+    """Launch a complete brief: one batch, and a queued negotiation thread per creator."""
+    today = utc_today()
+    with _http_errors():
+        brief = await briefs.get(brief_id, today)
+        # Embedded before the launch transaction: a slow Gemini must not hold the brief lock.
+        embedding = await _brief_embedding(brief, gemini)
+        return await briefs.launch(brief_id, req, today=today, embedding=embedding)

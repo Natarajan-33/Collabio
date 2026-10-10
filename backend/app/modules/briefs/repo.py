@@ -39,6 +39,20 @@ values ($1, $2, $3, $4, $5, $6, $7)
 returning id
 """
 
+INSERT_BATCH = """
+insert into public.batches (brief_id, brand_id, follow_up_policy, brief_embedding)
+values ($1, $2, $3, $4)
+returning id
+"""
+# `next_action_at` stays null (due now) unless the thread is held back with 'infinity'.
+INSERT_THREAD = """
+insert into public.threads
+  (batch_id, brand_id, creator_id, package_id, channel_plan, reply_token, next_action_at)
+values ($1, $2, $3, $4, $5, $6, case when $7 then 'infinity'::timestamptz end)
+returning id
+"""
+MARK_LAUNCHED = "update public.briefs set status = 'launched', approved_at = now() where id = $1"
+
 BRIEF_COLUMNS = ", ".join(f"b.{name}" for name in BriefFields.model_fields)
 SELECT_BRIEF = f"""
 select b.id, b.status, b.creator_ids, b.approved_at, ba.id as batch_id, {BRIEF_COLUMNS}
@@ -167,3 +181,43 @@ async def preview_rows(
     (cheapest first). Creators that no longer exist are skipped."""
     rows = await conn.fetch(SELECT_PREVIEW, list(creator_ids))
     return [dict(row) | {"packages": json.loads(row["packages"])} for row in rows]
+
+
+async def insert_batch(
+    conn: asyncpg.Connection,
+    *,
+    brief_id: UUID,
+    brand_id: UUID,
+    follow_up_policy: str,
+    embedding: list[float] | None,
+) -> UUID:
+    """The brief's batch; `unique (brief_id)` makes a second one fail."""
+    return await conn.fetchval(INSERT_BATCH, brief_id, brand_id, follow_up_policy, embedding)
+
+
+async def insert_thread(
+    conn: asyncpg.Connection,
+    *,
+    batch_id: UUID,
+    brand_id: UUID,
+    creator_id: UUID,
+    package_id: UUID,
+    channel_plan: str,
+    reply_token: str,
+    hold: bool,
+) -> UUID:
+    """A queued thread. `hold` parks it at `next_action_at = 'infinity'` so no worker claims it."""
+    return await conn.fetchval(
+        INSERT_THREAD,
+        batch_id,
+        brand_id,
+        creator_id,
+        package_id,
+        channel_plan,
+        reply_token,
+        hold,
+    )
+
+
+async def mark_launched(conn: asyncpg.Connection, brief_id: UUID) -> None:
+    await conn.execute(MARK_LAUNCHED, brief_id)

@@ -63,6 +63,15 @@ def get_gemini() -> GeminiPort:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "gemini_unavailable") from exc
 
 
+def optional_gemini() -> GeminiPort | None:
+    """The Gemini client, or None (instead of a 503) when there is no key, for work that
+    can proceed without it."""
+    try:
+        return get_gemini()
+    except HTTPException:
+        return None
+
+
 @lru_cache
 def get_elevenlabs() -> ElevenLabsPort:
     """The process-wide ElevenLabs client, built on first use."""
