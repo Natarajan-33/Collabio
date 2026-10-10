@@ -130,7 +130,7 @@ The existing root-level Next.js scaffold stays untouched; it exists only to host
 | Component registries | `@react-bits`, `@canvas-ui`, ElevenLabs UI (`https://ui.elevenlabs.io/r/*.json`) |
 | Backend | Python 3.12+, `uv`, FastAPI, Pydantic v2, asyncpg, `google-genai`, `elevenlabs`, `resend`, Jinja2, PyJWT, tenacity |
 | Data | Supabase Postgres 17 + pgvector (HNSW, cosine), Supabase Auth (email + password), Supabase Realtime (postgres_changes) |
-| AI | Gemini `gemini-embedding-2` (768-dim via MRL), Gemini `gemini-3.8-flash` (thinking level `low` for routing/structuring) for structuring/drafting/routing; ElevenLabs Agents (2) + `scribe_v2_realtime` |
+| AI | Gemini `gemini-embedding-2` (768-dim via MRL), Gemini `gemini-3.5-flash-lite` (switched from 3.8-flash: free-tier quota) (thinking level `low` for routing/structuring) for structuring/drafting/routing; ElevenLabs Agents (2) + `scribe_v2_realtime` |
 | Hosting | Frontend → Vercel; Backend → Fly.io or Render (single instance, public HTTPS for webhooks); dev via local tunnel |
 
 ---

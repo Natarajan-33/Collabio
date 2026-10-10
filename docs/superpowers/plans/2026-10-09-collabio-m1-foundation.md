@@ -17,7 +17,7 @@
 - Next.js 16: before writing any Next.js code, read the relevant guide in `node_modules/next/dist/docs/` (per `AGENTS.md`). Use `proxy.ts` (not `middleware.ts`); `params`/`searchParams`/`cookies()` are async.
 - The root-level Next.js scaffold is copied into `frontend/`, never moved or edited.
 - Money is integer cents, USD only. Display rule: `$1,000` (no decimals when cents are zero), `$999.50` otherwise.
-- Gemini: embeddings `gemini-embedding-2`, `output_dimensionality=768`, **each text wrapped in its own `types.Content`** (a bare list of strings returns ONE aggregated embedding). Document format `title: {title} | text: {text}`; query format `task: search result | query: {query}`. Text model `gemini-3.8-flash` with `thinking_level="low"`, structured output via `response_schema=<Pydantic model>`.
+- Gemini: embeddings `gemini-embedding-2`, `output_dimensionality=768`, **each text wrapped in its own `types.Content`** (a bare list of strings returns ONE aggregated embedding). Document format `title: {title} | text: {text}`; query format `task: search result | query: {query}`. Text model `gemini-3.5-flash-lite` (switched from 3.8-flash: free-tier quota) with `thinking_level="low"`, structured output via `response_schema=<Pydantic model>`.
 - ElevenLabs STT: model `scribe_v2_realtime`, browser connects with a backend-minted single-use token (`client.tokens.single_use.create(token_type="realtime_scribe")`).
 - Supabase keys: frontend uses `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_API_URL`; backend uses `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS_URL`, `GEMINI_API_KEY`, `GEMINI_TEXT_MODEL`, `GEMINI_EMBED_MODEL`, `ELEVENLABS_API_KEY`, `DEMO_BRAND_EMAIL`, `DEMO_PASSWORD`, `DEMO_HELPER_PHONE`, `DEMO_HELPER_EMAIL`. Secret keys never get a `NEXT_PUBLIC_` prefix.
 - A creator's floor price, email, and phone never appear in any response a brand can receive. Tests assert their absence.
@@ -122,7 +122,7 @@ No commit: these are tooling files outside the product (`.claude/`, `.agents/`, 
 - Create: `backend/pyproject.toml`, `backend/.gitignore`, `backend/.env.example`, `backend/app/__init__.py`, `backend/app/main.py`, `backend/app/config.py`, `backend/app/api/routers/health.py`, `backend/tests/conftest.py`, `backend/tests/api/test_health.py`
 
 **Interfaces:**
-- Produces: `create_app() -> FastAPI`; `Settings` with fields `supabase_url`, `supabase_secret_key`, `supabase_db_url`, `supabase_jwks_url`, `gemini_api_key`, `gemini_text_model="gemini-3.8-flash"`, `gemini_embed_model="gemini-embedding-2"`, `elevenlabs_api_key`, `frontend_origin="http://localhost:3000"`, `demo_brand_email`, `demo_password`, `demo_helper_phone`, `demo_helper_email`; `get_settings() -> Settings` (lru_cached). Test fixture `client` (httpx `AsyncClient` over `ASGITransport`).
+- Produces: `create_app() -> FastAPI`; `Settings` with fields `supabase_url`, `supabase_secret_key`, `supabase_db_url`, `supabase_jwks_url`, `gemini_api_key`, `gemini_text_model="gemini-3.5-flash-lite"` (switched from 3.8-flash: free-tier quota), `gemini_embed_model="gemini-embedding-2"`, `elevenlabs_api_key`, `frontend_origin="http://localhost:3000"`, `demo_brand_email`, `demo_password`, `demo_helper_phone`, `demo_helper_email`; `get_settings() -> Settings` (lru_cached). Test fixture `client` (httpx `AsyncClient` over `ASGITransport`).
 
 - [ ] **Step 1: Initialise the project**
 
