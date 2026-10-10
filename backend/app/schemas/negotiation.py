@@ -105,3 +105,34 @@ class TranscriptTurn(BaseModel):
     role: Literal["agent", "user"]
     text: str
     t: float
+
+
+class CheckCounterRequest(BaseModel):
+    """The agent asks whether the creator's price fits. Agents speak dollars (Ruling 9)."""
+
+    thread_id: UUID
+    price_usd: float = Field(gt=0)
+    videos: int = Field(ge=1)
+    conditions: str = ""
+
+
+class CheckCounterResponse(BaseModel):
+    verdict: Literal["within", "over"]
+    suggested_counter_price_usd: int | None
+    talking_point: str
+
+
+class LogOfferRequest(BaseModel):
+    """The agent logs what was just said on the call, by either side."""
+
+    thread_id: UUID
+    price_usd: float | None = Field(None, gt=0)
+    videos: int | None = Field(None, ge=1)
+    go_live_by: str = ""
+    conditions: str = ""
+    stance: Stance
+    speaker: Literal["creator", "agent"]
+
+
+class LogOfferResponse(BaseModel):
+    logged: bool

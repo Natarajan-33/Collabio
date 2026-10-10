@@ -1,5 +1,6 @@
 """FastAPI dependencies: the database pool, the signed-in user, and role guards."""
 
+import hmac
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from functools import lru_cache
@@ -7,7 +8,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.concurrency import run_in_threadpool
 
@@ -15,7 +16,7 @@ from app.adapters.db import Database
 from app.adapters.elevenlabs import ElevenLabsClient, ElevenLabsPort
 from app.adapters.email import EmailPort, ResendClient
 from app.adapters.gemini import GeminiClient, GeminiPort
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.modules.me import service as me_service
 from app.schemas.me import Role
 
@@ -160,3 +161,21 @@ def require_role(role: Role) -> Callable[..., Awaitable[CurrentUser]]:
         return user
 
     return dependency
+
+
+def require_tool_secret(
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_collabio_tool_secret: Annotated[str | None, Header()] = None,
+) -> None:
+    """Admit only the agent's server-tool calls.
+
+    503 `tools_unconfigured` while no secret is set (so an empty header never matches an empty
+    secret), 401 `invalid_tool_secret` when the header is missing or wrong.
+    """
+    expected = settings.elevenlabs_tool_secret
+    if not expected:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "tools_unconfigured")
+    if x_collabio_tool_secret is None or not hmac.compare_digest(
+        x_collabio_tool_secret.encode(), expected.encode()
+    ):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_tool_secret")

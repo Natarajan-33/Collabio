@@ -15,6 +15,7 @@ from app.api.routers import (
     packages,
     unsubscribe,
     voice,
+    webhooks,
 )
 from app.config import get_settings
 from app.workers.runtime import start_workers, stop_workers
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
     api.include_router(voice.router)
     api.include_router(briefs.router)
     api.include_router(unsubscribe.router)
+    api.include_router(webhooks.router)
     app.include_router(api)
 
     return app
