@@ -14,31 +14,16 @@ from app.modules.threads.repo import transition
 pytestmark = pytest.mark.db
 
 DISCLOSURE = "This email was written with AI assistance on behalf of"
-# The seeded Priya may carry a reserved address (DEMO_HELPER_EMAIL is often @example.com), which
-# would never reach Resend. These tests need her to look real, so her address is swapped for the
-# test and restored afterwards. Only FakeEmail ever receives mail here.
-PRIYA_TEST_EMAIL = "priya.raman@outreach-tests.collabio.dev"
 
 
-@pytest.fixture(autouse=True)
-async def priya_has_a_real_address(api_db, launched_batch):
-    thread_id = launched_batch.threads["priyareviews"]
-    async with api_db.acquire() as conn:
-        row = await conn.fetchrow(
-            "select c.id, c.email from public.threads t join public.creators c"
-            " on c.id = t.creator_id where t.id = $1",
-            thread_id,
-        )
-        await conn.execute(
-            "update public.creators set email = $2 where id = $1", row["id"], PRIYA_TEST_EMAIL
-        )
-    try:
-        yield
-    finally:
-        async with api_db.acquire() as conn:
-            await conn.execute(
-                "update public.creators set email = $2 where id = $1", row["id"], row["email"]
-            )
+@pytest.fixture
+def deliverable(monkeypatch):
+    """Treat every address as deliverable, so the send path runs even though the seeded
+    creators carry reserved `@example.com` addresses. Only FakeEmail ever receives mail, and
+    nothing is written to the shared database."""
+    monkeypatch.setattr(
+        "app.modules.outreach.service.is_reserved_address", lambda e: e is None or not e.strip()
+    )
 
 
 def draft(subject: str = "Lumen Pods: three short videos?") -> EmailDraft:
@@ -105,7 +90,7 @@ async def token_of(api_db, thread_id) -> str:
 
 
 async def test_send_outreach_sends_once_with_stable_idempotency_key(
-    api_db, launched_batch, fake_gemini, fake_email, m2_settings
+    api_db, launched_batch, fake_gemini, fake_email, m2_settings, deliverable
 ):
     thread_id = launched_batch.threads["priyareviews"]
     settings = m2_settings.model_copy(update={"resend_inbound_domain": ""})
@@ -157,7 +142,7 @@ async def test_send_outreach_sends_once_with_stable_idempotency_key(
 
 
 async def test_reply_to_uses_inbound_domain_when_configured(
-    api_db, launched_batch, fake_gemini, fake_email, m2_settings
+    api_db, launched_batch, fake_gemini, fake_email, m2_settings, deliverable
 ):
     thread_id = launched_batch.threads["priyareviews"]
     settings = m2_settings.model_copy(update={"resend_inbound_domain": "in.test.collabio.dev"})
@@ -201,7 +186,7 @@ async def test_reserved_address_records_not_delivered(
 
 
 async def test_existing_draft_reused_for_same_attempt(
-    api_db, launched_batch, fake_gemini, fake_email, m2_settings
+    api_db, launched_batch, fake_gemini, fake_email, m2_settings, deliverable
 ):
     thread_id = launched_batch.threads["priyareviews"]
     await start(api_db, thread_id)
@@ -223,7 +208,7 @@ async def test_existing_draft_reused_for_same_attempt(
 
 
 async def test_email_and_prompt_never_mention_ceiling(
-    api_db, launched_batch, fake_gemini, fake_email, m2_settings
+    api_db, launched_batch, fake_gemini, fake_email, m2_settings, deliverable
 ):
     thread_id = launched_batch.threads["priyareviews"]
     await start(api_db, thread_id)
@@ -240,7 +225,7 @@ async def test_email_and_prompt_never_mention_ceiling(
 
 
 async def test_rejected_email_fails_thread_with_reason(
-    api_db, launched_batch, fake_gemini, fake_email, m2_settings
+    api_db, launched_batch, fake_gemini, fake_email, m2_settings, deliverable
 ):
     thread_id = launched_batch.threads["priyareviews"]
     await start(api_db, thread_id)
@@ -285,7 +270,7 @@ async def test_invalid_gemini_output_fails_thread(
 
 
 async def test_missing_resend_from_fails_thread(
-    api_db, launched_batch, fake_gemini, fake_email, m2_settings
+    api_db, launched_batch, fake_gemini, fake_email, m2_settings, deliverable
 ):
     thread_id = launched_batch.threads["priyareviews"]
     await start(api_db, thread_id)
@@ -299,7 +284,9 @@ async def test_missing_resend_from_fails_thread(
     assert row["last_error"] == "Email isn't configured (RESEND_FROM)."
 
 
-async def test_missing_resend_key_fails_thread(api_db, launched_batch, fake_gemini, m2_settings):
+async def test_missing_resend_key_fails_thread(
+    api_db, launched_batch, fake_gemini, m2_settings, deliverable
+):
     thread_id = launched_batch.threads["priyareviews"]
     await start(api_db, thread_id)
     fake_gemini.queue_structured(draft())
