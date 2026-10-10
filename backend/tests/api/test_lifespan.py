@@ -48,3 +48,57 @@ async def test_lifespan_opens_and_closes_the_pool(app, db):
     async with app.router.lifespan_context(app), app.state.db.acquire() as conn:
         assert await conn.fetchval("select 1") == 1
     assert app.state.db is None
+
+
+@pytest.fixture
+def worker_calls(monkeypatch):
+    """Replace start_workers/stop_workers in the lifespan with recorders, so no orchestrator
+    ever runs against the shared database."""
+    calls: list[str] = []
+
+    async def start(app, settings):
+        calls.append("start")
+        app.state.workers = object()
+
+    async def stop(app):
+        calls.append("stop")
+        app.state.workers = None
+
+    monkeypatch.setattr("app.main.start_workers", start)
+    monkeypatch.setattr("app.main.stop_workers", stop)
+    return calls
+
+
+def settings_with_workers(monkeypatch, value: str) -> None:
+    monkeypatch.setenv("WORKERS_ENABLED", value)
+    get_settings.cache_clear()
+
+
+@pytest.mark.db
+async def test_workers_not_started_when_disabled(app, db, monkeypatch, worker_calls):
+    settings_with_workers(monkeypatch, "0")
+    try:
+        async with app.router.lifespan_context(app):
+            assert app.state.workers is None
+    finally:
+        get_settings.cache_clear()
+    assert worker_calls == []
+
+
+@pytest.mark.db
+async def test_lifespan_starts_and_stops_workers(app, db, monkeypatch, worker_calls):
+    settings_with_workers(monkeypatch, "1")
+    try:
+        async with app.router.lifespan_context(app):
+            assert worker_calls == ["start"]
+            assert app.state.workers is not None
+            assert app.state.db is not None
+    finally:
+        get_settings.cache_clear()
+    assert worker_calls == ["start", "stop"]
+    assert app.state.workers is None
+
+
+def test_the_suite_runs_with_workers_off():
+    """conftest forces WORKERS_ENABLED=0, so a lifespan in any other test starts no worker."""
+    assert get_settings().workers_enabled is False

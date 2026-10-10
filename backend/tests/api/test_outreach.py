@@ -16,16 +16,6 @@ pytestmark = pytest.mark.db
 DISCLOSURE = "This email was written with AI assistance on behalf of"
 
 
-@pytest.fixture
-def deliverable(monkeypatch):
-    """Treat every address as deliverable, so the send path runs even though the seeded
-    creators carry reserved `@example.com` addresses. Only FakeEmail ever receives mail, and
-    nothing is written to the shared database."""
-    monkeypatch.setattr(
-        "app.modules.outreach.service.is_reserved_address", lambda e: e is None or not e.strip()
-    )
-
-
 def draft(subject: str = "Lumen Pods: three short videos?") -> EmailDraft:
     return EmailDraft(
         subject=subject,

@@ -115,6 +115,20 @@ The app starts without a database or API keys; endpoints that need a missing pie
 `503` (the startup log warns when the database is not configured). If you change a request or response model, regenerate
 the frontend's types (see `frontend/README.md`, `npm run api:gen`).
 
+## Workers
+
+When `WORKERS_ENABLED` is on (the default), the app starts the launch orchestrator with the
+API. It claims queued negotiation threads (several at a time, with skip-locked claims, so
+more than one process is safe) and sends each creator's outreach email. On startup a sweep
+requeues threads a previous process left half-drafted and fails calls that were never placed;
+a call is never re-dialed automatically. Launching a brief wakes the orchestrator at once;
+otherwise it polls every second.
+
+Tests and the dev backend share the hosted database. Run the dev backend with `WORKERS_ENABLED=0` while you run `pytest`. Test fixtures launch with `hold=True` so a running worker can't claim their threads; the API launch tests use only fictional creators, whose email is never delivered.
+
+The test suite itself forces `WORKERS_ENABLED=0` (in `tests/conftest.py`), so the app lifespan
+never starts a worker under `pytest`.
+
 ## Test and lint
 
 ```bash
@@ -149,9 +163,10 @@ app/
   api/               routers (thin) and dependencies (auth, db, Gemini, ElevenLabs)
   modules/           services and repositories: discovery, me, packages, voice
   core/              pure rules: money, package rules, pricing, text helpers
-  adapters/          db (asyncpg pool), gemini, elevenlabs
+  adapters/          db (asyncpg pool), gemini, elevenlabs, email (Resend)
+  workers/           launch orchestrator, restart sweep, start/stop with the app
   schemas/           Pydantic request/response models (the OpenAPI source)
 scripts/             seed, build_embedding_cache, export_openapi
 supabase/            migration and the seed dataset
-tests/               api/, core/, db/ and live/
+tests/               api/, core/, db/, workers/ and live/
 ```

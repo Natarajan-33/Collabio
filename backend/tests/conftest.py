@@ -36,6 +36,14 @@ from app.schemas.briefs import LaunchRequest
 from tests.fakes import FakeElevenLabs, FakeEmail, FakeGemini
 from tests.tokens import TEST_JWKS, StaticJWKSClient, auth_header
 
+# The tests share the hosted database with the dev backend. A lifespan that started the
+# launch workers here would claim threads other tests created and could send real email or
+# place a real call, so the whole suite runs with workers off. Only a test that opts in
+# (tests/api/test_lifespan.py) turns them on, and it patches start_workers/stop_workers.
+# Assigned (not setdefault) so a developer's own WORKERS_ENABLED=1 cannot leak in.
+os.environ["WORKERS_ENABLED"] = "0"
+get_settings.cache_clear()
+
 
 @pytest.fixture
 def app() -> FastAPI:
@@ -365,6 +373,48 @@ LAUNCHED_BRIEF = {
 }
 
 
+async def _launch_held(
+    brand_client: AsyncClient,
+    api_db: Database,
+    brief_cleanup: list[str],
+    channels: dict[uuid.UUID, str],
+) -> LaunchedBatch:
+    """Create, complete and launch (with `hold=True`) a brief for these creators."""
+    created = await brand_client.post(
+        "/api/v1/briefs", json={"creator_ids": [str(i) for i in channels]}
+    )
+    assert created.status_code == 201, created.text
+    brief_id = uuid.UUID(created.json()["id"])
+    brief_cleanup.append(str(brief_id))
+    today = datetime.now(UTC).date()
+    patched = await brand_client.patch(
+        f"/api/v1/briefs/{brief_id}",
+        json=LAUNCHED_BRIEF | {"go_live_by": (today + timedelta(days=30)).isoformat()},
+    )
+    assert patched.status_code == 200, patched.text
+
+    async with api_db.acquire() as conn:
+        brand_id = await conn.fetchval("select brand_id from public.briefs where id = $1", brief_id)
+    launched = await BriefService(api_db, brand_id).launch(
+        brief_id,
+        LaunchRequest(channels=channels),
+        today=today,
+        embedding=None,
+        hold=True,
+    )
+    async with api_db.acquire() as conn:
+        rows = await conn.fetch(
+            "select c.handle, t.id from public.threads t join public.creators c on c.id = t.creator_id"
+            " where t.batch_id = $1",
+            launched.batch_id,
+        )
+    return LaunchedBatch(
+        brief_id=brief_id,
+        batch_id=launched.batch_id,
+        threads={row["handle"]: row["id"] for row in rows},
+    )
+
+
 @pytest.fixture
 async def launched_batch(
     brand_client: AsyncClient,
@@ -381,36 +431,46 @@ async def launched_batch(
     would otherwise place a real call. The brief is deleted at teardown (`brief_cleanup`).
     """
     priya, arjun, maya = seeded_ids["priya"], seeded_ids["arjun"], fictional_ids[0]
-    created = await brand_client.post(
-        "/api/v1/briefs", json={"creator_ids": [str(i) for i in (priya, arjun, maya)]}
+    return await _launch_held(
+        brand_client, api_db, brief_cleanup, {arjun: "call", priya: "email", maya: "email"}
     )
-    assert created.status_code == 201, created.text
-    brief_id = uuid.UUID(created.json()["id"])
-    brief_cleanup.append(str(brief_id))
-    today = datetime.now(UTC).date()
-    patched = await brand_client.patch(
-        f"/api/v1/briefs/{brief_id}",
-        json=LAUNCHED_BRIEF | {"go_live_by": (today + timedelta(days=30)).isoformat()},
-    )
-    assert patched.status_code == 200, patched.text
 
-    async with api_db.acquire() as conn:
-        brand_id = await conn.fetchval("select brand_id from public.briefs where id = $1", brief_id)
-    launched = await BriefService(api_db, brand_id).launch(
-        brief_id,
-        LaunchRequest(channels={arjun: "call", priya: "email", maya: "email"}),
-        today=today,
-        embedding=None,
-        hold=True,
-    )
+
+@pytest.fixture
+async def launched_ten(
+    brand_client: AsyncClient,
+    api_db: Database,
+    brief_cleanup: list[str],
+    seeded_ids: dict[str, uuid.UUID],
+) -> LaunchedBatch:
+    """The `launched_batch` brief over ten seeded fictional creators, all on `email`.
+
+    The creators have `@example.com` addresses, are neither Priya nor Arjun, and have no phone
+    opt-in, so no thread can ever send a real email or place a call. Launched with `hold=True`;
+    the brief is deleted at teardown (`brief_cleanup`).
+    """
     async with api_db.acquire() as conn:
         rows = await conn.fetch(
-            "select c.handle, t.id from public.threads t join public.creators c on c.id = t.creator_id"
-            " where t.batch_id = $1",
-            launched.batch_id,
+            "select c.id from public.creators c"
+            " where c.email like '%@example.com' and not c.phone_opt_in"
+            "   and not c.contact_opt_out and c.id <> all($1::uuid[])"
+            "   and exists (select 1 from public.packages p"
+            "               where p.creator_id = c.id and p.status = 'published')"
+            " order by c.handle limit 10",
+            list(seeded_ids.values()),
         )
-    return LaunchedBatch(
-        brief_id=brief_id,
-        batch_id=launched.batch_id,
-        threads={row["handle"]: row["id"] for row in rows},
+    if len(rows) < 10:
+        _skip(NOT_SEEDED)
+    return await _launch_held(
+        brand_client, api_db, brief_cleanup, {row["id"]: "email" for row in rows}
+    )
+
+
+@pytest.fixture
+def deliverable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Treat every address as deliverable, so the send path runs even though the seeded
+    creators carry reserved `@example.com` addresses. Only FakeEmail ever receives mail, and
+    nothing is written to the shared database. Opt-in: request it by name."""
+    monkeypatch.setattr(
+        "app.modules.outreach.service.is_reserved_address", lambda e: e is None or not e.strip()
     )

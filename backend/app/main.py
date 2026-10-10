@@ -17,6 +17,7 @@ from app.api.routers import (
     voice,
 )
 from app.config import get_settings
+from app.workers.runtime import start_workers, stop_workers
 
 API_PREFIX = "/api/v1"
 
@@ -25,7 +26,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Open the process-wide database pool, when a database is configured."""
+    """Open the process-wide database pool, when a database is configured, and run the launch
+    workers on it unless `WORKERS_ENABLED` is off."""
     settings = get_settings()
     if not settings.database_configured:
         logger.warning(
@@ -38,8 +40,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await db.connect(settings.supabase_db_url)
     app.state.db = db
     try:
+        if settings.workers_enabled:
+            await start_workers(app, settings)
         yield
     finally:
+        if app.state.workers is not None:
+            await stop_workers(app)
         app.state.db = None
         await db.close()
 
@@ -50,6 +56,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="Collabio API", version="0.1.0", lifespan=lifespan)
     app.state.db = None  # set by the lifespan; see app.api.deps.get_db
+    app.state.workers = None  # set by the lifespan when workers are enabled
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.frontend_origin],

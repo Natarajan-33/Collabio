@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.adapters.db import Database
 from app.adapters.gemini import GeminiInvalidOutput, GeminiPort, GeminiUnavailable
@@ -21,6 +21,7 @@ from app.schemas.briefs import (
     LaunchRequest,
     LaunchResponse,
 )
+from app.workers.runtime import wake_orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +154,7 @@ async def _brief_embedding(brief: DealBrief, gemini: GeminiPort | None) -> list[
     },
 )
 async def launch_brief(
+    request: Request,
     brief_id: UUID,
     req: LaunchRequest,
     briefs: Briefs,
@@ -164,4 +166,6 @@ async def launch_brief(
         brief = await briefs.get(brief_id, today)
         # Embedded before the launch transaction: a slow Gemini must not hold the brief lock.
         embedding = await _brief_embedding(brief, gemini)
-        return await briefs.launch(brief_id, req, today=today, embedding=embedding)
+        launched = await briefs.launch(brief_id, req, today=today, embedding=embedding)
+    wake_orchestrator(request.app)
+    return launched

@@ -38,6 +38,22 @@ set status = $2,
     latest_terms_source = coalesce($5, latest_terms_source)
 where id = $1 and status = any($6::text[])
 """
+CLAIM_QUEUED = """
+with next as (
+  select id from public.threads
+  where status = 'queued'
+    and (($2::uuid is null and (next_action_at is null or next_action_at <= now()))
+         or batch_id = $2::uuid)
+  order by created_at, id
+  for update skip locked
+  limit $1
+)
+update public.threads t
+set status = case when t.channel_plan = 'call' then 'calling' else 'drafting' end
+from next
+where t.id = next.id
+returning t.id, t.channel_plan, t.status
+"""
 UPDATE_TERMS = """
 update public.threads set latest_terms = $2::jsonb, latest_terms_source = $3 where id = $1
 """
@@ -49,6 +65,13 @@ class ThreadRef:
     batch_id: UUID
     brand_id: UUID
     creator_id: UUID
+
+
+@dataclass(frozen=True)
+class ClaimedThread:
+    id: UUID
+    channel_plan: str
+    status: str  # what the claim moved it to: `drafting` or `calling`
 
 
 class StaleThread(Exception):
@@ -203,3 +226,18 @@ async def fail_thread(conn: asyncpg.Connection, thread_id: UUID, reason: str) ->
         )
     except StaleThread:
         return
+
+
+async def claim_queued(
+    conn: asyncpg.Connection, *, limit: int, batch_id: UUID | None = None
+) -> list[ClaimedThread]:
+    """Claim up to `limit` queued threads, oldest first, moving each to `drafting`
+    (`calling` for a call).
+
+    `FOR UPDATE SKIP LOCKED` makes concurrent claimers take different threads. Only threads
+    that are due are claimed (`next_action_at` unset or past); with `batch_id` (tests) the
+    thread's `next_action_at` is ignored, which is how held threads are claimed. The claim is
+    one statement: call it outside a transaction so the new status is committed at once.
+    """
+    rows = await conn.fetch(CLAIM_QUEUED, limit, batch_id)
+    return [ClaimedThread(**row) for row in rows]
