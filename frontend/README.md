@@ -55,6 +55,16 @@ from `backend/.env`, shared out of band):
 - the brand lands on `/brand/discover`
 - Priya Raman and Arjun Mehta land on `/creator/packages`
 
+## Brief and Board (M2)
+
+- **`/brand/briefs/[id]`** — edit the deal brief, preview creator deltas, talk to the brief
+  agent (WebRTC), and **Launch** to a batch. While the brief agent is live, the Voice Dock
+  pauses with a short reason.
+- **`/brand/batches`** — list launches; **`/brand/batches/[id]`** — the live negotiation
+  board (KPIs, sortable cards, email reveal, thread drawer). Board updates use Supabase
+  Realtime inserts on `thread_events` as a doorbell to refetch the server view model; the
+  signed-in Supabase session must be present in the browser.
+
 ## Scripts
 
 | Command | What it does |
@@ -71,7 +81,8 @@ Before pushing: `npm run test && npm run typecheck && npm run lint && npm run bu
 
 ## End-to-end smoke (Playwright)
 
-`tests/e2e/m1.spec.ts` drives the real UI against a running stack, using the Voice Dock's
+`tests/e2e/m1.spec.ts` and `tests/e2e/m2.spec.ts` drive the real UI against a running stack,
+using the Voice Dock's
 text box instead of the microphone. Typing a command takes the same road as speaking
 (`POST /api/v1/voice/command`), so everything but the microphone itself is covered. It has
 three tests:
@@ -82,6 +93,11 @@ three tests:
 2. Priya signs in, types a package dictation, names the package, publishes it and sees the
    "Published" badge.
 3. A brand that opens `/creator/packages` is sent to `/brand/discover`.
+
+`m2.spec.ts` walks a brand from Discover through a click-filled brief, launch, and board cards
+showing **Sent** and **Not delivered: test address** (fictional `@example.com` creators only).
+It needs `WORKERS_ENABLED=1` on the backend, a Gemini key, and the same demo env vars as M1.
+Run a single file with `npm run e2e -- m2.spec.ts`.
 
 **One-time setup.** Playwright needs its own browser build; the install is a download you run
 once per machine:

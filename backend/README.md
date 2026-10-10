@@ -115,6 +115,38 @@ The app starts without a database or API keys; endpoints that need a missing pie
 `503` (the startup log warns when the database is not configured). If you change a request or response model, regenerate
 the frontend's types (see `frontend/README.md`, `npm run api:gen`).
 
+## M2: running negotiations
+
+M2 adds briefs, launch, outreach email (Resend), negotiation phone calls (ElevenLabs), and the
+live board. Apply `supabase/migrations/20261010120000_m2_negotiation.sql` to the hosted
+project if it is not there yet (`supabase db push` after `supabase link`).
+
+Extra environment variables (see `backend/.env.example`):
+
+| Variable | Purpose |
+| --- | --- |
+| `ELEVENLABS_BRIEF_AGENT_ID`, `ELEVENLABS_NEGOTIATION_AGENT_ID` | Agents Platform agent ids (from `scripts.sync_agents`). |
+| `ELEVENLABS_PHONE_NUMBER_ID` | Outbound caller id for negotiation calls. |
+| `ELEVENLABS_WEBHOOK_SECRET` | HMAC secret for the post-call webhook. |
+| `ELEVENLABS_TOOL_SECRET` | Bearer token for `check_counter` / `log_offer` tool routes. |
+| `RESEND_API_KEY`, `RESEND_FROM` | Outbound email (real domains only; `@example.com` is never sent). |
+| `RESEND_INBOUND_DOMAIN` | Leave empty until M3 inbound reply parsing. |
+| `PUBLIC_BACKEND_URL`, `PUBLIC_FRONTEND_URL` | Public URLs for email links and agent webhooks. |
+| `WORKERS_ENABLED` | `0` while running `pytest` or a second dev API on the shared DB. |
+
+Sync agent JSON to ElevenLabs after setting `PUBLIC_BACKEND_URL`:
+
+```bash
+uv run python -m scripts.sync_agents
+```
+
+Copy the printed agent ids and phone number into `.env`, then run the sync again (it should
+PATCH, not create). Point ElevenLabs post-call webhooks at
+`{PUBLIC_BACKEND_URL}/api/v1/webhooks/elevenlabs/post-call`. For local dev, expose the API
+with a tunnel, for example `cloudflared tunnel --url http://localhost:8000`, set
+`PUBLIC_BACKEND_URL` to the printed `https://…trycloudflare.com` URL, restart the API, and
+re-run the sync whenever the tunnel URL changes.
+
 ## Workers
 
 When `WORKERS_ENABLED` is on (the default), the app starts the launch orchestrator with the

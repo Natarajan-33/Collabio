@@ -1,4 +1,6 @@
-import { expect, test, type Locator, type Page } from "@playwright/test"
+import { expect, test } from "@playwright/test"
+
+import { say, signIn, whenHydrated } from "./helpers"
 
 /**
  * M1 smoke: the voice flows, driven through the Voice Dock's text box. Typing takes the
@@ -31,7 +33,7 @@ test.describe("M1 smoke", () => {
   )
 
   test("brand discovers and reviews by typed command", async ({ page }) => {
-    await signIn(page, demo.brand, DISCOVER)
+    await signIn(page, demo.brand, demo.password, DISCOVER)
 
     // The unfiltered grid first, so every later change is the command's doing.
     const picks = page.getByRole("checkbox", { name: /^Select / })
@@ -68,7 +70,7 @@ test.describe("M1 smoke", () => {
     // Unique per run: the package stays in Priya's account (the seed's --reset removes it).
     const name = `E2E smoke ${Date.now()}`
 
-    await signIn(page, demo.creator, PACKAGES)
+    await signIn(page, demo.creator, demo.password, PACKAGES)
     await expect(
       page.getByRole("region", { name: "Your packages", exact: true })
     ).toBeVisible()
@@ -93,7 +95,7 @@ test.describe("M1 smoke", () => {
   })
 
   test("brand cannot open creator routes", async ({ page }) => {
-    await signIn(page, demo.brand, DISCOVER)
+    await signIn(page, demo.brand, demo.password, DISCOVER)
 
     await page.goto(PACKAGES)
 
@@ -101,46 +103,3 @@ test.describe("M1 smoke", () => {
     await expect(page).not.toHaveURL(/\/creator/)
   })
 })
-
-/** Signs in on the real form and waits for the role's home screen. */
-async function signIn(page: Page, email: string, home: string) {
-  await page.goto("/sign-in")
-
-  const emailField = page.getByLabel("Email", { exact: true })
-  await whenHydrated(emailField)
-  await emailField.fill(email)
-  await page.getByLabel("Password", { exact: true }).fill(demo.password)
-  await page.getByRole("button", { name: "Sign in", exact: true }).click()
-
-  await page.waitForURL(`**${home}`)
-}
-
-/**
- * Types a command into the Voice Dock and sends it. The dock keeps the text box once it
- * is chosen, and the box is disabled while a command is routed, so back-to-back
- * commands queue behind each other.
- */
-async function say(page: Page, command: string) {
-  const dock = page.getByRole("group", { name: "Voice commands" })
-  const input = dock.getByRole("textbox", { name: "Type a command" })
-
-  if (!(await input.isVisible())) {
-    await dock.getByRole("button", { name: "Type a command instead" }).click()
-  }
-  await input.fill(command)
-  await input.press("Enter")
-}
-
-/**
- * Waits until React has attached to an element. A controlled input that is typed into
- * sooner is reset to empty when the page hydrates, which loses the text.
- */
-async function whenHydrated(element: Locator) {
-  await expect
-    .poll(() =>
-      element.evaluate((node) =>
-        Object.keys(node).some((key) => key.startsWith("__reactProps$"))
-      )
-    )
-    .toBe(true)
-}
