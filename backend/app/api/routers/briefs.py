@@ -8,11 +8,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.adapters.db import Database
+from app.adapters.elevenlabs import ElevenLabsPort, ElevenLabsUnavailable
 from app.adapters.gemini import GeminiInvalidOutput, GeminiPort, GeminiUnavailable
-from app.api.deps import CurrentUser, get_db, optional_gemini, require_role
+from app.api.deps import CurrentUser, get_db, get_elevenlabs, optional_gemini, require_role
+from app.config import Settings, get_settings
 from app.modules.briefs import service
 from app.modules.briefs.launch import ChannelNotAllowed
 from app.modules.briefs.service import BriefService
+from app.modules.briefs.voice_session import brief_dynamic_variables
 from app.schemas.briefs import (
     BriefPatch,
     BriefPreview,
@@ -20,6 +23,7 @@ from app.schemas.briefs import (
     DealBrief,
     LaunchRequest,
     LaunchResponse,
+    VoiceSessionResponse,
 )
 from app.workers.runtime import wake_orchestrator
 
@@ -169,3 +173,38 @@ async def launch_brief(
         launched = await briefs.launch(brief_id, req, today=today, embedding=embedding)
     wake_orchestrator(request.app)
     return launched
+
+
+@router.post(
+    "/{brief_id}/voice-session",
+    responses=NOT_FOUND
+    | {
+        status.HTTP_409_CONFLICT: {"description": "`brief_launched`"},
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"description": "`voice_unavailable`"},
+    },
+)
+async def voice_session(
+    brief_id: UUID,
+    briefs: Briefs,
+    settings: Annotated[Settings, Depends(get_settings)],
+    elevenlabs: Annotated[ElevenLabsPort, Depends(get_elevenlabs)],
+) -> VoiceSessionResponse:
+    """A token to talk the brief through with the brief agent, and what the agent should know."""
+    today = utc_today()
+    with _http_errors():
+        brief = await briefs.get(brief_id, today)
+        if brief.status == "launched":
+            raise service.BriefLaunched
+        preview = await briefs.preview(brief_id, today)
+    agent_id = settings.elevenlabs_brief_agent_id
+    if not agent_id:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "voice_unavailable")
+    try:
+        token = await elevenlabs.mint_conversation_token(agent_id)
+    except ElevenLabsUnavailable as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "voice_unavailable") from exc
+    creators = [(c.name, c.package.one_liner) for c in preview.creators]
+    return VoiceSessionResponse(
+        conversation_token=token,
+        dynamic_variables=brief_dynamic_variables(brief, creators, today),
+    )

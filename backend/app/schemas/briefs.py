@@ -125,3 +125,10 @@ class LaunchResponse(BaseModel):
     batch_id: UUID
     thread_count: int
     excluded: list[LaunchExclusion]
+
+
+class VoiceSessionResponse(BaseModel):
+    """What the browser needs to start a conversation with the brief agent."""
+
+    conversation_token: str
+    dynamic_variables: dict[str, str]

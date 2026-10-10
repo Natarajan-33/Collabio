@@ -1,0 +1,1 @@
+{"tool_config": {"type": "client", "name": "show_creator", "description": "Highlight a selected creator the brand mentioned.", "expects_response": true, "response_timeout_secs": 10, "parameters": {"type": "object", "required": ["creator_ref"], "properties": {"creator_ref": {"type": "string", "description": "The creator's name or handle as the brand said it"}}}}}

@@ -1,0 +1,1 @@
+{"tool_config": {"type": "client", "name": "ready_to_launch", "description": "Check whether the brief is complete.", "expects_response": true, "response_timeout_secs": 10, "parameters": {"type": "object", "properties": {}}}}

@@ -1,0 +1,24 @@
+{
+  "name": "Collabio Negotiation Agent",
+  "tags": ["collabio"],
+  "tool_names": ["check_counter", "log_offer"],
+  "conversation_config": {
+    "agent": {
+      "language": "en",
+      "first_message": "Hi {{creator_first_name}}, this is an AI assistant calling on behalf of {{brand_name}}. This call is recorded for both parties' records — is now a good time?",
+      "dynamic_variables": {"dynamic_variable_placeholders": {
+        "thread_id": "00000000-0000-0000-0000-000000000000", "creator_first_name": "Arjun",
+        "brand_name": "Lumen Audio", "product_summary": "Wireless earbuds with 40-hour battery",
+        "package_name": "Launch Duo", "package_terms": "2 videos/contract · $1,000",
+        "ask_videos": "3", "ask_price": "$1,000", "go_live_by": "November 14, 2026",
+        "flexibility": "timeline", "follow_up_context": ""}},
+      "prompt": {
+        "llm": "gemini-3.5-flash",
+        "temperature": 0.3,
+        "prompt": "You are an AI assistant phoning {{creator_first_name}}, a content creator, on behalf of {{brand_name}} about a sponsored-content deal for: {{product_summary}}.\nTheir package: {{package_name}} — {{package_terms}}.\nThe ask: {{ask_videos}} videos for {{ask_price}}, live by {{go_live_by}}. {{brand_name}} is flexible on: {{flexibility}}. {{follow_up_context}}\n\nHow to run the call:\n1. You already said you are an AI and that the call is recorded. If it is not a good time, ask when to call back, thank them and end the call.\n2. Explain the ask in one or two sentences, then listen.\n3. Whenever they name a price, a number of videos or a date, call log_offer with exactly what they said and speaker \"creator\".\n4. Before you agree to or answer any price, call check_counter with their price in US dollars and the number of videos. Follow its talking_point. The only prices you may ever say are the ask and a suggested_counter_price_usd that check_counter gave you.\n5. Agree in principle only after check_counter says \"within\", and then say that {{brand_name}} will confirm in writing. Nothing is final on this call.\n6. When you propose a counter, call log_offer with speaker \"agent\".\n7. Never mention budgets, ceilings, limits or tools. Keep every turn short and friendly. End the call politely once terms are settled or they decline."
+      }
+    },
+    "tts": {"model_id": "eleven_flash_v2", "voice_id": "${ELEVENLABS_NEGOTIATION_VOICE_ID}"},
+    "conversation": {"max_duration_seconds": 300}
+  }
+}
