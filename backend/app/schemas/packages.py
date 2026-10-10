@@ -8,6 +8,8 @@ Niche = Literal["consumer_tech", "beauty", "fitness", "food", "gaming", "b2b_saa
 ContentType = Literal["short_video", "long_video", "story", "live"]
 VolumeBasis = Literal["per_week", "per_contract"]
 PreferredChannel = Literal["email_first", "phone_ok", "email_only"]
+# Where a creator is based, as stored on `creators.region` and matched by discovery.
+Region = Literal["US", "IN", "UK", "CA", "AU"]
 Currency = Literal["USD"]
 PackageStatus = Literal["draft", "published"]
 

@@ -20,7 +20,7 @@ GENERATE_URL = r".*/models/gemini-3\.8-flash:generateContent$"
 ROUTED_INTENT_REPLY = {
     "kind": "search",
     "heard": "tech creators under two grand",
-    "search": {"filters": {"niches": ["consumer_tech"], "max_price_cents": 200000}},
+    "search": {"filters": {"niches": ["consumer_tech"], "max_price_cents": 200000, "region": "IN"}},
 }
 EXTRACTED_DRAFT_REPLY = {
     "heard": "two videos for a thousand with a thumbnail pack for fifty",

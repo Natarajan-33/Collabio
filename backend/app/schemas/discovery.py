@@ -20,6 +20,7 @@ from app.schemas.packages import (
     ContentType,
     Niche,
     PreferredChannel,
+    Region,
     VolumeBasis,
 )
 
@@ -31,7 +32,8 @@ def _blank_to_none(value: Any) -> Any:
     return value
 
 
-OptionalText = Annotated[str | None, BeforeValidator(_blank_to_none)]
+# A stored region code, or nothing. A place name would match no creator, so it is rejected.
+OptionalRegion = Annotated[Region | None, BeforeValidator(_blank_to_none)]
 # Bounds what one search can send to the embedding model.
 SearchText = Annotated[
     Annotated[str, StringConstraints(max_length=500)] | None, BeforeValidator(_blank_to_none)
@@ -50,7 +52,7 @@ class SearchFilters(BaseModel):
     # ge=1, not PositiveInt: that emits `exclusiveMinimum`, which Gemini's response schema rejects.
     max_price_cents: Annotated[int, Field(ge=1)] | None = None
     min_followers: NonNegativeInt | None = None
-    region: OptionalText = None
+    region: OptionalRegion = None
 
 
 class SearchRequest(BaseModel):

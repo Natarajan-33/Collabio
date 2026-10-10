@@ -107,12 +107,35 @@ describe("applySearchIntent and chipsFor", () => {
         content_types: [],
         max_price_cents: null,
         min_followers: null,
-        region: "",
+        region: null,
       },
     })
 
     expect(s.filters).toEqual({ niches: [], content_types: [] })
     expect(Object.keys(s.filters)).toEqual(["niches", "content_types"])
+  })
+
+  it.each(["India", "", "  ", "us"])(
+    "drops a region that is not a stored code (%j): the API would refuse it",
+    (stale) => {
+      const s = applySearchIntent(emptyDiscover, {
+        filters: { region: stale as never },
+      })
+
+      expect(s.filters).toEqual({ niches: [], content_types: [] })
+    }
+  )
+
+  it("names a region chip by its place, not its code", () => {
+    const s = applySearchIntent(emptyDiscover, {
+      filters: { region: "IN", niches: ["consumer_tech"] },
+    })
+
+    expect(s.filters.region).toBe("IN")
+    expect(chipsFor(s.filters).map((c) => c.label)).toEqual([
+      "Consumer tech",
+      "India",
+    ])
   })
 
   it("labels every kind of chip", () => {
@@ -132,7 +155,7 @@ describe("applySearchIntent and chipsFor", () => {
       "Live",
       "≤ $999.50",
       "50k+ followers",
-      "US",
+      "United States",
     ])
     // Stable, distinct keys.
     expect(new Set(chips.map((c) => c.id)).size).toBe(chips.length)
@@ -189,7 +212,7 @@ describe("removeFilter", () => {
 
   it.each([
     ["50k+ followers", "min_followers"],
-    ["US", "region"],
+    ["United States", "region"],
   ] as const)("removes %s", (label, key) => {
     const after = removeFilter(start, chip(label))
     expect(key in after.filters).toBe(false)

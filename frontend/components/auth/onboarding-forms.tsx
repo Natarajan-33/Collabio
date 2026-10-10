@@ -13,7 +13,7 @@ import { NativeSelect } from "@/components/ui/native-select"
 import { useApi } from "@/hooks/use-api"
 import type { components } from "@/lib/api/schema"
 import { roleHome } from "@/lib/auth/routing"
-import { NICHES, REGIONS, type Niche } from "@/lib/vocab"
+import { asRegion, NICHES, REGIONS, type Niche, type Region } from "@/lib/vocab"
 
 type OnboardingBody =
   | components["schemas"]["BrandOnboarding"]
@@ -302,14 +302,14 @@ export function CreatorForm({ onBack }: { onBack: () => void }) {
   const [name, setName] = useState("")
   const [handle, setHandle] = useState("")
   const [niches, setNiches] = useState<Niche[]>([])
-  const [region, setRegion] = useState("")
+  const [region, setRegion] = useState<Region | null>(null)
 
   const handleTaken = failure === "handle_taken"
   const canSubmit =
     name.trim() !== "" &&
     handle.length >= 2 &&
     niches.length > 0 &&
-    region !== ""
+    region !== null
 
   return (
     <FormShell
@@ -319,7 +319,8 @@ export function CreatorForm({ onBack }: { onBack: () => void }) {
       canSubmit={canSubmit}
       pending={pending}
       failure={failure}
-      onSubmit={() =>
+      onSubmit={() => {
+        if (region === null) return
         void submit({
           role: "creator",
           display_name: name.trim(),
@@ -330,7 +331,7 @@ export function CreatorForm({ onBack }: { onBack: () => void }) {
           ),
           region,
         })
-      }
+      }}
     >
       <div className="space-y-2">
         <Label htmlFor={ids.name}>Your name</Label>
@@ -401,8 +402,8 @@ export function CreatorForm({ onBack }: { onBack: () => void }) {
         <Label htmlFor={ids.region}>Region</Label>
         <NativeSelect
           id={ids.region}
-          value={region}
-          onChange={(event) => setRegion(event.target.value)}
+          value={region ?? ""}
+          onChange={(event) => setRegion(asRegion(event.target.value))}
           className="h-10"
         >
           <option value="" disabled>

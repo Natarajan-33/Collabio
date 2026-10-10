@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, StringConstraints
 
-from app.schemas.packages import Niche
+from app.schemas.packages import Niche, Region
 
 Role = Literal["brand", "creator"]
 
@@ -45,7 +45,7 @@ class CreatorOnboarding(BaseModel):
     display_name: Name
     handle: Handle
     niches: Niches
-    region: Name
+    region: Region
 
 
 OnboardingRequest = Annotated[BrandOnboarding | CreatorOnboarding, Field(discriminator="role")]

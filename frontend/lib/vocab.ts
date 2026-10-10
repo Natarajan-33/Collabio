@@ -15,14 +15,25 @@ export const NICHES: readonly { value: Niche; label: string }[] = [
   { value: "b2b_saas", label: "B2B SaaS" },
 ]
 
+/**
+ * The region codes the backend accepts: a creator's region and the discovery filter.
+ * Typed from the API schema, like `Niche`.
+ */
+export type Region = components["schemas"]["CreatorOnboarding"]["region"]
+
 /** Launch regions. The value is the code stored on the creator and used by discovery. */
-export const REGIONS = [
+export const REGIONS: readonly { value: Region; label: string }[] = [
   { value: "US", label: "United States" },
   { value: "IN", label: "India" },
   { value: "UK", label: "United Kingdom" },
   { value: "CA", label: "Canada" },
   { value: "AU", label: "Australia" },
-] as const
+]
+
+/** The region for a code, or null when it is not one of the launch regions. */
+export function asRegion(value: unknown): Region | null {
+  return REGIONS.find((region) => region.value === value)?.value ?? null
+}
 
 /** What a package delivers. Typed from the API schema, like `Niche`. */
 export type ContentType =
@@ -70,6 +81,10 @@ export const NICHE_COLOR: Record<Niche, string> = {
 
 export function nicheLabel(value: string): string {
   return NICHES.find((niche) => niche.value === value)?.label ?? value
+}
+
+export function regionLabel(value: string): string {
+  return REGIONS.find((region) => region.value === value)?.label ?? value
 }
 
 export function contentTypeLabel(value: string): string {

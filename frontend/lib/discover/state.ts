@@ -1,7 +1,12 @@
 import type { components } from "@/lib/api/schema"
 import { formatFollowers } from "@/lib/format"
 import { formatCents } from "@/lib/money"
-import { contentTypeLabel, nicheLabel } from "@/lib/vocab"
+import {
+  asRegion,
+  contentTypeLabel,
+  nicheLabel,
+  regionLabel,
+} from "@/lib/vocab"
 
 export type SearchFilters = components["schemas"]["SearchFilters"]
 export type SearchRequest = components["schemas"]["SearchRequest"]
@@ -59,7 +64,9 @@ export function normalizeFilters(
   if (filters?.min_followers != null && filters.min_followers > 0) {
     clean.min_followers = filters.min_followers
   }
-  const region = filters?.region?.trim()
+  // Only a stored code can match a creator; anything else (a place name left over from
+  // an older session) would be refused by the API, so it is no filter.
+  const region = asRegion(filters?.region)
   if (region) clean.region = region
   return clean
 }
@@ -127,7 +134,9 @@ export function chipsFor(filters: SearchFilters): FilterChip[] {
       `${formatFollowers(filters.min_followers)}+ followers`
     )
   }
-  if (filters.region) add("region", filters.region, filters.region)
+  if (filters.region) {
+    add("region", filters.region, regionLabel(filters.region))
+  }
   return chips
 }
 

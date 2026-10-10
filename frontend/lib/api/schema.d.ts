@@ -348,8 +348,11 @@ export interface components {
             handle: string;
             /** Niches */
             niches: ("consumer_tech" | "beauty" | "fitness" | "food" | "gaming" | "b2b_saas")[];
-            /** Region */
-            region: string;
+            /**
+             * Region
+             * @enum {string}
+             */
+            region: "US" | "IN" | "UK" | "CA" | "AU";
         };
         /**
          * CreatorRef
@@ -717,7 +720,7 @@ export interface components {
             /** Min Followers */
             min_followers?: number | null;
             /** Region */
-            region?: string | null;
+            region?: ("US" | "IN" | "UK" | "CA" | "AU") | null;
         };
         /**
          * SearchRequest

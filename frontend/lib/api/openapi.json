@@ -805,8 +805,13 @@
           },
           "region": {
             "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
+            "enum": [
+              "US",
+              "IN",
+              "UK",
+              "CA",
+              "AU"
+            ],
             "title": "Region"
           }
         },
@@ -1779,7 +1784,14 @@
           "region": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "US",
+                  "IN",
+                  "UK",
+                  "CA",
+                  "AU"
+                ]
               },
               {
                 "type": "null"

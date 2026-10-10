@@ -145,6 +145,15 @@ async def test_blank_query_and_region_are_ignored(brand_client, fake_gemini):
     assert fake_gemini.embed_calls == 0
 
 
+@pytest.mark.parametrize("region", ["India", "Narnia", "GB", "in"])
+async def test_region_must_be_a_stored_code(brand_client, fake_gemini, region):
+    """Regions are stored as US/IN/UK/CA/AU, so a spoken name would match nothing."""
+    r = await brand_client.post(SEARCH, json={"filters": {"region": region}})
+
+    assert r.status_code == 422
+    assert fake_gemini.embed_calls == 0
+
+
 async def test_response_echoes_the_applied_search(brand_client):
     filters = {
         "niches": ["gaming"],
