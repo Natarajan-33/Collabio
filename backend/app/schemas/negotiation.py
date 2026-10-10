@@ -32,6 +32,23 @@ EventType = Literal[
     "failed",
     "retried",
 ]
+# The statuses the `threads.status` check constraint allows; M2 uses the first ten.
+ThreadStatus = Literal[
+    "queued",
+    "drafting",
+    "awaiting_reply",
+    "calling",
+    "in_call",
+    "countered",
+    "accepted",
+    "declined",
+    "needs_review",
+    "failed",
+    "awarded",
+    "closed_lost",
+    "no_response",
+    "follow_up_suggested",
+]
 Actor = Literal["brand", "brand_agent", "creator", "system"]
 DeltaFlag = Literal["below_base_price", "lead_time_conflict", "estimated"]
 
