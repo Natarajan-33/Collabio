@@ -153,8 +153,9 @@ async function start(): Promise<SessionOptions> {
   return h.startSession.mock.calls.at(-1)?.[0] as SessionOptions
 }
 
-function connect() {
-  act(() => h.store.set({ status: "connected" }))
+/** The call is up: the library reports it through `onConnect`. */
+function connect(options: SessionOptions) {
+  act(() => options.onConnect({ conversationId: "conv_1" }))
 }
 
 beforeEach(() => {
@@ -359,18 +360,88 @@ describe("AgentSession", () => {
     render(ui({}))
     expect(screen.getByTestId("paused").textContent).toBe("")
 
-    await start()
-    connect()
+    const options = await start()
+    expect(screen.getByTestId("paused").textContent).toBe(PAUSE)
+    connect(options)
     expect(screen.getByTestId("paused").textContent).toBe(PAUSE)
 
-    act(() => h.store.set({ status: "disconnected" }))
+    act(() => options.onDisconnect({ reason: "agent" }))
     expect(screen.getByTestId("paused").textContent).toBe("")
+  })
+
+  it("stays in the call when the library reports an error the call survives", async () => {
+    const user = userEvent.setup()
+    render(ui({}))
+    const options = await start()
+    connect(options)
+    h.startSession.mockClear()
+    h.toastError.mockClear()
+
+    // A client tool threw: the library flips its status to "error", the call goes on.
+    act(() => {
+      h.store.set({ status: "error" })
+      options.onError("Client tool execution failed", { name: "Error" })
+    })
+
+    expect(screen.getByTestId("paused").textContent).toBe(PAUSE)
+    expect(
+      screen.getByRole("button", { name: "End conversation" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Talk it through" })).toBeNull()
+    expect(screen.getByText("Listening")).toBeTruthy()
+    expect(h.toastError).not.toHaveBeenCalled()
+    await user.click(screen.getByRole("button", { name: "End conversation" }))
+    expect(h.startSession).not.toHaveBeenCalled()
+
+    // Only the end of the call releases the dock.
+    expect(screen.getByTestId("paused").textContent).toBe("")
+  })
+
+  it("holds the dock after an error until the call itself disconnects", async () => {
+    render(ui({}))
+    const options = await start()
+    connect(options)
+
+    act(() => h.store.set({ status: "error" }))
+    expect(screen.getByTestId("paused").textContent).toBe(PAUSE)
+    expect(h.startSession).toHaveBeenCalledTimes(1)
+
+    act(() => options.onDisconnect({ reason: "error" }))
+    expect(screen.getByTestId("paused").textContent).toBe("")
+  })
+
+  it("ending and talking again while the token is pending starts only the new session", async () => {
+    const user = userEvent.setup()
+    const pending: ((reply: unknown) => void)[] = []
+    h.api.POST.mockImplementation(
+      () => new Promise((resolve) => pending.push(resolve))
+    )
+    const mint = (token: string) => ({
+      data: { conversation_token: token, dynamic_variables: {} },
+      response: { status: 200 },
+    })
+    render(ui({}))
+
+    await user.click(screen.getByRole("button", { name: "Talk it through" }))
+    await user.click(screen.getByRole("button", { name: "End conversation" }))
+    await user.click(screen.getByRole("button", { name: "Resume" }))
+    expect(pending).toHaveLength(2)
+
+    // The first token arrives late, after the second attempt began.
+    await act(async () => pending[0](mint("stale")))
+    expect(h.startSession).not.toHaveBeenCalled()
+
+    await act(async () => pending[1](mint("fresh")))
+    expect(h.startSession).toHaveBeenCalledTimes(1)
+    expect(h.startSession.mock.calls[0][0]).toMatchObject({
+      conversationToken: "fresh",
+    })
   })
 
   it("sends a contextual update when the card is edited during a call", async () => {
     const { rerender } = render(ui({}))
-    await start()
-    connect()
+    const options = await start()
+    connect(options)
 
     rerender(
       ui({
@@ -394,7 +465,6 @@ describe("AgentSession", () => {
         edited: new Set<BriefFieldKey>(["ask_price_cents"]),
       })
     )
-    connect()
 
     expect(h.sendContextualUpdate).not.toHaveBeenCalled()
   })
@@ -428,11 +498,10 @@ describe("AgentSession", () => {
     render(ui({}))
     const options = await start()
 
-    act(() => h.store.set({ status: "connecting" }))
     expect(screen.getByText("Connecting…")).toBeTruthy()
     expect(screen.getByTestId("orb").dataset.agentState).toBe("thinking")
 
-    connect()
+    connect(options)
     expect(screen.getByText("Listening")).toBeTruthy()
     expect(screen.getByTestId("orb").dataset.agentState).toBe("listening")
 
@@ -456,12 +525,9 @@ describe("AgentSession", () => {
   it("offers Resume once a session has ended", async () => {
     render(ui({}))
     const options = await start()
-    connect()
+    connect(options)
 
-    act(() => {
-      h.store.set({ status: "disconnected" })
-      options.onDisconnect({ reason: "agent" })
-    })
+    act(() => options.onDisconnect({ reason: "agent" }))
 
     expect(screen.getByText("Ended")).toBeTruthy()
     expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy()
@@ -470,8 +536,8 @@ describe("AgentSession", () => {
   it("draws no moving orb when the user prefers reduced motion", async () => {
     h.reduced.current = true
     render(ui({}))
-    await start()
-    connect()
+    const options = await start()
+    connect(options)
 
     expect(screen.queryByTestId("orb")).toBeNull()
     expect(screen.getByText("Listening")).toBeTruthy()

@@ -95,10 +95,13 @@ function SessionPanel({
 }: AgentSessionProps) {
   const api = useApi()
   const reducedMotion = useReducedMotion()
-  const { status, isSpeaking, startSession, endSession, sendContextualUpdate } =
+  const { isSpeaking, startSession, endSession, sendContextualUpdate } =
     useConversation()
 
+  // The call is tracked here, not read from the library status: the status turns to
+  // "error" on every error, including ones the call survives.
   const [starting, setStarting] = React.useState(false)
+  const [inCall, setInCall] = React.useState(false)
   const [ended, setEnded] = React.useState(false)
   const [agentLine, setAgentLine] = React.useState("")
   const [userLine, setUserLine] = React.useState("")
@@ -109,12 +112,15 @@ function SessionPanel({
   )
 
   // The tools and the card-edit note read the latest props without re-registering.
-  const latest = React.useRef({ brief, preview, status, onSaved, onHighlight })
+  const latest = React.useRef({ brief, preview, onSaved, onHighlight })
   const mounted = React.useRef(false)
-  // End was pressed while the session was still being minted.
-  const abandoned = React.useRef(false)
+  // Counts attempts to start. Ending, or starting again, retires the earlier attempts:
+  // whatever they still have in flight is dropped.
+  const attempt = React.useRef(0)
+  // Set at once, unlike state: the card-edit note and the error handler read it.
+  const inCallRef = React.useRef(false)
   React.useEffect(() => {
-    latest.current = { brief, preview, status, onSaved, onHighlight }
+    latest.current = { brief, preview, onSaved, onHighlight }
   })
   React.useEffect(() => {
     mounted.current = true
@@ -123,12 +129,11 @@ function SessionPanel({
     }
   }, [])
 
-  const connected = status === "connected"
-  const connecting = !connected && (starting || status === "connecting")
-  const live = connecting || connected
+  const connecting = starting && !inCall
+  const live = starting || inCall
 
   // One microphone: the Voice Dock waits while the conversation is open.
-  useVoicePause(status === "connecting" || connected ? DOCK_PAUSED : null)
+  useVoicePause(live ? DOCK_PAUSED : null)
 
   useConversationClientTool(
     "update_brief",
@@ -206,7 +211,7 @@ function SessionPanel({
   React.useEffect(() => {
     if (told.current === edited) return
     told.current = edited
-    if (latest.current.status !== "connected") return
+    if (!inCallRef.current) return
     for (const key of edited) {
       sendContextualUpdate(contextualUpdate(key, latest.current.brief))
     }
@@ -214,7 +219,8 @@ function SessionPanel({
 
   async function begin() {
     if (live) return
-    abandoned.current = false
+    const mine = ++attempt.current
+    const current = () => mounted.current && attempt.current === mine
     setStarting(true)
     setEnded(false)
     setAgentLine("")
@@ -230,7 +236,7 @@ function SessionPanel({
     } catch {
       // Handled with the missing session below.
     }
-    if (!mounted.current || abandoned.current) return
+    if (!current()) return
     if (!session) {
       setStarting(false)
       toast.error("Couldn't start the conversation — edit the card instead")
@@ -242,6 +248,9 @@ function SessionPanel({
       connectionType: "webrtc",
       dynamicVariables: session.dynamic_variables,
       onConnect: ({ conversationId }) => {
+        if (!current()) return
+        inCallRef.current = true
+        setInCall(true)
         setStarting(false)
         // Kept so the transcript can be found later; the card does not change.
         void Promise.resolve(
@@ -252,14 +261,21 @@ function SessionPanel({
         ).catch(() => {})
       },
       onDisconnect: () => {
+        if (!current()) return
+        inCallRef.current = false
+        setInCall(false)
         setStarting(false)
         setEnded(true)
       },
       onMessage: ({ message, role }) => {
+        if (!current()) return
         if (role === "agent") setAgentLine(message)
         else setUserLine(message)
       },
       onError: (message, context) => {
+        // A call that is up survives its errors (a tool that threw, say): the library
+        // reports the end of a call through onDisconnect.
+        if (!current() || inCallRef.current) return
         setStarting(false)
         toast.error(
           isMicrophoneBlocked(message, context)
@@ -278,7 +294,7 @@ function SessionPanel({
 
   const statusText = connecting
     ? "Connecting…"
-    : connected
+    : inCall
       ? isSpeaking
         ? "Speaking"
         : "Listening"
@@ -319,14 +335,17 @@ function SessionPanel({
           {statusText}
         </p>
 
-        {connected || connecting ? (
+        {live ? (
           <Button
             type="button"
             variant="outline"
             onClick={() => {
-              abandoned.current = true
+              attempt.current++
+              inCallRef.current = false
               endSession()
               setStarting(false)
+              setInCall(false)
+              setEnded(true)
             }}
           >
             <Square aria-hidden />
