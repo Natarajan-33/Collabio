@@ -9,11 +9,13 @@ from uuid import UUID
 from fastapi import FastAPI
 
 from app.adapters.db import Database
-from app.adapters.elevenlabs import ElevenLabsClient, ElevenLabsPort
+from app.adapters.elevenlabs import ConversationSnapshot, ElevenLabsClient, ElevenLabsPort
 from app.adapters.email import EmailPort, ResendClient
 from app.adapters.gemini import GeminiClient, GeminiPort
 from app.config import Settings
+from app.modules.negotiation.calls import start_call
 from app.modules.outreach.service import send_outreach
+from app.workers.call_watcher import CallWatcher
 from app.workers.orchestrator import Handler, Orchestrator
 from app.workers.sweep import sweep_loop, sweep_stuck
 
@@ -53,13 +55,37 @@ def _email_handler(db: Database, gemini: GeminiPort | None, settings: Settings) 
     return handle
 
 
+def _call_handler(db: Database, elevenlabs: ElevenLabsPort | None, settings: Settings) -> Handler:
+    async def handle(thread_id: UUID) -> None:
+        await start_call(
+            db,
+            elevenlabs=elevenlabs,
+            settings=settings,
+            thread_id=thread_id,
+            today=datetime.now(UTC).date(),
+        )
+
+    return handle
+
+
+async def _complete_call_placeholder(conversation_id: str, snapshot: ConversationSnapshot) -> None:
+    """Replaced by the real call completion in Task 13."""
+    logger.info("call completion arrives in Task 13 (conversation %s)", conversation_id)
+
+
 async def start_workers(app: FastAPI, settings: Settings) -> None:
     """Build the ports once, sweep what a previous process left half-done, and start the
     orchestrator. Needs `app.state.db`."""
     db: Database = app.state.db
     gemini = GeminiClient(settings) if settings.gemini_api_key else None
     elevenlabs = ElevenLabsClient(settings) if settings.elevenlabs_api_key else None
-    orchestrator = Orchestrator(db, {"email": _email_handler(db, gemini, settings)})
+    orchestrator = Orchestrator(
+        db,
+        {
+            "email": _email_handler(db, gemini, settings),
+            "call": _call_handler(db, elevenlabs, settings),
+        },
+    )
     try:
         await sweep_stuck(db)
     except Exception:
@@ -68,6 +94,9 @@ async def start_workers(app: FastAPI, settings: Settings) -> None:
         asyncio.create_task(orchestrator.run(), name="launch-orchestrator"),
         asyncio.create_task(sweep_loop(db, on_requeued=orchestrator.wake), name="launch-sweep"),
     ]
+    if elevenlabs is not None:
+        watcher = CallWatcher(db, elevenlabs, complete_call=_complete_call_placeholder)
+        tasks.append(asyncio.create_task(watcher.run(), name="call-watcher"))
     app.state.workers = Workers(
         orchestrator=orchestrator, tasks=tasks, gemini=gemini, elevenlabs=elevenlabs
     )

@@ -9,6 +9,7 @@ Every function takes the caller's connection and leaves the transaction to the c
 import json
 from collections.abc import Collection
 from dataclasses import dataclass
+from datetime import UTC, date, datetime, time
 from typing import Literal
 from uuid import UUID
 
@@ -54,6 +55,21 @@ from next
 where t.id = next.id
 returning t.id, t.channel_plan, t.status
 """
+COUNT_CALLS_SINCE = """
+select count(*) from public.thread_events
+where brand_id = $1 and type = 'call_placed' and created_at >= $2
+"""
+SET_CALL_CONVERSATION = """
+update public.threads set call_conversation_id = $2 where id = $1
+"""
+SELECT_LIVE_CALLS = """
+select t.id, t.batch_id, t.brand_id, t.creator_id, t.status, t.call_conversation_id
+from public.threads t
+where t.status in ('calling', 'in_call')
+  and t.call_conversation_id is not null
+  and ($1::uuid is null or t.batch_id = $1::uuid)
+order by t.created_at, t.id
+"""
 UPDATE_TERMS = """
 update public.threads set latest_terms = $2::jsonb, latest_terms_source = $3 where id = $1
 """
@@ -72,6 +88,15 @@ class ClaimedThread:
     id: UUID
     channel_plan: str
     status: str  # what the claim moved it to: `drafting` or `calling`
+
+
+@dataclass(frozen=True)
+class LiveCall:
+    """A placed call that has not finished: the watcher polls its conversation."""
+
+    thread: ThreadRef
+    status: str  # `calling` (placed, not answered yet) or `in_call`
+    conversation_id: str
 
 
 class StaleThread(Exception):
@@ -241,3 +266,37 @@ async def claim_queued(
     """
     rows = await conn.fetch(CLAIM_QUEUED, limit, batch_id)
     return [ClaimedThread(**row) for row in rows]
+
+
+async def count_calls_today(conn: asyncpg.Connection, brand_id: UUID, today: date) -> int:
+    """How many calls the brand has placed since UTC midnight of `today`."""
+    midnight = datetime.combine(today, time.min, tzinfo=UTC)
+    return await conn.fetchval(COUNT_CALLS_SINCE, brand_id, midnight)
+
+
+async def set_call_conversation(
+    conn: asyncpg.Connection, thread_id: UUID, conversation_id: str
+) -> None:
+    """Remember which ElevenLabs conversation is the thread's call."""
+    await conn.execute(SET_CALL_CONVERSATION, thread_id, conversation_id)
+
+
+async def live_calls(conn: asyncpg.Connection, *, batch_id: UUID | None = None) -> list[LiveCall]:
+    """Threads in `calling` or `in_call` that have a conversation id, oldest first.
+
+    A `calling` thread with no conversation id was never placed: the restart sweep fails it.
+    """
+    rows = await conn.fetch(SELECT_LIVE_CALLS, batch_id)
+    return [
+        LiveCall(
+            thread=ThreadRef(
+                id=row["id"],
+                batch_id=row["batch_id"],
+                brand_id=row["brand_id"],
+                creator_id=row["creator_id"],
+            ),
+            status=row["status"],
+            conversation_id=row["call_conversation_id"],
+        )
+        for row in rows
+    ]

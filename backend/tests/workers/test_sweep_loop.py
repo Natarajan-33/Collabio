@@ -102,3 +102,40 @@ async def test_start_and_stop_workers_run_and_cancel_both_tasks(monkeypatch):
 
     assert sorted(cancelled) == ["orchestrator", "sweep"]
     assert app.state.workers is None
+
+
+async def test_call_watcher_runs_only_when_elevenlabs_is_configured(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.config import Settings
+    from app.workers import runtime
+
+    started: list[str] = []
+
+    async def forever(name: str) -> None:
+        started.append(name)
+        await asyncio.Event().wait()
+
+    async def no_sweep(db, **kwargs):
+        return SweepResult(0, 0)
+
+    monkeypatch.setattr(runtime, "sweep_stuck", no_sweep)
+    monkeypatch.setattr(runtime, "sweep_loop", lambda db, **kw: forever("sweep"))
+    monkeypatch.setattr(runtime.Orchestrator, "run", lambda self: forever("orchestrator"))
+    monkeypatch.setattr(runtime.CallWatcher, "run", lambda self: forever("watcher"))
+    monkeypatch.setattr(runtime, "ElevenLabsClient", lambda settings: object())
+
+    for key, expected in (
+        ("", ["orchestrator", "sweep"]),
+        ("key", ["orchestrator", "sweep", "watcher"]),
+    ):
+        started.clear()
+        app = SimpleNamespace(state=SimpleNamespace(db=object(), workers=None))
+        settings = Settings(_env_file=None, gemini_api_key="", elevenlabs_api_key=key)
+
+        await runtime.start_workers(app, settings)
+        await asyncio.sleep(0)
+        assert sorted(started) == expected
+
+        await runtime.stop_workers(app)
+        assert app.state.workers is None
