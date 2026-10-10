@@ -323,3 +323,17 @@ export function loadSearch(): SearchRequest | null {
 export function saveSearch(search: SearchInput) {
   write(SEARCH_KEY, search)
 }
+
+/**
+ * Forgets the saved selection and search. They belong to whoever made them, so they
+ * must not carry over to the next account signed in on this tab.
+ */
+export function clearDiscoverSession() {
+  for (const key of [SELECTION_KEY, SEARCH_KEY]) {
+    try {
+      sessionStorage.removeItem(key)
+    } catch {
+      // Storage is unavailable, so there is nothing saved to carry over.
+    }
+  }
+}

@@ -114,6 +114,52 @@ describe("AppShell", () => {
     expect(router.refresh).toHaveBeenCalledTimes(1)
   })
 
+  it("forgets the selection and last search, which belong to the account that made them", async () => {
+    const user = userEvent.setup()
+    auth.signOut.mockResolvedValue({ error: null })
+    sessionStorage.setItem("collabio:selection", '["creator-1"]')
+    sessionStorage.setItem("collabio:search", '{"query":"tech"}')
+    sessionStorage.setItem("unrelated", "kept")
+    render(<AppShell role="brand">x</AppShell>)
+
+    await user.click(screen.getByRole("button", { name: "Sign out" }))
+
+    expect(sessionStorage.getItem("collabio:selection")).toBeNull()
+    expect(sessionStorage.getItem("collabio:search")).toBeNull()
+    expect(sessionStorage.getItem("unrelated")).toBe("kept")
+    sessionStorage.clear()
+  })
+
+  it("forgets them even when sign-out itself fails", async () => {
+    const user = userEvent.setup()
+    auth.signOut.mockRejectedValue(new Error("offline"))
+    sessionStorage.setItem("collabio:selection", '["creator-1"]')
+    render(<AppShell role="brand">x</AppShell>)
+
+    await user.click(screen.getByRole("button", { name: "Sign out" }))
+
+    await vi.waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith("/sign-in")
+    )
+    expect(sessionStorage.getItem("collabio:selection")).toBeNull()
+  })
+
+  it("still leaves for sign-in when session storage is unavailable", async () => {
+    const user = userEvent.setup()
+    auth.signOut.mockResolvedValue({ error: null })
+    const blocked = vi
+      .spyOn(Storage.prototype, "removeItem")
+      .mockImplementation(() => {
+        throw new DOMException("denied", "SecurityError")
+      })
+    render(<AppShell role="brand">x</AppShell>)
+
+    await user.click(screen.getByRole("button", { name: "Sign out" }))
+
+    expect(router.replace).toHaveBeenCalledWith("/sign-in")
+    blocked.mockRestore()
+  })
+
   it("still leaves for sign-in if sign-out itself fails", async () => {
     const user = userEvent.setup()
     auth.signOut.mockRejectedValue(new Error("offline"))

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/tooltip"
 import { VoiceDock } from "@/components/voice/voice-dock"
 import { VoiceScreenProvider } from "@/components/voice/voice-screen"
+import { clearDiscoverSession } from "@/lib/discover/state"
 import { getSupabaseBrowser } from "@/lib/supabase/browser"
 import { cn } from "@/lib/utils"
 
@@ -168,6 +169,8 @@ function SignOut() {
     } catch {
       // Leave for sign-in regardless: the user asked to go.
     }
+    // The next account must not inherit this one's picks.
+    clearDiscoverSession()
     router.replace("/sign-in")
     router.refresh()
   }

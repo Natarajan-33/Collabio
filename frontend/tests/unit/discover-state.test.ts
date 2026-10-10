@@ -5,6 +5,7 @@ import {
   SELECTION_KEY,
   applySearchIntent,
   chipsFor,
+  clearDiscoverSession,
   emptyDiscover,
   loadSearch,
   loadSelection,
@@ -467,5 +468,32 @@ describe("formatEngagement", () => {
 
   it("is a dash when the creator has none", () => {
     expect(formatEngagement(null)).toBe("—")
+  })
+})
+
+describe("clearDiscoverSession", () => {
+  afterEach(() => sessionStorage.clear())
+
+  it("removes the saved selection and search, and nothing else", () => {
+    saveSelection(["creator-1"])
+    saveSearch({ query: "tech" })
+    sessionStorage.setItem("other", "kept")
+
+    clearDiscoverSession()
+
+    expect(loadSelection()).toEqual([])
+    expect(loadSearch()).toBeNull()
+    expect(sessionStorage.getItem("other")).toBe("kept")
+  })
+
+  it("does not throw when storage refuses access", () => {
+    const blocked = vi
+      .spyOn(Storage.prototype, "removeItem")
+      .mockImplementation(() => {
+        throw new DOMException("denied", "SecurityError")
+      })
+
+    expect(() => clearDiscoverSession()).not.toThrow()
+    blocked.mockRestore()
   })
 })
