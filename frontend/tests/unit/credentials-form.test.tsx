@@ -189,7 +189,7 @@ describe("CredentialsForm sign-up", () => {
     expect(auth.signUp).toHaveBeenCalledWith({
       email: "priya@example.com",
       password: "hunter2-hunter2",
-      options: { emailRedirectTo: `${window.location.origin}/sign-in` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     })
     await waitFor(() =>
       expect(router.replace).toHaveBeenCalledWith("/onboarding")

@@ -107,8 +107,9 @@ export function CredentialsForm({
         const { data, error: failure } = await supabase.auth.signUp({
           email,
           password,
-          // If the project requires email confirmation, the link lands here.
-          options: { emailRedirectTo: `${window.location.origin}/sign-in` },
+          // If the project requires email confirmation, the link lands on the
+          // callback, which exchanges the code for a session.
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
         })
         if (failure) throw failure
         if (data.session) {

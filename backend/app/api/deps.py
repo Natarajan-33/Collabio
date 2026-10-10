@@ -21,6 +21,9 @@ from app.schemas.me import Role
 # Supabase signs access tokens with the project's asymmetric signing key.
 JWT_ALGORITHMS = ["ES256", "RS256"]
 JWT_AUDIENCE = "authenticated"
+# Clock-skew allowance for `iat`/`exp`/`nbf`. Without it, a server clock that is a few
+# seconds behind Supabase's rejects every freshly issued token as "not yet valid".
+JWT_LEEWAY_SECONDS = 60
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -96,6 +99,7 @@ async def authenticated_user(
             signing_key,
             algorithms=JWT_ALGORITHMS,
             audience=JWT_AUDIENCE,
+            leeway=JWT_LEEWAY_SECONDS,
             options={"require": ["exp", "sub"]},
         )
         user_id = UUID(claims["sub"])

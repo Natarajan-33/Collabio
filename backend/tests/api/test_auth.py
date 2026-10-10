@@ -1,5 +1,6 @@
 """Bearer-token verification and the role guard."""
 
+import time
 from typing import Annotated
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from fastapi import Depends, FastAPI
 
 from app.adapters.db import Database
 from app.api.deps import (
+    JWT_LEEWAY_SECONDS,
     AuthenticatedUser,
     CurrentUser,
     authenticated_user,
@@ -62,8 +64,29 @@ async def test_missing_token_401(client):
 
 
 async def test_expired_token_401(client, fake_jwks):
+    # Expired by more than the clock-skew allowance.
     assert_invalid_token(
-        await client.get("/api/v1/me", headers=auth_header(uuid4(), exp_delta=-10))
+        await client.get(
+            "/api/v1/me", headers=auth_header(uuid4(), exp_delta=-(JWT_LEEWAY_SECONDS + 60))
+        )
+    )
+
+
+async def test_token_issued_slightly_in_the_future_is_accepted(client, fake_jwks, probe):
+    # A server clock a few seconds ahead of ours stamps `iat` in our future; PyJWT
+    # rejects that by default ("not yet valid"), which signed every fresh login out.
+    user_id = uuid4()
+    r = await client.get("/probe/user", headers=auth_header(user_id, iat=int(time.time()) + 20))
+    assert r.status_code == 200
+    assert r.json()["id"] == str(user_id)
+
+
+async def test_token_issued_far_in_the_future_401(client, fake_jwks):
+    assert_invalid_token(
+        await client.get(
+            "/api/v1/me",
+            headers=auth_header(uuid4(), iat=int(time.time()) + JWT_LEEWAY_SECONDS + 240),
+        )
     )
 
 
