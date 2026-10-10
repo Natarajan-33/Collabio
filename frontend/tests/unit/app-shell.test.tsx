@@ -38,7 +38,7 @@ function primaryNav() {
 }
 
 describe("AppShell", () => {
-  it("brand shell shows Discover only", () => {
+  it("brand shell shows Discover and Board", () => {
     render(
       <AppShell role="brand">
         <p>page body</p>
@@ -52,7 +52,28 @@ describe("AppShell", () => {
 
     expect(within(nav).queryByText("Packages")).toBeNull()
     expect(within(nav).queryByText("Offers")).toBeNull()
-    expect(within(nav).queryByText("Analytics")).toBeNull()
+  })
+
+  it("brand rail links Board to /brand/batches", () => {
+    pathname.current = "/brand/batches/abc"
+    render(
+      <AppShell role="brand">
+        <p>page body</p>
+      </AppShell>
+    )
+
+    const board = within(primaryNav()).getByRole("link", { name: "Board" })
+    expect(board.getAttribute("href")).toBe("/brand/batches")
+    expect(board.getAttribute("aria-current")).toBe("page")
+    expect(
+      within(primaryNav())
+        .getByRole("link", { name: "Discover" })
+        .getAttribute("aria-current")
+    ).toBeNull()
+    // Analytics is planned, not built.
+    expect(
+      within(primaryNav()).getByText("Analytics").getAttribute("aria-disabled")
+    ).toBe("true")
   })
 
   it("creator shell shows Packages and disabled Offers and Analytics", () => {

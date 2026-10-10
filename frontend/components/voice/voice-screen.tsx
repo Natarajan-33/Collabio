@@ -23,11 +23,42 @@ export type VoiceRegistry = {
   register: (handle: VoiceScreenHandle) => () => void
   /** The active screen: the latest registered one that is still mounted. */
   current: () => VoiceScreenHandle | null
+  /**
+   * Stops the dock listening, for `reason`, until the returned function is called.
+   * Pauses stack: the newest reason is the one shown.
+   */
+  pause: (reason: string) => () => void
+  /** Why the dock is paused, or null when it is not. */
+  pausedReason: () => string | null
+  /** Calls `listener` whenever the pause state changes. Returns the unsubscribe. */
+  subscribe: (listener: () => void) => () => void
 }
 
 function createRegistry(): VoiceRegistry {
   const handles: VoiceScreenHandle[] = []
+  const pauses: { reason: string }[] = []
+  const listeners = new Set<() => void>()
+  const notify = () => listeners.forEach((listener) => listener())
+
   return {
+    pause(reason) {
+      const pause = { reason }
+      pauses.push(pause)
+      notify()
+      return () => {
+        const at = pauses.indexOf(pause)
+        if (at < 0) return
+        pauses.splice(at, 1)
+        notify()
+      }
+    },
+    pausedReason: () => pauses.at(-1)?.reason ?? null,
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
     register(handle) {
       handles.push(handle)
       return () => {
@@ -84,4 +115,31 @@ export function useVoiceScreen(
       onIntent: (intent) => latest.current.onIntent(intent),
     })
   }, [registry, screen])
+}
+
+const NEVER = () => () => {}
+const NOT_PAUSED = () => null
+
+/**
+ * Keeps the dock from listening while `reason` is non-null, and shows the reason
+ * there. Releases when the reason changes or the caller unmounts. Outside a
+ * `VoiceScreenProvider` this does nothing.
+ */
+export function useVoicePause(reason: string | null): void {
+  const registry = useVoiceRegistry()
+
+  React.useEffect(() => {
+    if (!registry || reason === null) return
+    return registry.pause(reason)
+  }, [registry, reason])
+}
+
+/** Why the dock is paused, or null. Always null outside a `VoiceScreenProvider`. */
+export function useVoicePausedReason(): string | null {
+  const registry = useVoiceRegistry()
+  return React.useSyncExternalStore(
+    registry ? registry.subscribe : NEVER,
+    registry ? registry.pausedReason : NOT_PAUSED,
+    NOT_PAUSED
+  )
 }

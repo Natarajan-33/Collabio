@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import type { AgentState } from "@/components/ui/orb"
 import { HeardChip } from "@/components/voice/heard-chip"
 import {
+  useVoicePausedReason,
   useVoiceRegistry,
   type VoiceIntent,
 } from "@/components/voice/voice-screen"
@@ -122,7 +123,18 @@ function liveLabel(mode: DockMode) {
   return ""
 }
 
-function Readout({ state }: { state: DockState }) {
+function Readout({
+  state,
+  paused,
+}: {
+  state: DockState
+  paused: string | null
+}) {
+  if (paused) {
+    return (
+      <p className="line-clamp-2 text-sm text-muted-foreground">{paused}</p>
+    )
+  }
   if (state.mode === "connecting") {
     return <p className="text-sm text-muted-foreground">Connecting…</p>
   }
@@ -153,6 +165,7 @@ export function VoiceDock() {
   const api = useApi()
   const router = useRouter()
   const registry = useVoiceRegistry()
+  const pausedReason = useVoicePausedReason()
   const reducedMotion = useReducedMotion()
   const [state, dispatch] = React.useReducer(dockReducer, initialDockState)
   const [draft, setDraft] = React.useState("")
@@ -164,6 +177,7 @@ export function VoiceDock() {
   const inputRef = React.useRef<HTMLInputElement>(null)
   const orbRef = React.useRef<HTMLButtonElement>(null)
   const stateRef = React.useRef(state)
+  const pausedRef = React.useRef(pausedReason)
   const pressedBy = React.useRef<PressSource | null>(null)
   // Keyboard until the mouse says otherwise: a control focused before anyone has
   // touched the page (an autofocus, say) is only reachable by keyboard.
@@ -172,6 +186,7 @@ export function VoiceDock() {
 
   React.useEffect(() => {
     stateRef.current = state
+    pausedRef.current = pausedReason
   })
 
   // Send a command to the router and hand the result to the page it was meant for.
@@ -255,6 +270,7 @@ export function VoiceDock() {
     (source: PressSource) => {
       const current = stateRef.current
       if (
+        pausedRef.current !== null ||
         pressedBy.current ||
         current.input !== "voice" ||
         !isAtRest(current.mode)
@@ -282,6 +298,11 @@ export function VoiceDock() {
     },
     [stop]
   )
+
+  // Another conversation took the microphone mid-press: let go of ours.
+  React.useEffect(() => {
+    if (pausedReason !== null) endPress()
+  }, [pausedReason, endPress])
 
   // Hold Space anywhere that is not asking for typing.
   React.useEffect(() => {
@@ -459,7 +480,7 @@ export function VoiceDock() {
         <button
           ref={orbRef}
           type="button"
-          disabled={typing}
+          disabled={typing || pausedReason !== null}
           aria-label="Hold to speak"
           aria-keyshortcuts="Space"
           data-voice-ptt
@@ -517,7 +538,7 @@ export function VoiceDock() {
               </button>
             </form>
           ) : (
-            <Readout state={state} />
+            <Readout state={state} paused={pausedReason} />
           )}
         </div>
 

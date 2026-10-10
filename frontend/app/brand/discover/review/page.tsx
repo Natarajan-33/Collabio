@@ -1,17 +1,13 @@
 "use client"
 
-import { ArrowLeft, TriangleAlert } from "lucide-react"
+import { ArrowLeft, LoaderCircle, TriangleAlert } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import * as React from "react"
+import { toast } from "sonner"
 
 import { CompareTable } from "@/components/deal/compare-table"
 import { Button, buttonVariants } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import {
   useVoiceScreen,
   type VoiceIntent,
@@ -38,31 +34,20 @@ type Phase = "loading" | "ready" | "failed"
 /** An id that no longer names a creator in the marketplace (or never did). */
 const GONE = new Set([404, 422])
 
-function StartNegotiation() {
-  const noteId = React.useId()
-
+function StartNegotiation({
+  disabled,
+  pending,
+  onStart,
+}: {
+  disabled: boolean
+  pending: boolean
+  onStart: () => void
+}) {
   return (
-    <>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span
-              tabIndex={0}
-              className="inline-flex rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          }
-        >
-          <Button size="lg" disabled aria-describedby={noteId}>
-            Start negotiation
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Coming in M2</TooltipContent>
-      </Tooltip>
-      {/* For screen readers: a disabled button is not focusable to read a tooltip. */}
-      <span id={noteId} className="sr-only">
-        Coming in M2
-      </span>
-    </>
+    <Button size="lg" disabled={disabled || pending} onClick={onStart}>
+      {pending ? <LoaderCircle aria-hidden className="animate-spin" /> : null}
+      Start negotiation
+    </Button>
   )
 }
 
@@ -91,6 +76,9 @@ function Review() {
   // Which of a creator's packages is compared, by creator id.
   const [chosen, setChosen] = React.useState<Record<string, string>>({})
   const [phase, setPhase] = React.useState<Phase>("loading")
+  const [starting, setStarting] = React.useState(false)
+  // Set at once, unlike state, so a double click cannot post twice.
+  const startingRef = React.useRef(false)
 
   const select = React.useCallback((next: string[]) => {
     setIds(next)
@@ -148,6 +136,32 @@ function Review() {
   React.useEffect(() => {
     void load(first.current)
   }, [load])
+
+  // The batch becomes a draft brief, and the brief page takes it from there.
+  async function startNegotiation() {
+    if (startingRef.current || ids.length === 0) return
+    startingRef.current = true
+    setStarting(true)
+
+    let briefId: string | undefined
+    try {
+      const { data } = await api.POST("/api/v1/briefs", {
+        body: { creator_ids: ids },
+      })
+      briefId = data?.id
+    } catch {
+      // Handled with the missing id below.
+    }
+
+    if (briefId) {
+      // Stay "starting" while the next page loads: nothing more to start here.
+      router.push(`/brand/briefs/${briefId}`)
+      return
+    }
+    toast.error("Couldn't start the brief")
+    startingRef.current = false
+    setStarting(false)
+  }
 
   const creators = ids.flatMap((id) => (cards[id] ? [cards[id]] : []))
 
@@ -212,7 +226,11 @@ function Review() {
             )}
           </p>
         </div>
-        <StartNegotiation />
+        <StartNegotiation
+          disabled={creators.length === 0}
+          pending={starting}
+          onStart={() => void startNegotiation()}
+        />
       </header>
 
       {phase === "loading" ? (

@@ -1,4 +1,4 @@
-import { cleanup, render } from "@testing-library/react"
+import { act, cleanup, render, screen } from "@testing-library/react"
 import { useEffect } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -7,6 +7,8 @@ import {
   type VoiceIntent,
   type VoiceRegistry,
   VoiceScreenProvider,
+  useVoicePause,
+  useVoicePausedReason,
   useVoiceRegistry,
   useVoiceScreen,
 } from "@/components/voice/voice-screen"
@@ -132,5 +134,97 @@ describe("useVoiceScreen", () => {
 
   it("does nothing outside a provider", () => {
     expect(() => render(<Screen name="discover" />)).not.toThrow()
+  })
+})
+
+describe("voice pause", () => {
+  it("a pause reports its reason until it is released", () => {
+    const { registry } = setup(null)
+    const reg = registry.current!
+    expect(reg.pausedReason()).toBeNull()
+
+    const listener = vi.fn()
+    reg.subscribe(listener)
+    let release!: () => void
+    act(() => {
+      release = reg.pause("Voice is in the brief conversation")
+    })
+    expect(reg.pausedReason()).toBe("Voice is in the brief conversation")
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    act(() => release())
+    expect(reg.pausedReason()).toBeNull()
+    expect(listener).toHaveBeenCalledTimes(2)
+
+    // Releasing twice does nothing more.
+    act(() => release())
+    expect(listener).toHaveBeenCalledTimes(2)
+  })
+
+  it("the newest of two pauses is the one shown", () => {
+    const { registry } = setup(null)
+    const reg = registry.current!
+    let first!: () => void
+    let second!: () => void
+    act(() => {
+      first = reg.pause("first")
+      second = reg.pause("second")
+    })
+    expect(reg.pausedReason()).toBe("second")
+
+    act(() => second())
+    expect(reg.pausedReason()).toBe("first")
+    act(() => first())
+    expect(reg.pausedReason()).toBeNull()
+  })
+
+  it("an unsubscribed listener hears nothing more", () => {
+    const { registry } = setup(null)
+    const reg = registry.current!
+    const listener = vi.fn()
+    const off = reg.subscribe(listener)
+    off()
+    act(() => {
+      reg.pause("x")
+    })
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  function Pauser({ reason }: { reason: string | null }) {
+    useVoicePause(reason)
+    return null
+  }
+  function Reader() {
+    return <p data-testid="reason">{useVoicePausedReason() ?? "none"}</p>
+  }
+
+  it("useVoicePause pauses while the reason is set and releases on change or unmount", () => {
+    const tree = (reason: string | null | undefined) => (
+      <VoiceScreenProvider>
+        <Reader />
+        {reason === undefined ? null : <Pauser reason={reason} />}
+      </VoiceScreenProvider>
+    )
+    const { rerender } = render(tree(null))
+    const shown = () => screen.getByTestId("reason").textContent
+
+    expect(shown()).toBe("none")
+    rerender(tree("in the call"))
+    expect(shown()).toBe("in the call")
+    rerender(tree(null))
+    expect(shown()).toBe("none")
+    rerender(tree("again"))
+    expect(shown()).toBe("again")
+    rerender(tree(undefined))
+    expect(shown()).toBe("none")
+  })
+
+  it("useVoicePausedReason is null outside a provider", () => {
+    render(<Reader />)
+    expect(screen.getByTestId("reason").textContent).toBe("none")
+  })
+
+  it("useVoicePause does nothing outside a provider", () => {
+    expect(() => render(<Pauser reason="x" />)).not.toThrow()
   })
 })

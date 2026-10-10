@@ -7,6 +7,7 @@ import {
   ChartColumn,
   Compass,
   Handshake,
+  LayoutGrid,
   LogOut,
   Package,
   type LucideIcon,
@@ -42,6 +43,13 @@ const NAV: Record<ShellRole, NavItem[]> = {
       icon: Compass,
       href: "/brand/discover",
     },
+    {
+      label: "Board",
+      hint: "Live negotiations",
+      icon: LayoutGrid,
+      href: "/brand/batches",
+    },
+    { label: "Analytics", hint: "How your deals perform", icon: ChartColumn },
   ],
   creator: [
     {

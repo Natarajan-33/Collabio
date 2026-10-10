@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { VoiceDock } from "@/components/voice/voice-dock"
 import {
   VoiceScreenProvider,
+  useVoicePause,
   useVoiceScreen,
   type VoiceContext,
   type VoiceIntent,
@@ -84,7 +85,9 @@ const pageContext: VoiceContext = { visible_creators: CREATORS }
 
 // `navigate` is typed loosely so tests can send routes the API never would.
 function intent(
-  over: Omit<Partial<VoiceIntent>, "navigate"> & { navigate?: string | null } = {}
+  over: Omit<Partial<VoiceIntent>, "navigate"> & {
+    navigate?: string | null
+  } = {}
 ): VoiceIntent {
   return {
     kind: "search",
@@ -1141,5 +1144,45 @@ describe("VoiceDock: Space after the mouse", () => {
 
     expect(field.value).toBe("a b")
     expect(h.capture.start).not.toHaveBeenCalled()
+  })
+})
+
+describe("VoiceDock: paused", () => {
+  function Pause({ reason }: { reason: string | null }) {
+    useVoicePause(reason)
+    return null
+  }
+
+  const tree = (reason: string | null) => (
+    <VoiceScreenProvider>
+      <Pause reason={reason} />
+      <VoiceDock />
+    </VoiceScreenProvider>
+  )
+
+  it("a paused dock ignores Space and says why", () => {
+    render(tree("Voice is in the brief conversation"))
+
+    expect(fireEvent.keyDown(document.body, space)).toBe(true)
+
+    expect(h.capture.start).not.toHaveBeenCalled()
+    expect(screen.getByText("Voice is in the brief conversation")).toBeTruthy()
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Hold to speak",
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(true)
+  })
+
+  it("speaks again when the pause is released", () => {
+    const { rerender } = render(tree("Voice is in the brief conversation"))
+    rerender(tree(null))
+
+    expect(screen.queryByText("Voice is in the brief conversation")).toBeNull()
+    expect(screen.getByText("Hold Space to speak")).toBeTruthy()
+    expect(fireEvent.keyDown(document.body, space)).toBe(false)
+    expect(h.capture.start).toHaveBeenCalledTimes(1)
   })
 })

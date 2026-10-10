@@ -32,10 +32,12 @@ import {
 const h = vi.hoisted(() => ({
   api: { GET: vi.fn(), POST: vi.fn() },
   router: { push: vi.fn() },
+  toastError: vi.fn(),
 }))
 
 vi.mock("@/hooks/use-api", () => ({ useApi: () => h.api }))
 vi.mock("next/navigation", () => ({ useRouter: () => h.router }))
+vi.mock("sonner", () => ({ toast: { error: h.toastError } }))
 
 function pkg(over: Partial<PackageSummary> = {}): PackageSummary {
   return {
@@ -182,7 +184,9 @@ function columnNames() {
 
 beforeEach(() => {
   h.api.GET.mockReset()
+  h.api.POST.mockReset()
   h.router.push.mockReset()
+  h.toastError.mockReset()
   sessionStorage.clear()
   registry = null
   serve(THREE)
@@ -340,21 +344,83 @@ describe("Review: the comparison", () => {
     expect(bestOf(row("Volume"))).toEqual([false, false])
   })
 
-  it("start negotiation is disabled and says it is coming", async () => {
+  it("Start negotiation creates a brief from the batch and opens it", async () => {
     const user = userEvent.setup()
+    h.api.POST.mockResolvedValue({
+      data: { id: "brief-9" },
+      response: { status: 201 },
+    })
+    await renderReview(["creator-3", "creator-1"])
+
+    await user.click(screen.getByRole("button", { name: "Start negotiation" }))
+
+    await waitFor(() =>
+      expect(h.router.push).toHaveBeenCalledExactlyOnceWith(
+        "/brand/briefs/brief-9"
+      )
+    )
+    expect(h.api.POST).toHaveBeenCalledExactlyOnceWith("/api/v1/briefs", {
+      body: { creator_ids: ["creator-3", "creator-1"] },
+    })
+    expect(h.toastError).not.toHaveBeenCalled()
+  })
+
+  it("Start negotiation is disabled with an empty batch", async () => {
+    await renderReview([])
+
+    const button = (await screen.findByRole("button", {
+      name: "Start negotiation",
+    })) as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    expect(screen.queryByText("Coming in M2")).toBeNull()
+  })
+
+  it("a failed brief creation shows a toast and stays on Review", async () => {
+    const user = userEvent.setup()
+    h.api.POST.mockResolvedValue({ error: {}, response: { status: 500 } })
     await renderReview()
 
-    const button = screen.getByRole("button", {
-      name: "Start negotiation",
-    }) as HTMLButtonElement
-    expect(button.disabled).toBe(true)
+    await user.click(screen.getByRole("button", { name: "Start negotiation" }))
 
-    await user.hover(button.parentElement!)
     await waitFor(() =>
-      expect(
-        document.querySelector("[data-slot=tooltip-content]")?.textContent
-      ).toBe("Coming in M2")
+      expect(h.toastError).toHaveBeenCalledWith("Couldn't start the brief")
     )
+    expect(h.router.push).not.toHaveBeenCalled()
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Start negotiation",
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(false)
+  })
+
+  it("a network failure creating the brief is a toast too", async () => {
+    const user = userEvent.setup()
+    h.api.POST.mockRejectedValue(new TypeError("fetch failed"))
+    await renderReview()
+
+    await user.click(screen.getByRole("button", { name: "Start negotiation" }))
+
+    await waitFor(() =>
+      expect(h.toastError).toHaveBeenCalledWith("Couldn't start the brief")
+    )
+    expect(h.router.push).not.toHaveBeenCalled()
+  })
+
+  it("a double click creates one brief", async () => {
+    const user = userEvent.setup()
+    let resolve!: (value: unknown) => void
+    h.api.POST.mockReturnValue(new Promise((r) => (resolve = r)))
+    await renderReview()
+
+    const button = screen.getByRole("button", { name: "Start negotiation" })
+    await user.click(button)
+    await user.click(button)
+    expect(h.api.POST).toHaveBeenCalledTimes(1)
+
+    resolve({ data: { id: "b" }, response: { status: 201 } })
+    await waitFor(() => expect(h.router.push).toHaveBeenCalledTimes(1))
   })
 
   it("goes back to the creators", async () => {
