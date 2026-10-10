@@ -63,7 +63,7 @@ async def get_creator(db: Database, creator_id: UUID) -> CreatorCard | None:
     return _card(rows[0])
 
 
-def _initials(name: str) -> str:
+def initials(name: str) -> str:
     """First letter of the first two words: `Arjun Mehta` -> `AM`."""
     return "".join(word[0] for word in name.split()[:2]).upper()
 
@@ -96,7 +96,7 @@ def _card(row: dict[str, Any]) -> CreatorCard:
         id=row["id"],
         handle=row["handle"],
         name=row["name"],
-        initials=_initials(row["name"]),
+        initials=initials(row["name"]),
         niches=row["niches"],
         region=row["region"],
         followers=row["followers"],

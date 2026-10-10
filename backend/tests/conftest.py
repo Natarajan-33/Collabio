@@ -130,6 +130,7 @@ async def auth_user(api_db: Database) -> AsyncIterator[uuid.UUID]:
 
 NOT_SEEDED = "demo data not seeded: run `uv run python -m scripts.seed --reset`"
 DEMO_ARJUN_HANDLE = "arjuntech"
+DEMO_PRIYA_HANDLE = "priyareviews"
 
 
 @pytest.fixture
@@ -242,3 +243,55 @@ async def new_creator_client(
         r = await c.post("/api/v1/onboarding", json=onboarding)
         assert r.status_code == 200, r.text
         yield c
+
+
+@pytest.fixture
+async def new_brand_client(
+    app: FastAPI, fake_jwks: None, api_db: Database, auth_user: uuid.UUID
+) -> AsyncIterator[AsyncClient]:
+    """A client signed in as a brand-new brand with one product and no briefs.
+
+    Used where a test needs a second brand besides the seeded Lumen Audio (ownership
+    checks). Deleting its auth user (the `auth_user` fixture) removes it with its briefs.
+    """
+    onboarding = {
+        "role": "brand",
+        "display_name": "Test Brand Owner",
+        "company_name": "Test Brand Co",
+        "category": "consumer_tech",
+        "product_name": "Test Product",
+        "product_summary": "A test product",
+    }
+    async with _signed_in(app, auth_user) as c:
+        r = await c.post("/api/v1/onboarding", json=onboarding)
+        assert r.status_code == 200, r.text
+        yield c
+
+
+@pytest.fixture
+async def seeded_ids(api_db: Database) -> dict[str, uuid.UUID]:
+    """Ids of the two seeded demo creators briefs are written for: Priya and Arjun."""
+    async with api_db.acquire() as conn:
+        rows = await conn.fetch(
+            "select handle, id from public.creators where handle = any($1)",
+            [DEMO_PRIYA_HANDLE, DEMO_ARJUN_HANDLE],
+        )
+    ids = {row["handle"]: row["id"] for row in rows}
+    if len(ids) != 2:
+        _skip(NOT_SEEDED)
+    return {"priya": ids[DEMO_PRIYA_HANDLE], "arjun": ids[DEMO_ARJUN_HANDLE]}
+
+
+@pytest.fixture
+async def brief_cleanup(api_db: Database) -> AsyncIterator[list[str]]:
+    """Append the id of every brief a test creates; teardown deletes them, which cascades
+    to their batches, threads, events and transcripts. The tests share the hosted database."""
+    brief_ids: list[str] = []
+    try:
+        yield brief_ids
+    finally:
+        if brief_ids:
+            async with api_db.acquire() as conn:
+                await conn.execute(
+                    "delete from public.briefs where id = any($1::uuid[])", brief_ids
+                )
