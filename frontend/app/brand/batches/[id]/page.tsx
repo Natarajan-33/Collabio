@@ -10,6 +10,7 @@ import { toast } from "sonner"
 
 import { KpiStrip } from "@/components/board/kpi-strip"
 import { ThreadCardView } from "@/components/board/thread-card"
+import { ThreadDrawer } from "@/components/board/thread-drawer"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useApi } from "@/hooks/use-api"
 import type { components } from "@/lib/api/schema"
@@ -21,6 +22,10 @@ import {
   sortThreads,
 } from "@/lib/board/state"
 import { useBatchDoorbell } from "@/lib/supabase/realtime"
+import {
+  useVoiceScreen,
+  type VoiceIntent,
+} from "@/components/voice/voice-screen"
 
 gsap.registerPlugin(useGSAP, Flip)
 
@@ -47,6 +52,8 @@ export default function BatchBoardPage() {
   const [emailAnimate, setEmailAnimate] = React.useState<
     Record<string, boolean>
   >({})
+  const [openThreadId, setOpenThreadId] = React.useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = React.useState(0)
   const dealtIn = React.useRef(false)
   const gridRef = React.useRef<HTMLDivElement>(null)
   const flipFrom = React.useRef<FlipState | null>(null)
@@ -122,9 +129,7 @@ export default function BatchBoardPage() {
 
   const live = view ? isLive(view.threads) : false
 
-  useBatchDoorbell(batchId, () => {
-    void reload()
-  }, { live })
+  const cardsForVoice = view?.threads ?? []
 
   const captureFlip = React.useCallback(() => {
     const grid = gridRef.current
@@ -132,6 +137,34 @@ export default function BatchBoardPage() {
     const cards = grid.querySelectorAll("[data-flip-id]")
     if (cards.length) flipFrom.current = Flip.getState(cards)
   }, [])
+
+  useVoiceScreen(
+    "board",
+    () => ({
+      visible_creators: cardsForVoice.map((c) => ({
+        id: c.creator.id,
+        name: c.creator.name,
+        handle: c.creator.handle,
+      })),
+    }),
+    (intent: VoiceIntent) => {
+      if (intent.kind === "open_thread" && intent.open_thread) {
+        const match = cardsForVoice.find(
+          (c) => c.creator.id === intent.open_thread?.creator_id
+        )
+        if (match) setOpenThreadId(match.id)
+      }
+      if (intent.kind === "sort" && intent.sort) {
+        captureFlip()
+        setSortKey(intent.sort)
+      }
+    }
+  )
+
+  useBatchDoorbell(batchId, () => {
+    setRefreshKey((k) => k + 1)
+    void reload()
+  }, { live })
 
   const onSortChange = (value: BoardSortKey) => {
     captureFlip()
@@ -256,11 +289,18 @@ export default function BatchBoardPage() {
             thread={thread}
             now={now}
             revealEmail={emailAnimate[thread.id] === true}
-            onOpen={() => {}}
+            onOpen={() => setOpenThreadId(thread.id)}
             onRetry={(tid) => void retry(tid)}
           />
         ))}
       </div>
+
+      <ThreadDrawer
+        threadId={openThreadId}
+        refreshKey={refreshKey}
+        onClose={() => setOpenThreadId(null)}
+        onRetry={(tid) => void retry(tid)}
+      />
     </div>
   )
 }
