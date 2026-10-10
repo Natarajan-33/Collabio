@@ -15,7 +15,7 @@ from app.adapters.gemini import GeminiClient, GeminiPort
 from app.config import Settings
 from app.modules.outreach.service import send_outreach
 from app.workers.orchestrator import Handler, Orchestrator
-from app.workers.sweep import sweep_stuck
+from app.workers.sweep import sweep_loop, sweep_stuck
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +64,12 @@ async def start_workers(app: FastAPI, settings: Settings) -> None:
         await sweep_stuck(db)
     except Exception:
         logger.exception("Restart sweep failed; starting the workers anyway")
-    task = asyncio.create_task(orchestrator.run(), name="launch-orchestrator")
+    tasks = [
+        asyncio.create_task(orchestrator.run(), name="launch-orchestrator"),
+        asyncio.create_task(sweep_loop(db, on_requeued=orchestrator.wake), name="launch-sweep"),
+    ]
     app.state.workers = Workers(
-        orchestrator=orchestrator, tasks=[task], gemini=gemini, elevenlabs=elevenlabs
+        orchestrator=orchestrator, tasks=tasks, gemini=gemini, elevenlabs=elevenlabs
     )
 
 

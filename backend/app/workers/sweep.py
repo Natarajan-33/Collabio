@@ -6,7 +6,9 @@ reached ElevenLabs as far as we know; dialing again could ring a creator twice, 
 failed and a person decides. Calls with a conversation id belong to the call watcher.
 """
 
+import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
 from uuid import UUID
@@ -70,3 +72,27 @@ async def sweep_stuck(
     if requeued or failed:
         logger.info("Restart sweep: requeued %d, failed %d", requeued, failed)
     return SweepResult(requeued=requeued, failed=failed)
+
+
+async def sweep_loop(
+    db: Database,
+    *,
+    every: timedelta = timedelta(minutes=1),
+    stale_after: timedelta = timedelta(minutes=2),
+    on_requeued: Callable[[], None] | None = None,
+) -> None:
+    """Sweep every `every` until cancelled.
+
+    The startup sweep skips threads touched less than `stale_after` ago, and a restart within
+    that window leaves interrupted threads behind; this loop picks them up once they go stale.
+    `on_requeued` runs when a sweep requeued threads (wake the orchestrator). A failing sweep is
+    logged and the loop goes on; cancellation propagates.
+    """
+    while True:
+        await asyncio.sleep(every.total_seconds())
+        try:
+            result = await sweep_stuck(db, stale_after=stale_after)
+            if result.requeued and on_requeued is not None:
+                on_requeued()
+        except Exception:
+            logger.exception("Periodic sweep failed")
