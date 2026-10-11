@@ -58,7 +58,8 @@ class NegotiationTerms(BaseModel):
 
     videos: int | None = Field(None, ge=1)
     format: ContentType | None = None
-    price_cents: int | None = Field(None, gt=0)
+    # ge=1, not gt=0: exclusiveMinimum makes google-genai response_schema validation fail.
+    price_cents: int | None = Field(None, ge=1)
     go_live_by: date | None = None
     conditions: list[str] = []
     addons: list[str] = []

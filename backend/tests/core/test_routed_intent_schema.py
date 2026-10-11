@@ -12,6 +12,7 @@ import pytest
 
 from app.adapters.gemini import GeminiClient
 from app.config import Settings
+from app.modules.negotiation.prompts import StructuredCall
 from app.schemas.packages import ExtractedDraft
 from app.schemas.voice import RoutedIntent
 
@@ -37,6 +38,16 @@ EXTRACTED_DRAFT_REPLY = {
         "extras": [{"name": "Thumbnail pack", "price_cents": 5000}],
     },
 }
+STRUCTURED_CALL_REPLY = {
+    "terms": {
+        "videos": 1,
+        "price_cents": 100000,
+        "stance": "counter",
+        "source": "call",
+        "confidence": 0.85,
+    },
+    "summary": "Creator countered at $1,000 for one video.",
+}
 
 
 @pytest.fixture
@@ -51,6 +62,7 @@ def settings() -> Settings:
         (RoutedIntent, OPEN_THREAD_REPLY),
         (RoutedIntent, SORT_REPLY),
         (ExtractedDraft, EXTRACTED_DRAFT_REPLY),
+        (StructuredCall, STRUCTURED_CALL_REPLY),
     ],
 )
 async def test_the_sdk_accepts_our_response_schemas(settings, respx_mock, schema, reply):
