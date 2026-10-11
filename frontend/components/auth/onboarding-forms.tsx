@@ -13,6 +13,7 @@ import { NativeSelect } from "@/components/ui/native-select"
 import { useApi } from "@/hooks/use-api"
 import type { components } from "@/lib/api/schema"
 import { roleHome } from "@/lib/auth/routing"
+import { markWelcomeNotePending } from "@/lib/auth/welcome-note"
 import { asRegion, NICHES, REGIONS, type Niche, type Region } from "@/lib/vocab"
 
 type OnboardingBody =
@@ -45,6 +46,7 @@ function useOnboard() {
         body,
       })
       if (response.ok) {
+        markWelcomeNotePending()
         // Stay locked while the app navigates away. The refresh drops any cached
         // pages from before the role existed.
         router.replace(roleHome(body.role))

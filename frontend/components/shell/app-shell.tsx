@@ -18,6 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { WelcomeNoteToast } from "@/components/auth/welcome-note-toast"
 import { TryYourselfTrigger } from "@/components/voice/try-yourself-dialog"
 import { VoiceDock } from "@/components/voice/voice-dock"
 import { VoiceScreenProvider } from "@/components/voice/voice-screen"
@@ -219,6 +220,7 @@ export function AppShell({ role, children }: AppShellProps) {
 
   return (
     <VoiceScreenProvider>
+      <WelcomeNoteToast />
       <div className="min-h-svh bg-background text-foreground">
         <aside
           data-slot="app-rail"

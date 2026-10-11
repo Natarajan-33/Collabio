@@ -5,11 +5,9 @@ import { useRouter } from "next/navigation"
 import { useId, useRef, useState } from "react"
 import { LoaderCircle, MailCheck } from "lucide-react"
 
-import { DemoAccounts } from "@/components/auth/demo-accounts"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { DemoAccount } from "@/lib/auth/demo"
 import { getSupabaseBrowser } from "@/lib/supabase/browser"
 
 type Mode = "sign-in" | "sign-up"
@@ -59,14 +57,11 @@ type CredentialsFormProps = {
   mode: Mode
   /** Where to land after signing in. Already vetted by `safeNextPath`. */
   next?: string
-  /** Seeded demo logins to hint at (sign-in only). Empty or absent hides the hint. */
-  demoAccounts?: readonly DemoAccount[]
 }
 
 export function CredentialsForm({
   mode,
   next = "/",
-  demoAccounts = [],
 }: CredentialsFormProps) {
   const router = useRouter()
   const emailId = useId()
@@ -237,16 +232,6 @@ export function CredentialsForm({
         )}
       </p>
 
-      {demoAccounts.length > 0 && mode === "sign-in" ? (
-        <DemoAccounts
-          accounts={demoAccounts}
-          onPick={(picked) => {
-            setEmail(picked)
-            // The password is the only thing left to type.
-            passwordRef.current?.focus()
-          }}
-        />
-      ) : null}
     </section>
   )
 }
