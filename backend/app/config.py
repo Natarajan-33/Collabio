@@ -54,8 +54,10 @@ class Settings(BaseSettings):
     public_frontend_url: str = "http://localhost:3000"
     workers_enabled: bool = True
 
-    # One origin, or several comma-separated (e.g. production + a Vercel preview URL).
+    # One origin, or several comma-separated (production URLs).
     frontend_origin: str = "http://localhost:3000"
+    # Optional RE2 regex for extra origins (e.g. Vercel preview URLs that change every deploy).
+    frontend_origin_regex: str = ""
 
     demo_brand_email: str = ""
     demo_password: str = Field("", repr=False)

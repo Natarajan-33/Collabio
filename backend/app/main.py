@@ -59,13 +59,15 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Collabio API", version="0.1.0", lifespan=lifespan)
     app.state.db = None  # set by the lifespan; see app.api.deps.get_db
     app.state.workers = None  # set by the lifespan when workers are enabled
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.frontend_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["Authorization", "Content-Type"],
-    )
+    cors: dict[str, object] = {
+        "allow_origins": settings.frontend_origins,
+        "allow_credentials": True,
+        "allow_methods": ["*"],
+        "allow_headers": ["Authorization", "Content-Type"],
+    }
+    if settings.frontend_origin_regex.strip():
+        cors["allow_origin_regex"] = settings.frontend_origin_regex.strip()
+    app.add_middleware(CORSMiddleware, **cors)
 
     api = APIRouter(prefix=API_PREFIX)
     api.include_router(health.router)
