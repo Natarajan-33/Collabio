@@ -31,6 +31,17 @@ def test_secrets_are_still_readable():
         assert getattr(settings, field) == value
 
 
+def test_frontend_origins_splits_comma_separated_list():
+    settings = Settings(
+        _env_file=None,
+        frontend_origin="https://app.example.com, https://preview.vercel.app",
+    )
+    assert settings.frontend_origins == [
+        "https://app.example.com",
+        "https://preview.vercel.app",
+    ]
+
+
 def test_default_text_model_is_flash_lite(monkeypatch):
     monkeypatch.delenv("GEMINI_TEXT_MODEL", raising=False)
     assert Settings(_env_file=None).gemini_text_model == "gemini-3.5-flash-lite"

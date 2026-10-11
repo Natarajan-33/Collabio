@@ -61,7 +61,7 @@ def create_app() -> FastAPI:
     app.state.workers = None  # set by the lifespan when workers are enabled
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.frontend_origin],
+        allow_origins=settings.frontend_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["Authorization", "Content-Type"],

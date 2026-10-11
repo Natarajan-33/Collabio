@@ -54,12 +54,18 @@ class Settings(BaseSettings):
     public_frontend_url: str = "http://localhost:3000"
     workers_enabled: bool = True
 
+    # One origin, or several comma-separated (e.g. production + a Vercel preview URL).
     frontend_origin: str = "http://localhost:3000"
 
     demo_brand_email: str = ""
     demo_password: str = Field("", repr=False)
     demo_helper_phone: str = ""
     demo_helper_email: str = ""
+
+    @property
+    def frontend_origins(self) -> list[str]:
+        """CORS allowlist: `FRONTEND_ORIGIN` split on commas, trimmed, no empties."""
+        return [part.strip() for part in self.frontend_origin.split(",") if part.strip()]
 
     @property
     def database_configured(self) -> bool:
