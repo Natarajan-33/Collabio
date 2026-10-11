@@ -91,15 +91,29 @@ const card = {
   updated_at: "2026-01-01T00:00:00Z",
 }
 
-function Registry({ onRegistry }: { onRegistry: (r: VoiceRegistry) => void }) {
-  const registry = useVoiceRegistry()
+let registry: VoiceRegistry | null = null
+
+function Probe() {
+  const value = useVoiceRegistry()
   useEffect(() => {
-    if (registry) onRegistry(registry)
+    registry = value
   })
   return null
 }
 
-afterEach(cleanup)
+function renderBoard() {
+  return render(
+    <VoiceScreenProvider>
+      <Probe />
+      <BatchBoardPage />
+    </VoiceScreenProvider>
+  )
+}
+
+afterEach(() => {
+  registry = null
+  cleanup()
+})
 
 describe("board voice", () => {
   it("registers the board screen with the visible creators", async () => {
@@ -126,13 +140,7 @@ describe("board voice", () => {
         threads: [card],
       },
     })
-    let registry: VoiceRegistry | null = null
-    render(
-      <VoiceScreenProvider>
-        <Registry onRegistry={(r) => (registry = r)} />
-        <BatchBoardPage />
-      </VoiceScreenProvider>
-    )
+    renderBoard()
     await screen.findByText("Arjun")
     expect(registry?.current()?.screen).toBe("board")
     expect(registry?.current()?.getContext()).toEqual({
@@ -166,13 +174,7 @@ describe("board voice", () => {
         threads: [card],
       },
     })
-    let registry: VoiceRegistry | null = null
-    render(
-      <VoiceScreenProvider>
-        <Registry onRegistry={(r) => (registry = r)} />
-        <BatchBoardPage />
-      </VoiceScreenProvider>
-    )
+    renderBoard()
     await screen.findByText("Arjun")
     act(() => {
       registry?.current()?.onIntent({
@@ -211,13 +213,7 @@ describe("board voice", () => {
         threads: [card],
       },
     })
-    let registry: VoiceRegistry | null = null
-    render(
-      <VoiceScreenProvider>
-        <Registry onRegistry={(r) => (registry = r)} />
-        <BatchBoardPage />
-      </VoiceScreenProvider>
-    )
+    renderBoard()
     await screen.findByText("Arjun")
     act(() => {
       registry?.current()?.onIntent({
