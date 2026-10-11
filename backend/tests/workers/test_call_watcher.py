@@ -165,6 +165,24 @@ async def test_processing_waits(api_db, launched_batch, fake_elevenlabs, status)
     assert await events(api_db, thread_id, "call_started", "failed") == []
 
 
+async def test_missing_conversation_fails_thread(api_db, launched_batch, fake_elevenlabs):
+    from app.adapters.elevenlabs import ConversationNotFound
+
+    thread_id = await calling_thread(api_db, launched_batch)
+
+    async def missing(_conversation_id: str):
+        raise ConversationNotFound("conv_w1")
+
+    fake_elevenlabs.get_conversation = missing  # type: ignore[method-assign]
+
+    await watcher(api_db, fake_elevenlabs, Completions()).check_once(
+        batch_id=launched_batch.batch_id
+    )
+
+    assert (await thread_row(api_db, thread_id))["status"] == "failed"
+    assert (await thread_row(api_db, thread_id))["last_error"] == "Call session not found."
+
+
 async def test_lookup_error_skipped(api_db, launched_batch, fake_elevenlabs):
     thread_id = await calling_thread(api_db, launched_batch)  # no snapshot: lookup raises
     completions = Completions()

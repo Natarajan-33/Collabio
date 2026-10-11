@@ -11,13 +11,14 @@ from collections.abc import Awaitable, Callable
 from uuid import UUID
 
 from app.adapters.db import Database
-from app.adapters.elevenlabs import ConversationSnapshot, ElevenLabsPort
+from app.adapters.elevenlabs import ConversationNotFound, ConversationSnapshot, ElevenLabsPort
 from app.modules.threads.repo import LiveCall, StaleThread, apply_event, live_calls
 from app.schemas.negotiation import EventType
 
 logger = logging.getLogger(__name__)
 
 NO_ANSWER = "No answer."
+STALE_CONVERSATION = "Call session not found."
 
 CompleteCall = Callable[[str, ConversationSnapshot], Awaitable[object]]
 CompleteIntake = Callable[[str, ConversationSnapshot], Awaitable[object]]
@@ -101,7 +102,11 @@ class CallWatcher:
             await asyncio.sleep(self._poll_seconds)
 
     async def _check(self, call: LiveCall) -> None:
-        snapshot = await self._elevenlabs.get_conversation(call.conversation_id)
+        try:
+            snapshot = await self._elevenlabs.get_conversation(call.conversation_id)
+        except ConversationNotFound:
+            await self._fail_live(call, STALE_CONVERSATION)
+            return
         if snapshot.status in ("initiated", "processing"):
             return
         if snapshot.status == "in-progress":
@@ -125,6 +130,24 @@ class CallWatcher:
             )
             return
         await self._complete_call(call.conversation_id, snapshot)
+
+    async def _fail_live(self, call: LiveCall, reason: str) -> None:
+        """Drop a thread whose ElevenLabs conversation no longer exists (e.g. leftover test ids)."""
+        try:
+            async with self._db.acquire() as conn:
+                await apply_event(
+                    conn,
+                    call.thread,
+                    expected={"calling", "in_call"},
+                    target="failed",
+                    type="failed",
+                    actor="system",
+                    payload={"reason": reason},
+                    last_error=reason,
+                    external_id=call.conversation_id,
+                )
+        except StaleThread:
+            logger.info("Thread %s moved before stale-call cleanup", call.thread.id)
 
     async def _apply(
         self,

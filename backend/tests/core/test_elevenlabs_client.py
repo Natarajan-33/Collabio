@@ -229,9 +229,19 @@ async def test_get_conversation_maps_snapshot(settings, respx_mock):
     assert snapshot.user_spoke is True
 
 
-async def test_get_conversation_api_error_is_unavailable(settings, respx_mock):
+async def test_get_conversation_not_found(settings, respx_mock):
+    from app.adapters.elevenlabs import ConversationNotFound
+
     respx_mock.get("https://api.elevenlabs.io/v1/convai/conversations/nope").mock(
         return_value=httpx.Response(404, json={"detail": "not found"})
+    )
+    with pytest.raises(ConversationNotFound):
+        await ElevenLabsClient(settings).get_conversation("nope")
+
+
+async def test_get_conversation_api_error_is_unavailable(settings, respx_mock):
+    respx_mock.get("https://api.elevenlabs.io/v1/convai/conversations/nope").mock(
+        return_value=httpx.Response(503, json={"detail": "down"})
     )
     with pytest.raises(ElevenLabsUnavailable):
         await ElevenLabsClient(settings).get_conversation("nope")

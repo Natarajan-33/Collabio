@@ -577,6 +577,118 @@
         ]
       }
     },
+    "/api/v1/voice/try-call": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Try Call",
+        "description": "Place a sample negotiation call to the given number. The phone is not stored.",
+        "operationId": "try_call_api_v1_voice_try_call_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TryCallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TryCallResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`invalid_phone` or `number_not_verified` (Twilio trial)"
+          },
+          "429": {
+            "description": "`try_call_rate_limited`"
+          },
+          "503": {
+            "description": "`voice_unavailable` or `demo_not_configured`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/voice/try-email": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Try Email",
+        "description": "Send a sample negotiation outreach email. The address is not stored on the profile.",
+        "operationId": "try_email_api_v1_voice_try_email_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TryEmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TryEmailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`invalid_email` or `reserved_email`"
+          },
+          "429": {
+            "description": "`try_email_rate_limited`"
+          },
+          "503": {
+            "description": "`email_not_configured` or `email_unavailable`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/briefs": {
       "post": {
         "tags": [
@@ -3088,7 +3200,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "exclusiveMinimum": 0.0
+                "minimum": 1.0
               },
               {
                 "type": "null"
@@ -4322,6 +4434,94 @@
           "summary"
         ],
         "title": "TranscriptView"
+      },
+      "TryCallRequest": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "title": "Phone",
+            "description": "Mobile number in E.164 form, e.g. +14155550123"
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "single_video",
+              "rush"
+            ],
+            "title": "Scenario",
+            "default": "standard"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "title": "TryCallRequest",
+        "description": "Place a one-off demo call to `phone`; the number is used only to dial."
+      },
+      "TryCallResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "calling",
+            "title": "Status",
+            "default": "calling"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "TryCallResponse"
+      },
+      "TryEmailRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Inbox to receive the sample email"
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "single_video",
+              "rush"
+            ],
+            "title": "Scenario",
+            "default": "standard"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "TryEmailRequest",
+        "description": "Send a sample negotiation outreach email; the address is not stored."
+      },
+      "TryEmailResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "sent",
+            "title": "Status",
+            "default": "sent"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "TryEmailResponse"
       },
       "ValidationError": {
         "properties": {

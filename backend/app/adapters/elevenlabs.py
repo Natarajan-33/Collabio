@@ -30,6 +30,10 @@ class CallPlacementFailed(Exception):
     """ElevenLabs refused the call; `str(exc)` is its message."""
 
 
+class ConversationNotFound(Exception):
+    """No conversation with this id (stale id, wrong account, or test data in the DB)."""
+
+
 class ConversationSnapshot(BaseModel):
     """A conversation as we store it. `status` is one of initiated, in-progress,
     processing, done, failed."""
@@ -156,6 +160,10 @@ class ElevenLabsClient:
             response = await self._client.conversational_ai.conversations.get(
                 conversation_id=conversation_id
             )
-        except (ApiError, httpx.TransportError) as exc:
+        except ApiError as exc:
+            if exc.status_code == 404:
+                raise ConversationNotFound(conversation_id) from exc
+            raise ElevenLabsUnavailable(f"ElevenLabs conversation fetch failed: {exc}") from exc
+        except httpx.TransportError as exc:
             raise ElevenLabsUnavailable(f"ElevenLabs conversation fetch failed: {exc}") from exc
         return snapshot_from_payload(response.model_dump(mode="json"))

@@ -18,6 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { TryYourselfTrigger } from "@/components/voice/try-yourself-dialog"
 import { VoiceDock } from "@/components/voice/voice-dock"
 import { VoiceScreenProvider } from "@/components/voice/voice-screen"
 import { clearDiscoverSession } from "@/lib/discover/state"
@@ -248,6 +249,8 @@ export function AppShell({ role, children }: AppShellProps) {
               )
             )}
           </nav>
+
+          <TryYourselfTrigger role={role} />
 
           <SignOut />
 

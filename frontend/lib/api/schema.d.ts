@@ -248,6 +248,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/try-call": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Try Call
+         * @description Place a sample negotiation call to the given number. The phone is not stored.
+         */
+        post: operations["try_call_api_v1_voice_try_call_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/try-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Try Email
+         * @description Send a sample negotiation outreach email. The address is not stored on the profile.
+         */
+        post: operations["try_email_api_v1_voice_try_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/briefs": {
         parameters: {
             query?: never;
@@ -1618,6 +1658,62 @@ export interface components {
             /** Summary */
             summary: string | null;
         };
+        /**
+         * TryCallRequest
+         * @description Place a one-off demo call to `phone`; the number is used only to dial.
+         */
+        TryCallRequest: {
+            /**
+             * Phone
+             * @description Mobile number in E.164 form, e.g. +14155550123
+             */
+            phone: string;
+            /**
+             * Scenario
+             * @default standard
+             * @enum {string}
+             */
+            scenario: "standard" | "single_video" | "rush";
+        };
+        /** TryCallResponse */
+        TryCallResponse: {
+            /**
+             * Status
+             * @default calling
+             * @constant
+             */
+            status: "calling";
+            /** Message */
+            message: string;
+        };
+        /**
+         * TryEmailRequest
+         * @description Send a sample negotiation outreach email; the address is not stored.
+         */
+        TryEmailRequest: {
+            /**
+             * Email
+             * @description Inbox to receive the sample email
+             */
+            email: string;
+            /**
+             * Scenario
+             * @default standard
+             * @enum {string}
+             */
+            scenario: "standard" | "single_video" | "rush";
+        };
+        /** TryEmailResponse */
+        TryEmailResponse: {
+            /**
+             * Status
+             * @default sent
+             * @constant
+             */
+            status: "sent";
+            /** Message */
+            message: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2128,6 +2224,114 @@ export interface operations {
                 };
             };
             /** @description `voice_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    try_call_api_v1_voice_try_call_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TryCallRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TryCallResponse"];
+                };
+            };
+            /** @description `invalid_phone` or `number_not_verified` (Twilio trial) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description `try_call_rate_limited` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `voice_unavailable` or `demo_not_configured` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    try_email_api_v1_voice_try_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TryEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TryEmailResponse"];
+                };
+            };
+            /** @description `invalid_email` or `reserved_email` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description `try_email_rate_limited` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `email_not_configured` or `email_unavailable` */
             503: {
                 headers: {
                     [name: string]: unknown;

@@ -21,6 +21,9 @@ vi.mock("@/lib/supabase/browser", () => ({
 vi.mock("@/components/voice/voice-dock", () => ({
   VoiceDock: () => <div>voice dock</div>,
 }))
+vi.mock("@/components/voice/try-yourself-dialog", () => ({
+  TryYourselfTrigger: () => <button type="button">Try it</button>,
+}))
 
 beforeEach(() => {
   router.replace.mockReset()
