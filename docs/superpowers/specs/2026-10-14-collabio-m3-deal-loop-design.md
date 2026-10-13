@@ -172,7 +172,7 @@ The backend keeps enforcing ownership explicitly in every endpoint (parent spec 
 Add the §2.3 rows; `status_for_event` covers `offer_expired → no_response`; `status_for_stance(stance, confidence)` (generalizes M2's `status_after_call`, which now delegates to it): counter → `countered`, accept → `accepted`, decline → `declined`, everything else or confidence < 0.6 → `needs_review`. (M2 call completion keeps its existing mapping of `question`/`no_commitment`/`offer` to `awaiting_reply` for calls — the agent already answered on the call; for email they need a human, hence `needs_review`.)
 
 ### 4.2 `core/guardrails.py` additions
-- `floor_warning(price_cents, videos, package_volume, floor_cents) -> FloorWarning | None` — floor is per package volume; scale linearly to `videos` like `check_counter` scales the ceiling. Returns the shortfall in cents (creator-only).
+- `floor_shortfall(price_cents, videos, package_volume, floor_cents) -> int | None` — floor is per package volume; scale linearly to `videos` (rounded up, in the creator's favour). Returns the shortfall in cents (creator-only).
 - `brand_counter_violation(price_cents, videos, brief_videos, ceiling_cents) -> str | None` — "Above your ceiling of $X for N videos" (brand-only), using the same scaling as `check_counter`.
 - `award_over_ceiling(...) -> int | None` — overage in cents; award requires `confirm_over_ceiling = true` when not None.
 
@@ -248,7 +248,7 @@ Add `structure_reply(gemini, *, ask, package_one_liner, latest_terms, body) -> S
 ### 5.5 Brand actions — `modules/board/` (extended)
 - `POST /threads/{id}/counter/preview {terms}` → delta + `ceiling_violation` (brand-only).
 - `POST /threads/{id}/counter {terms, note?, based_on_event_id}` → reject above ceiling (422 `above_ceiling`); `brand_counter_sent` (actor `brand`, terms `source = in_app`, stance `offer`); `expires_at` reset; outbox `creator_brand_countered`. The note (≤ 1000 chars) is stored in the event payload and shown to both sides.
-- `POST /threads/{id}/resolve {outcome: counter|accept|decline|awaiting_reply, terms?}` → only from `needs_review`; records the creator's position as confirmed by the brand (§2.4).
+- `POST /threads/{id}/resolve {outcome: counter|accept|decline, terms?}` → only from `needs_review`; records the creator's position as confirmed by the brand (§2.4). A reply that holds no position (or asks a question) is answered with a brand counter carrying a note, which moves the thread to `awaiting_reply`.
 - `POST /threads/{id}/decline {reason?}` → `closed_lost` (`withdrawn` from `awaiting_reply`/`no_response`/`queued`/`failed`, `declined_by_brand` otherwise); outbox `creator_closed`.
 - `POST /batches/{id}/decline-rest/preview` → the open threads that would close; `POST /batches/{id}/decline-rest` → `closed_lost` (`not_selected`) for each, each isolated (one failure does not stop the others), outbox per thread.
 - Board view model additions: `BatchKpis.hired`, `BriefSummary.hires_target`, `ThreadCard.terms_event_id`, `ThreadCard.deal_id`, `ThreadCard.expires_at`, `ThreadCard.allowed_actions`; KPI `replied` also counts `email_received`.
