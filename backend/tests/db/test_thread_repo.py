@@ -247,3 +247,112 @@ async def test_leaving_awaiting_reply_clears_expiry(db_conn, factory):
     await repo.transition(db_conn, thread.id, expected={"awaiting_reply"}, target="failed")
 
     assert await expires_at_of(db_conn, thread) is None
+
+
+async def test_apply_event_id_returns_id_then_none(db_conn, factory):
+    thread = await make_thread(factory)
+
+    first = await repo.apply_event_id(
+        db_conn,
+        thread,
+        expected={"queued"},
+        target="drafting",
+        type="queued",
+        actor="system",
+        external_id="k-id",
+    )
+    again = await repo.apply_event_id(
+        db_conn,
+        thread,
+        expected={"drafting"},
+        target="failed",
+        type="queued",
+        actor="system",
+        external_id="k-id",
+    )
+
+    assert isinstance(first, int)
+    assert again is None
+    assert await status_of(db_conn, thread) == "drafting"
+    assert await event_count(db_conn, thread) == 1
+
+
+async def test_latest_terms_event_id_ignores_non_terms(db_conn, factory):
+    thread = await make_thread(factory)
+    terms_event = await factory.event(thread.id, "email_sent")
+    await factory.event(thread.id, "call_placed")
+
+    assert await repo.latest_terms_event_id(db_conn, thread.id) == terms_event
+
+
+async def test_latest_terms_event_id_none_without_terms_events(db_conn, factory):
+    thread = await make_thread(factory)
+    await factory.event(thread.id, "call_placed")
+
+    assert await repo.latest_terms_event_id(db_conn, thread.id) is None
+
+
+async def test_assert_fresh_passes_and_returns_status(db_conn, factory):
+    thread = await make_thread(factory, status="awaiting_reply")
+    sent = await factory.event(thread.id, "email_sent")
+
+    async with db_conn.transaction():
+        assert await repo.assert_fresh(db_conn, thread.id, sent) == "awaiting_reply"
+
+
+async def test_assert_fresh_raises_on_newer_terms(db_conn, factory):
+    thread = await make_thread(factory, status="awaiting_reply")
+    sent = await factory.event(thread.id, "email_sent")
+    newer = await factory.event(thread.id, "counter_submitted", actor="creator")
+
+    with pytest.raises(repo.TermsChanged) as caught:
+        async with db_conn.transaction():
+            await repo.assert_fresh(db_conn, thread.id, sent)
+
+    assert caught.value.latest_event_id == newer
+
+
+async def test_assert_fresh_none_when_no_terms_yet(db_conn, factory):
+    thread = await make_thread(factory)  # queued
+
+    async with db_conn.transaction():
+        assert await repo.assert_fresh(db_conn, thread.id, None) == "queued"
+
+
+async def test_assert_fresh_raises_when_terms_exist_but_caller_saw_none(db_conn, factory):
+    thread = await make_thread(factory)
+    newer = await factory.event(thread.id, "email_sent")
+
+    with pytest.raises(repo.TermsChanged) as caught:
+        async with db_conn.transaction():
+            await repo.assert_fresh(db_conn, thread.id, None)
+
+    assert caught.value.latest_event_id == newer
+
+
+async def test_latest_brand_counter(db_conn, factory):
+    thread = await make_thread(factory, status="awaiting_reply")
+    for price in (80_000, 95_000):
+        await repo.record_event(
+            db_conn,
+            thread,
+            type="brand_counter_sent",
+            actor="brand",
+            terms=NegotiationTerms(
+                videos=3, price_cents=price, stance="counter", source="in_app", confidence=1.0
+            ),
+        )
+    await repo.record_event(
+        db_conn, thread, type="counter_submitted", actor="creator", terms=terms(120_000)
+    )
+
+    latest = await repo.latest_brand_counter(db_conn, thread.id)
+
+    assert latest is not None
+    assert (latest.videos, latest.price_cents) == (3, 95_000)
+
+
+async def test_latest_brand_counter_none_without_one(db_conn, factory):
+    thread = await make_thread(factory)
+
+    assert await repo.latest_brand_counter(db_conn, thread.id) is None

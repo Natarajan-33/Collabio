@@ -16,7 +16,7 @@ from uuid import UUID
 import asyncpg
 
 from app.core.thread_state import IllegalTransition, check_transition
-from app.schemas.negotiation import Actor, EventType, NegotiationTerms
+from app.schemas.negotiation import TERMS_EVENT_TYPES, Actor, EventType, NegotiationTerms
 
 TermsSource = Literal["brand", "creator"]
 
@@ -74,6 +74,19 @@ where t.status in ('calling', 'in_call')
   and ($1::uuid is null or t.batch_id = $1::uuid)
 order by t.created_at, t.id
 """
+SELECT_LATEST_TERMS_EVENT = """
+select id from public.thread_events
+where thread_id = $1 and type = any($2::text[])
+order by id desc
+limit 1
+"""
+SELECT_STATUS_FOR_UPDATE = "select status from public.threads where id = $1 for update"
+SELECT_LATEST_BRAND_COUNTER = """
+select terms from public.thread_events
+where thread_id = $1 and type = 'brand_counter_sent' and terms is not null
+order by id desc
+limit 1
+"""
 UPDATE_TERMS = """
 update public.threads set latest_terms = $2::jsonb, latest_terms_source = $3 where id = $1
 """
@@ -105,6 +118,14 @@ class LiveCall:
 
 class StaleThread(Exception):
     """The thread was not in an expected status: someone else moved it first."""
+
+
+class TermsChanged(Exception):
+    """The terms moved on since the caller looked: a newer terms event exists."""
+
+    def __init__(self, latest_event_id: int | None) -> None:
+        super().__init__(f"Terms changed (latest terms event {latest_event_id})")
+        self.latest_event_id = latest_event_id
 
 
 def _terms_json(terms: NegotiationTerms | None) -> str | None:
@@ -174,6 +195,53 @@ async def transition(
         raise StaleThread(f"Thread {thread_id} is not in {sorted(expected)}")
 
 
+async def apply_event_id(
+    conn: asyncpg.Connection,
+    thread: ThreadRef,
+    *,
+    expected: Collection[str],
+    target: str | None,
+    type: EventType,
+    actor: Actor,
+    payload: dict | None = None,
+    terms: NegotiationTerms | None = None,
+    transcript_id: UUID | None = None,
+    external_id: str | None = None,
+    last_error: str | None = None,
+    latest_terms: NegotiationTerms | None = None,
+    latest_terms_source: TermsSource | None = None,
+) -> int | None:
+    """Record an event and, when `target` is set, move the thread, atomically.
+
+    Returns the event's id, or None without transitioning when the event is a duplicate.
+    `StaleThread` propagates and rolls the event back.
+    """
+    async with conn.transaction():
+        event_id = await record_event(
+            conn,
+            thread,
+            type=type,
+            actor=actor,
+            payload=payload,
+            terms=terms,
+            transcript_id=transcript_id,
+            external_id=external_id,
+        )
+        if event_id is None:
+            return None
+        if target is not None:
+            await transition(
+                conn,
+                thread.id,
+                expected=expected,
+                target=target,
+                last_error=last_error,
+                latest_terms=latest_terms,
+                latest_terms_source=latest_terms_source,
+            )
+        return event_id
+
+
 async def apply_event(
     conn: asyncpg.Connection,
     thread: ThreadRef,
@@ -190,35 +258,56 @@ async def apply_event(
     latest_terms: NegotiationTerms | None = None,
     latest_terms_source: TermsSource | None = None,
 ) -> bool:
-    """Record an event and, when `target` is set, move the thread, atomically.
-
-    Returns False without transitioning when the event is a duplicate. `StaleThread`
-    propagates and rolls the event back.
-    """
-    async with conn.transaction():
-        event_id = await record_event(
+    """`apply_event_id` for callers that only need to know whether the event was new."""
+    return (
+        await apply_event_id(
             conn,
             thread,
+            expected=expected,
+            target=target,
             type=type,
             actor=actor,
             payload=payload,
             terms=terms,
             transcript_id=transcript_id,
             external_id=external_id,
+            last_error=last_error,
+            latest_terms=latest_terms,
+            latest_terms_source=latest_terms_source,
         )
-        if event_id is None:
-            return False
-        if target is not None:
-            await transition(
-                conn,
-                thread.id,
-                expected=expected,
-                target=target,
-                last_error=last_error,
-                latest_terms=latest_terms,
-                latest_terms_source=latest_terms_source,
-            )
-        return True
+        is not None
+    )
+
+
+async def latest_terms_event_id(conn: asyncpg.Connection, thread_id: UUID) -> int | None:
+    """The id of the thread's newest event that carries terms, or None."""
+    return await conn.fetchval(SELECT_LATEST_TERMS_EVENT, thread_id, sorted(TERMS_EVENT_TYPES))
+
+
+async def assert_fresh(
+    conn: asyncpg.Connection, thread_id: UUID, based_on_event_id: int | None
+) -> str:
+    """Lock the thread row and check the caller saw the newest terms; returns the status.
+
+    Raises `TermsChanged` when the newest terms event is not `based_on_event_id`, and
+    `LookupError` for an unknown thread. Call inside a transaction: the lock lasts until it
+    ends, so the caller's own write cannot interleave with another action.
+    """
+    status = await conn.fetchval(SELECT_STATUS_FOR_UPDATE, thread_id)
+    if status is None:
+        raise LookupError(f"No thread {thread_id}")
+    latest = await latest_terms_event_id(conn, thread_id)
+    if latest != based_on_event_id:
+        raise TermsChanged(latest)
+    return status
+
+
+async def latest_brand_counter(
+    conn: asyncpg.Connection, thread_id: UUID
+) -> NegotiationTerms | None:
+    """The terms of the brand's newest `brand_counter_sent` event, or None."""
+    raw = await conn.fetchval(SELECT_LATEST_BRAND_COUNTER, thread_id)
+    return None if raw is None else NegotiationTerms.model_validate_json(raw)
 
 
 async def update_latest_terms(
