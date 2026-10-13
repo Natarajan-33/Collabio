@@ -1,9 +1,12 @@
 from app.core.guardrails import (
     MAX_CALLS_PER_BRAND_PER_DAY,
+    brand_counter_violation,
     call_allowed,
     channel_violation,
     check_counter,
     default_channel,
+    floor_shortfall,
+    over_ceiling_cents,
 )
 
 KW = {"ceiling_cents": 120000, "ask_cents": 100000, "brief_videos": 3, "brand_name": "Lumen Audio"}
@@ -88,3 +91,55 @@ def test_channel_violation():
         == "Opted out of contact"
     )
     assert channel_violation("email", **{**kw, "contact_opt_out": True}) == "Opted out of contact"
+
+
+def test_floor_scales_up_with_videos():
+    # floor scales to 120000
+    assert (
+        floor_shortfall(price_cents=100000, videos=4, package_volume=2, floor_cents=60000) == 20000
+    )
+
+
+def test_floor_rounds_up_for_creator():
+    # ceil(33333.33) = 33334
+    assert floor_shortfall(price_cents=33333, videos=1, package_volume=3, floor_cents=100000) == 1
+
+
+def test_floor_met_is_none():
+    assert floor_shortfall(price_cents=60000, videos=2, package_volume=2, floor_cents=60000) is None
+
+
+def test_brand_counter_over_ceiling_message():
+    assert (
+        brand_counter_violation(price_cents=130000, videos=3, brief_videos=3, ceiling_cents=120000)
+        == "Above your ceiling of $1,200 for 3 videos"
+    )
+
+
+def test_brand_counter_scales_ceiling():
+    # scaled ceiling is 80000
+    assert (
+        brand_counter_violation(price_cents=80000, videos=2, brief_videos=3, ceiling_cents=120000)
+        is None
+    )
+
+
+def test_brand_counter_singular():
+    assert (
+        brand_counter_violation(price_cents=50000, videos=1, brief_videos=3, ceiling_cents=120000)
+        == "Above your ceiling of $400 for 1 video"
+    )
+
+
+def test_over_ceiling_cents():
+    assert (
+        over_ceiling_cents(price_cents=125000, videos=3, brief_videos=3, ceiling_cents=120000)
+        == 5000
+    )
+
+
+def test_over_ceiling_cents_within_is_none():
+    assert (
+        over_ceiling_cents(price_cents=120000, videos=3, brief_videos=3, ceiling_cents=120000)
+        is None
+    )

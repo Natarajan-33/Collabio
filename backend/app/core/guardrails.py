@@ -59,6 +59,40 @@ def check_counter(
     )
 
 
+def floor_shortfall(
+    *, price_cents: int, videos: int, package_volume: int, floor_cents: int
+) -> int | None:
+    """How far below the creator's floor (scaled up to `videos`, rounded up) a price is, or None.
+
+    Reads the creator's private floor: the caller must not store or return the scaled floor.
+    """
+    floor = math.ceil(floor_cents * videos / package_volume)
+    return floor - price_cents if price_cents < floor else None
+
+
+def _scaled_ceiling(ceiling_cents: int, videos: int, brief_videos: int) -> int:
+    return math.floor(ceiling_cents * videos / brief_videos)
+
+
+def brand_counter_violation(
+    *, price_cents: int, videos: int, brief_videos: int, ceiling_cents: int
+) -> str | None:
+    """The message for a brand counter above the ceiling scaled to `videos`, or None."""
+    ceiling = _scaled_ceiling(ceiling_cents, videos, brief_videos)
+    if price_cents <= ceiling:
+        return None
+    noun = "video" if videos == 1 else "videos"
+    return f"Above your ceiling of {format_cents(ceiling)} for {videos} {noun}"
+
+
+def over_ceiling_cents(
+    *, price_cents: int, videos: int, brief_videos: int, ceiling_cents: int
+) -> int | None:
+    """How far a price is above the ceiling scaled to `videos`, or None when it fits."""
+    ceiling = _scaled_ceiling(ceiling_cents, videos, brief_videos)
+    return price_cents - ceiling if price_cents > ceiling else None
+
+
 def call_allowed(phone: str | None, phone_opt_in: bool) -> bool:
     """A creator can be called only with a phone number and an explicit opt-in."""
     return bool(phone and phone.strip()) and phone_opt_in
