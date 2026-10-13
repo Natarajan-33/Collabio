@@ -40,6 +40,8 @@ Payments/escrow, calendar, e-sign/contract PDFs, platform admin, multi-currency 
 
 Each milestone ends in a demoable state and gets its own implementation plan.
 
+> **2026-10-14 re-cut:** Collabio now targets a paid production environment. M3 is the **Deal loop**, M4 is **Money** (campaign funding, deliverable approval, payouts), and M5 is **Production hardening + growth**. See `2026-10-14-collabio-m3-deal-loop-design.md`, which supersedes the M3/M4 rows below and the demo framing wherever they disagree.
+
 | # | Milestone | Features | Demoable outcome |
 |---|---|---|---|
 | **M1** | Foundation + supply | Auth + role routing, onboarding, seeded marketplace, **creator package editor (voice + click)**, **voice discovery** (Gemini semantic + filters), Voice Dock (command mode) | Brand finds creators by voice and reviews packages side-by-side; creator dictates and publishes a package |
