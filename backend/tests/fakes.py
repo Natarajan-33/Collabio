@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+import uuid
 from collections import deque
 from typing import Any
 
@@ -84,13 +85,25 @@ class FakeGemini:
         return obj
 
 
+# The tests share one hosted database, and committed rows (a crashed run's, or an earlier
+# test's) keep the ids a fake handed out. Every process, and every fake, mints ids with its own
+# random prefix, so a leftover can never collide with a new one.
+RUN = uuid.uuid4().hex[:8]
+
+
+def conv_id(n: int) -> str:
+    """A conversation id of this process's own, for tests that store one without a fake."""
+    return f"conv_{RUN}_{n}"
+
+
 class FakeElevenLabs:
     """ElevenLabsPort without the network.
 
     `mint_scribe_token` hands out a fixed token, or raises `failure` if given.
     `mint_conversation_token` records the agent id in `conversation_tokens`.
     `place_call` records its kwargs in `calls`, raises `call_failure` if set, and
-    returns `conv_1`, `conv_2`, ... (a failed placement uses up no id).
+    returns `conv_<run>_1`, `conv_<run>_2`, ... (`conv_id(n)` names the n-th; a failed
+    placement uses up no id). The prefix is random per fake.
     `get_conversation` serves `snapshots` by id; a missing id raises `ElevenLabsUnavailable`.
     """
 
@@ -102,6 +115,7 @@ class FakeElevenLabs:
         self.call_failure: Exception | None = None
         self.snapshots: dict[str, ConversationSnapshot] = {}
         self._placed = 0
+        self._run = uuid.uuid4().hex[:8]
 
     async def mint_scribe_token(self) -> ScribeToken:
         self.mint_calls += 1
@@ -132,7 +146,10 @@ class FakeElevenLabs:
         if self.call_failure is not None:
             raise self.call_failure
         self._placed += 1
-        return f"conv_{self._placed}"
+        return self.conv_id(self._placed)
+
+    def conv_id(self, n: int) -> str:
+        return f"conv_{self._run}_{n}"
 
     async def get_conversation(self, conversation_id: str) -> ConversationSnapshot:
         try:
@@ -155,15 +172,20 @@ class FakeEmail:
         self.failures: dict[str, Exception] = {}
         self.crash_after_send = False
         self._ids: dict[str, str] = {}
+        self._run = uuid.uuid4().hex[:8]
 
     async def send(self, email: OutboundEmail, *, idempotency_key: str) -> str:
         if email.to in self.failures:
             raise self.failures[email.to]
-        email_id = self._ids.get(idempotency_key)
-        if email_id is None:
-            email_id = f"email_{len(self._ids) + 1}"
-            self._ids[idempotency_key] = email_id
+        sent_id = self._ids.get(idempotency_key)
+        if sent_id is None:
+            sent_id = self.email_id(len(self._ids) + 1)
+            self._ids[idempotency_key] = sent_id
             self.sent.append((email, idempotency_key))
         if self.crash_after_send:
             raise RuntimeError("crash")
-        return email_id
+        return sent_id
+
+    def email_id(self, n: int) -> str:
+        """The id this fake gives its n-th distinct send (random prefix per fake)."""
+        return f"email_{self._run}_{n}"

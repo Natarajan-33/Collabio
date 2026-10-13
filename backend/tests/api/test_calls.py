@@ -94,10 +94,10 @@ async def test_start_call_places_call_and_records_conversation(
     ]
     row = await thread_row(api_db, thread_id)
     assert row["status"] == "calling"
-    assert row["call_conversation_id"] == "conv_1"
+    assert row["call_conversation_id"] == fake_elevenlabs.conv_id(1)
     (placed,) = await events(api_db, thread_id, "call_placed")
     assert placed["actor"] == "brand_agent"
-    assert placed["external_id"] == "conv_1"
+    assert placed["external_id"] == fake_elevenlabs.conv_id(1)
     assert placed["payload"] == {}
     assert phone not in json.dumps(await events(api_db, thread_id), default=str)
 

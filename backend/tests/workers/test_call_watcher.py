@@ -10,10 +10,14 @@ from app.modules.threads import repo
 from app.modules.threads.repo import claim_queued, transition
 from app.schemas.negotiation import TranscriptTurn
 from app.workers.call_watcher import CallWatcher
+from tests.fakes import RUN
 
 pytestmark = pytest.mark.db
 
 NO_ANSWER = "No answer."
+# Unique per run: the shared database keeps rows that crashed runs left behind.
+CONV_W1 = f"conv_w1_{RUN}"
+CONV_BRIEF_W = f"conv_brief_w_{RUN}"
 
 
 class Completions:
@@ -39,7 +43,7 @@ def snapshot(conversation_id: str, status: str, *, user_spoke: bool = False):
     )
 
 
-async def calling_thread(api_db, launched_batch, conversation_id: str = "conv_w1") -> UUID:
+async def calling_thread(api_db, launched_batch, conversation_id: str = CONV_W1) -> UUID:
     """Arjun's thread claimed to `calling` with a placed call."""
     thread_id = launched_batch.threads["arjuntech"]
     async with api_db.acquire() as conn:
@@ -72,21 +76,21 @@ def watcher(api_db, fake_elevenlabs, completions) -> CallWatcher:
 
 async def test_in_progress_marks_in_call(api_db, launched_batch, fake_elevenlabs):
     thread_id = await calling_thread(api_db, launched_batch)
-    fake_elevenlabs.snapshots["conv_w1"] = snapshot("conv_w1", "in-progress")
+    fake_elevenlabs.snapshots[CONV_W1] = snapshot(CONV_W1, "in-progress")
     completions = Completions()
 
     await watcher(api_db, fake_elevenlabs, completions).check_once(batch_id=launched_batch.batch_id)
 
     assert (await thread_row(api_db, thread_id))["status"] == "in_call"
     (started,) = await events(api_db, thread_id, "call_started")
-    assert started["external_id"] == "conv_w1"
+    assert started["external_id"] == CONV_W1
     assert started["actor"] == "system"
     assert completions.calls == []
 
 
 async def test_in_progress_again_changes_nothing(api_db, launched_batch, fake_elevenlabs):
     thread_id = await calling_thread(api_db, launched_batch)
-    fake_elevenlabs.snapshots["conv_w1"] = snapshot("conv_w1", "in-progress")
+    fake_elevenlabs.snapshots[CONV_W1] = snapshot(CONV_W1, "in-progress")
     check = watcher(api_db, fake_elevenlabs, Completions())
 
     await check.check_once(batch_id=launched_batch.batch_id)
@@ -99,7 +103,7 @@ async def test_in_progress_again_changes_nothing(api_db, launched_batch, fake_el
 @pytest.mark.parametrize("status", ["done", "failed"])
 async def test_unanswered_call_fails_with_retry(api_db, launched_batch, fake_elevenlabs, status):
     thread_id = await calling_thread(api_db, launched_batch)
-    fake_elevenlabs.snapshots["conv_w1"] = snapshot("conv_w1", status, user_spoke=False)
+    fake_elevenlabs.snapshots[CONV_W1] = snapshot(CONV_W1, status, user_spoke=False)
     completions = Completions()
 
     await watcher(api_db, fake_elevenlabs, completions).check_once(batch_id=launched_batch.batch_id)
@@ -109,20 +113,20 @@ async def test_unanswered_call_fails_with_retry(api_db, launched_batch, fake_ele
     assert row["last_error"] == NO_ANSWER
     (failed,) = await events(api_db, thread_id, "failed")
     assert failed["payload"] == {"reason": NO_ANSWER}
-    assert failed["external_id"] == "conv_w1"
+    assert failed["external_id"] == CONV_W1
     assert completions.calls == []
 
 
 async def test_finished_call_handed_to_complete(api_db, launched_batch, fake_elevenlabs):
     thread_id = await calling_thread(api_db, launched_batch)
     await transition_to_in_call(api_db, thread_id)
-    done = snapshot("conv_w1", "done", user_spoke=True)
-    fake_elevenlabs.snapshots["conv_w1"] = done
+    done = snapshot(CONV_W1, "done", user_spoke=True)
+    fake_elevenlabs.snapshots[CONV_W1] = done
     completions = Completions()
 
     await watcher(api_db, fake_elevenlabs, completions).check_once(batch_id=launched_batch.batch_id)
 
-    assert completions.calls == [("conv_w1", done)]
+    assert completions.calls == [(CONV_W1, done)]
     assert (await thread_row(api_db, thread_id))["status"] == "in_call"  # completion is Task 13
 
 
@@ -130,7 +134,7 @@ async def test_finished_call_with_speech_while_calling_is_completed(
     api_db, launched_batch, fake_elevenlabs
 ):
     await calling_thread(api_db, launched_batch)
-    fake_elevenlabs.snapshots["conv_w1"] = snapshot("conv_w1", "done", user_spoke=True)
+    fake_elevenlabs.snapshots[CONV_W1] = snapshot(CONV_W1, "done", user_spoke=True)
     completions = Completions()
 
     await watcher(api_db, fake_elevenlabs, completions).check_once(batch_id=launched_batch.batch_id)
@@ -143,7 +147,7 @@ async def test_unanswered_call_already_in_call_is_completed_not_failed(
 ):
     thread_id = await calling_thread(api_db, launched_batch)
     await transition_to_in_call(api_db, thread_id)
-    fake_elevenlabs.snapshots["conv_w1"] = snapshot("conv_w1", "done", user_spoke=False)
+    fake_elevenlabs.snapshots[CONV_W1] = snapshot(CONV_W1, "done", user_spoke=False)
     completions = Completions()
 
     await watcher(api_db, fake_elevenlabs, completions).check_once(batch_id=launched_batch.batch_id)
@@ -155,7 +159,7 @@ async def test_unanswered_call_already_in_call_is_completed_not_failed(
 @pytest.mark.parametrize("status", ["initiated", "processing"])
 async def test_processing_waits(api_db, launched_batch, fake_elevenlabs, status):
     thread_id = await calling_thread(api_db, launched_batch)
-    fake_elevenlabs.snapshots["conv_w1"] = snapshot("conv_w1", status)
+    fake_elevenlabs.snapshots[CONV_W1] = snapshot(CONV_W1, status)
     completions = Completions()
 
     await watcher(api_db, fake_elevenlabs, completions).check_once(batch_id=launched_batch.batch_id)
@@ -171,7 +175,7 @@ async def test_missing_conversation_fails_thread(api_db, launched_batch, fake_el
     thread_id = await calling_thread(api_db, launched_batch)
 
     async def missing(_conversation_id: str):
-        raise ConversationNotFound("conv_w1")
+        raise ConversationNotFound(CONV_W1)
 
     fake_elevenlabs.get_conversation = missing  # type: ignore[method-assign]
 
@@ -197,7 +201,7 @@ async def test_one_failing_row_does_not_stop_the_others(
     api_db, launched_batch, fake_elevenlabs, caplog
 ):
     thread_id = await calling_thread(api_db, launched_batch)
-    fake_elevenlabs.snapshots["conv_w1"] = snapshot("conv_w1", "done", user_spoke=True)
+    fake_elevenlabs.snapshots[CONV_W1] = snapshot(CONV_W1, "done", user_spoke=True)
 
     async def broken(conversation_id, snapshot):
         raise RuntimeError("boom")
@@ -217,7 +221,7 @@ async def test_live_calls_lists_calling_and_in_call_with_a_conversation(api_db, 
         live = await repo.live_calls(conn, batch_id=launched_batch.batch_id)
 
     assert [(c.thread.id, c.status, c.conversation_id) for c in live] == [
-        (thread_id, "calling", "conv_w1")
+        (thread_id, "calling", CONV_W1)
     ]
     assert live[0].thread.batch_id == launched_batch.batch_id
 
@@ -244,7 +248,7 @@ class IntakeCompletions:
         self.calls.append((conversation_id, snapshot))
 
 
-async def set_intake_conversation(api_db, brief_id, conversation_id="conv_brief_w"):
+async def set_intake_conversation(api_db, brief_id, conversation_id=CONV_BRIEF_W):
     async with api_db.acquire() as conn:
         await conn.execute(
             "update public.briefs set intake_conversation_id = $2 where id = $1",
@@ -259,20 +263,20 @@ def intake_watcher(api_db, fake_elevenlabs, intake) -> CallWatcher:
 
 async def test_watcher_completes_intake(api_db, launched_batch, fake_elevenlabs):
     await set_intake_conversation(api_db, launched_batch.brief_id)
-    done = snapshot("conv_brief_w", "done", user_spoke=True)
-    fake_elevenlabs.snapshots["conv_brief_w"] = done
+    done = snapshot(CONV_BRIEF_W, "done", user_spoke=True)
+    fake_elevenlabs.snapshots[CONV_BRIEF_W] = done
     intake = IntakeCompletions()
 
     await intake_watcher(api_db, fake_elevenlabs, intake).check_once(
         batch_id=launched_batch.batch_id
     )
 
-    assert intake.calls == [("conv_brief_w", done)]
+    assert intake.calls == [(CONV_BRIEF_W, done)]
 
 
 async def test_watcher_waits_for_an_unfinished_intake(api_db, launched_batch, fake_elevenlabs):
     await set_intake_conversation(api_db, launched_batch.brief_id)
-    fake_elevenlabs.snapshots["conv_brief_w"] = snapshot("conv_brief_w", "in-progress")
+    fake_elevenlabs.snapshots[CONV_BRIEF_W] = snapshot(CONV_BRIEF_W, "in-progress")
     intake = IntakeCompletions()
 
     await intake_watcher(api_db, fake_elevenlabs, intake).check_once(
@@ -289,10 +293,11 @@ async def test_watcher_skips_an_intake_that_already_has_a_transcript(
     async with api_db.acquire() as conn:
         await conn.execute(
             "insert into public.transcripts (brief_id, kind, external_id)"
-            " values ($1, 'intake', 'conv_brief_w')",
+            " values ($1, 'intake', $2)",
             launched_batch.brief_id,
+            CONV_BRIEF_W,
         )
-    fake_elevenlabs.snapshots["conv_brief_w"] = snapshot("conv_brief_w", "done", user_spoke=True)
+    fake_elevenlabs.snapshots[CONV_BRIEF_W] = snapshot(CONV_BRIEF_W, "done", user_spoke=True)
     intake = IntakeCompletions()
 
     await intake_watcher(api_db, fake_elevenlabs, intake).check_once(
@@ -311,7 +316,7 @@ async def test_watcher_ignores_an_old_intake(api_db, launched_batch, fake_eleven
             "update public.briefs set updated_at = now() - interval '2 hours' where id = $1",
             launched_batch.brief_id,
         )
-    fake_elevenlabs.snapshots["conv_brief_w"] = snapshot("conv_brief_w", "done", user_spoke=True)
+    fake_elevenlabs.snapshots[CONV_BRIEF_W] = snapshot(CONV_BRIEF_W, "done", user_spoke=True)
     intake = IntakeCompletions()
 
     await intake_watcher(api_db, fake_elevenlabs, intake).check_once(
@@ -336,7 +341,7 @@ async def test_watcher_without_complete_intake_polls_no_briefs(
     api_db, launched_batch, fake_elevenlabs
 ):
     await set_intake_conversation(api_db, launched_batch.brief_id)
-    fake_elevenlabs.snapshots["conv_brief_w"] = snapshot("conv_brief_w", "done", user_spoke=True)
+    fake_elevenlabs.snapshots[CONV_BRIEF_W] = snapshot(CONV_BRIEF_W, "done", user_spoke=True)
 
     await watcher(api_db, fake_elevenlabs, Completions()).check_once(
         batch_id=launched_batch.batch_id

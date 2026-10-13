@@ -22,7 +22,7 @@ async def test_fake_email_dedupes_by_idempotency_key():
     first = await fake.send(make_email(), idempotency_key="k1")
     again = await fake.send(make_email(), idempotency_key="k1")
     other = await fake.send(make_email("b@creators.io"), idempotency_key="k2")
-    assert (first, again, other) == ("email_1", "email_1", "email_2")
+    assert (first, again, other) == (fake.email_id(1), fake.email_id(1), fake.email_id(2))
     assert [key for _, key in fake.sent] == ["k1", "k2"]
 
 
@@ -32,7 +32,7 @@ async def test_fake_email_failure_is_keyed_by_recipient_and_records_nothing():
     with pytest.raises(RuntimeError, match="rejected"):
         await fake.send(make_email("bad@creators.io"), idempotency_key="k1")
     assert fake.sent == []
-    assert await fake.send(make_email(), idempotency_key="k2") == "email_1"
+    assert await fake.send(make_email(), idempotency_key="k2") == fake.email_id(1)
 
 
 async def test_fake_email_crash_after_send_records_the_send():
@@ -42,7 +42,7 @@ async def test_fake_email_crash_after_send_records_the_send():
         await fake.send(make_email(), idempotency_key="k1")
     assert len(fake.sent) == 1
     fake.crash_after_send = False
-    assert await fake.send(make_email(), idempotency_key="k1") == "email_1"
+    assert await fake.send(make_email(), idempotency_key="k1") == fake.email_id(1)
     assert len(fake.sent) == 1
 
 
@@ -57,8 +57,8 @@ async def test_fake_elevenlabs_calls_tokens_and_snapshots():
         "to_number": "+1",
         "dynamic_variables": {"x": "y"},
     }
-    assert await fake.place_call(**kwargs) == "conv_1"
-    assert await fake.place_call(**kwargs) == "conv_2"
+    assert await fake.place_call(**kwargs) == fake.conv_id(1)
+    assert await fake.place_call(**kwargs) == fake.conv_id(2)
     assert fake.calls[0] == kwargs
 
     fake.call_failure = CallPlacementFailed("no")
@@ -66,13 +66,13 @@ async def test_fake_elevenlabs_calls_tokens_and_snapshots():
         await fake.place_call(**kwargs)
 
     fake.call_failure = None
-    assert await fake.place_call(**kwargs) == "conv_3"  # the failed attempt used no id
+    assert await fake.place_call(**kwargs) == fake.conv_id(3)  # the failed attempt used no id
     assert len(fake.calls) == 4  # but every attempt is recorded
 
     with pytest.raises(ElevenLabsUnavailable):
-        await fake.get_conversation("conv_1")
+        await fake.get_conversation(fake.conv_id(1))
     snapshot = ConversationSnapshot(
-        conversation_id="conv_1", status="done", turns=[], duration_secs=None, summary=None
+        conversation_id=fake.conv_id(1), status="done", turns=[], duration_secs=None, summary=None
     )
-    fake.snapshots["conv_1"] = snapshot
-    assert await fake.get_conversation("conv_1") is snapshot
+    fake.snapshots[fake.conv_id(1)] = snapshot
+    assert await fake.get_conversation(fake.conv_id(1)) is snapshot

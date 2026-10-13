@@ -15,6 +15,9 @@ from app.modules.negotiation.completion import complete_call
 from app.modules.negotiation.prompts import StructuredCall
 from app.modules.threads.repo import claim_queued, set_call_conversation, transition
 from app.schemas.negotiation import NegotiationTerms
+from tests.fakes import RUN, conv_id
+
+CALL_ID = conv_id(1)
 
 pytestmark = pytest.mark.db
 
@@ -36,7 +39,7 @@ TRANSCRIPT = [
 ]
 
 
-def hook_body(conversation_id="conv_1", *, transcript=None, **data):
+def hook_body(conversation_id=CALL_ID, *, transcript=None, **data):
     return {
         "type": "post_call_transcription",
         "event_timestamp": int(time.time()),
@@ -72,7 +75,7 @@ def counter(price_cents=120000, confidence=0.9) -> StructuredCall:
     return StructuredCall(terms=terms, summary="Agreed $1,200 for three videos.")
 
 
-async def in_call_arjun(api_db, launched_batch, conversation_id="conv_1") -> UUID:
+async def in_call_arjun(api_db, launched_batch, conversation_id=CALL_ID) -> UUID:
     """Arjun's thread claimed, with a placed call, and answered (`in_call`)."""
     thread_id = launched_batch.threads["arjuntech"]
     async with api_db.acquire() as conn:
@@ -185,7 +188,7 @@ async def test_post_call_records_call_ended_and_countered(
     assert json.loads(row["latest_terms"])["price_cents"] == 120000
     (transcript,) = await transcripts(api_db, thread_id=thread_id)
     assert transcript["kind"] == "call"
-    assert transcript["external_id"] == "conv_1"
+    assert transcript["external_id"] == conv_id(1)
     assert json.loads(transcript["turns"]) == [
         {"role": "agent", "text": "Hi Arjun", "t": 0.0},
         {"role": "user", "text": "three for thirteen hundred", "t": 7.0},
@@ -193,7 +196,7 @@ async def test_post_call_records_call_ended_and_countered(
     assert transcript["summary"] == "Agreed $1,200 for three videos."
     (ended,) = await events(api_db, thread_id, "call_ended")
     assert ended["transcript_id"] == transcript["id"]
-    assert ended["external_id"] == "conv_1"
+    assert ended["external_id"] == conv_id(1)
     assert ended["actor"] == "system"
     assert ended["payload"] == {
         "summary": "Agreed $1,200 for three videos.",
@@ -226,7 +229,7 @@ async def test_concurrent_deliveries_structure_once(api_db, launched_batch, fake
     snapshot = snapshot_from_payload(hook_body()["data"])
 
     results = await asyncio.gather(
-        *(complete_call(api_db, fake_gemini, "conv_1", snapshot) for _ in range(3))
+        *(complete_call(api_db, fake_gemini, conv_id(1), snapshot) for _ in range(3))
     )
 
     assert sorted(results) == [False, False, True]
@@ -279,7 +282,7 @@ async def test_no_user_speech_fails_with_no_answer(
     assert (row["status"], row["last_error"]) == ("failed", "No answer.")
     (failed,) = await events(api_db, thread_id, "failed")
     assert failed["payload"] == {"reason": "No answer."}
-    assert failed["external_id"] == "conv_1"
+    assert failed["external_id"] == conv_id(1)
     assert await events(api_db, thread_id, "call_ended") == []
     assert await transcripts(api_db, thread_id=thread_id) == []
     assert fake_gemini.calls == []
@@ -396,11 +399,11 @@ async def test_call_initiation_failure_fails_thread(
     thread_id = launched_batch.threads["arjuntech"]
     async with api_db.acquire() as conn:
         await claim_queued(conn, limit=10, batch_id=launched_batch.batch_id)
-        await set_call_conversation(conn, thread_id, "conv_1")
+        await set_call_conversation(conn, thread_id, conv_id(1))
     body = {
         "type": "call_initiation_failure",
         "event_timestamp": int(time.time()),
-        "data": {"conversation_id": "conv_1", "failure_reason": reason},
+        "data": {"conversation_id": conv_id(1), "failure_reason": reason},
     }
 
     response = await client.post(HOOK, **signed(body))
@@ -410,7 +413,7 @@ async def test_call_initiation_failure_fails_thread(
     assert (row["status"], row["last_error"]) == ("failed", message)
     (failed,) = await events(api_db, thread_id, "failed")
     assert failed["payload"] == {"reason": message}
-    assert failed["external_id"] == "conv_1"
+    assert failed["external_id"] == conv_id(1)
 
 
 async def test_call_initiation_failure_on_an_answered_call_changes_nothing(
@@ -419,12 +422,15 @@ async def test_call_initiation_failure_on_an_answered_call_changes_nothing(
     thread_id = await in_call_arjun(api_db, launched_batch)
     body = {
         "type": "call_initiation_failure",
-        "data": {"conversation_id": "conv_1", "failure_reason": "busy"},
+        "data": {"conversation_id": conv_id(1), "failure_reason": "busy"},
     }
 
     assert (await client.post(HOOK, **signed(body))).status_code == 200
 
     assert (await thread_row(api_db, thread_id))["status"] == "in_call"
+
+
+INTAKE_ID = f"conv_brief_{RUN}"  # unique per run: the shared DB keeps leftovers
 
 
 # Intake -----------------------------------------------------------------------------------
@@ -433,10 +439,11 @@ async def test_call_initiation_failure_on_an_answered_call_changes_nothing(
 async def test_intake_transcript_stored(client, m2_settings, api_db, launched_batch, fake_gemini):
     async with api_db.acquire() as conn:
         await conn.execute(
-            "update public.briefs set intake_conversation_id = 'conv_brief' where id = $1",
+            "update public.briefs set intake_conversation_id = $2 where id = $1",
             launched_batch.brief_id,
+            INTAKE_ID,
         )
-    body = hook_body("conv_brief")
+    body = hook_body(INTAKE_ID)
 
     response = await client.post(HOOK, **signed(body))
     again = await client.post(HOOK, **signed(body))
@@ -445,7 +452,7 @@ async def test_intake_transcript_stored(client, m2_settings, api_db, launched_ba
     (transcript,) = await transcripts(api_db, brief_id=launched_batch.brief_id)
     assert transcript["kind"] == "intake"
     assert transcript["thread_id"] is None
-    assert transcript["external_id"] == "conv_brief"
+    assert transcript["external_id"] == INTAKE_ID
     assert [t["text"] for t in json.loads(transcript["turns"])] == [
         "Hi Arjun",
         "three for thirteen hundred",
@@ -458,7 +465,7 @@ async def test_intake_found_by_brief_id_variable(
     client, m2_settings, api_db, launched_batch, fake_gemini
 ):
     body = hook_body(
-        "conv_brief_var",
+        f"conv_brief_var_{RUN}",
         conversation_initiation_client_data={
             "dynamic_variables": {"brief_id": str(launched_batch.brief_id)}
         },
@@ -467,14 +474,14 @@ async def test_intake_found_by_brief_id_variable(
     await client.post(HOOK, **signed(body))
 
     (transcript,) = await transcripts(api_db, brief_id=launched_batch.brief_id)
-    assert transcript["external_id"] == "conv_brief_var"
+    assert transcript["external_id"] == f"conv_brief_var_{RUN}"
 
 
 async def test_intake_brief_id_that_is_not_a_uuid_is_ignored(
     client, m2_settings, api_db, launched_batch
 ):
     body = hook_body(
-        "conv_brief_bad",
+        f"conv_brief_bad_{RUN}",
         conversation_initiation_client_data={"dynamic_variables": {"brief_id": "nope"}},
     )
 

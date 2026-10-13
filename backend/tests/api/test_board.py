@@ -12,6 +12,7 @@ import pytest
 
 from app.modules.threads import repo
 from app.schemas.negotiation import NegotiationTerms
+from tests.fakes import RUN
 
 pytestmark = pytest.mark.db
 
@@ -189,15 +190,17 @@ async def test_thread_detail_events_and_transcripts(brand_client, api_db, launch
     async with api_db.acquire() as conn:
         older = await conn.fetchval(
             "insert into public.transcripts (thread_id, kind, external_id, turns, summary)"
-            " values ($1, 'call', 'board-test-1', $2::jsonb, 'First') returning id",
+            " values ($1, 'call', $3, $2::jsonb, 'First') returning id",
             arjun,
             json.dumps([{"role": "agent", "text": "Hello", "t": 0.0}]),
+            f"board-test-1-{RUN}",
         )
         await conn.execute(
             "insert into public.transcripts (thread_id, kind, external_id, turns, summary,"
-            " created_at) values ($1, 'call', 'board-test-2', '[]'::jsonb, 'Second', $2)",
+            " created_at) values ($1, 'call', $3, '[]'::jsonb, 'Second', $2)",
             arjun,
             datetime.now(UTC) + timedelta(minutes=1),
+            f"board-test-2-{RUN}",
         )
 
     r = await brand_client.get(f"{THREADS}/{arjun}")
@@ -220,7 +223,7 @@ async def test_retry_failed_requeues(brand_client, api_db, launched_batch):
     ref = await ref_of(api_db, arjun)
     async with api_db.acquire() as conn:
         await repo.transition(conn, arjun, expected={"queued"}, target="calling")
-        await repo.set_call_conversation(conn, arjun, "conv_board_retry")
+        await repo.set_call_conversation(conn, arjun, f"conv_board_retry_{RUN}")
         await repo.apply_event(
             conn,
             ref,

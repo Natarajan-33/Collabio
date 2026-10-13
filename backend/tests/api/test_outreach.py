@@ -117,7 +117,7 @@ async def test_send_outreach_sends_once_with_stable_idempotency_key(
     assert drafted["payload"]["draft"].keys() == {"opener", "ask_paragraph", "rationale"}
     assert delivered["type"] == "email_sent"
     assert delivered["payload"] == {"delivered": True}
-    assert delivered["external_id"] == "email_1"
+    assert delivered["external_id"] == fake_email.email_id(1)
     async with api_db.acquire() as conn:
         transcript = await conn.fetchrow(
             "select id, kind, external_id, subject, body_text from public.transcripts"
@@ -125,7 +125,7 @@ async def test_send_outreach_sends_once_with_stable_idempotency_key(
             thread_id,
         )
     assert transcript["kind"] == "email_out"
-    assert transcript["external_id"] == "email_1"
+    assert transcript["external_id"] == fake_email.email_id(1)
     assert transcript["subject"] == sent.subject
     assert transcript["body_text"] == sent.text
     assert delivered["transcript_id"] == transcript["id"]
