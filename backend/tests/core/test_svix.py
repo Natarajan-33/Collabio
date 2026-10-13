@@ -72,3 +72,8 @@ def test_svix_malformed():
         body=BODY,
         now=NOW,
     )
+
+
+def test_svix_huge_timestamp():
+    assert not verify(timestamp="9" * 400)
+    assert not verify(timestamp="-" + "9" * 400)

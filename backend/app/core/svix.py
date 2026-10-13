@@ -23,7 +23,7 @@ def verify_svix(
     """
     try:
         sent_at = int(timestamp)
-        if abs(now.timestamp() - sent_at) > tolerance_s:
+        if abs(int(now.timestamp()) - sent_at) > tolerance_s:
             return False
         key = base64.b64decode(secret.removeprefix("whsec_"), validate=True)
         signed = f"{msg_id}.{timestamp}.".encode() + body
@@ -32,6 +32,6 @@ def verify_svix(
             version, _, signature = candidate.partition(",")
             if version == "v1" and hmac.compare_digest(signature.encode(), expected):
                 return True
-    except ValueError:
+    except (ValueError, OverflowError):
         return False
     return False

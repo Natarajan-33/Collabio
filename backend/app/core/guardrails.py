@@ -66,12 +66,12 @@ def floor_shortfall(
 
     Reads the creator's private floor: the caller must not store or return the scaled floor.
     """
-    floor = math.ceil(floor_cents * videos / package_volume)
+    floor = -(-floor_cents * videos // package_volume)
     return floor - price_cents if price_cents < floor else None
 
 
 def _scaled_ceiling(ceiling_cents: int, videos: int, brief_videos: int) -> int:
-    return math.floor(ceiling_cents * videos / brief_videos)
+    return ceiling_cents * videos // brief_videos
 
 
 def brand_counter_violation(
