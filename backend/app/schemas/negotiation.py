@@ -1,10 +1,10 @@
 """Negotiation vocabulary: the terms on the table, thread events, and the package delta."""
 
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.schemas.packages import ContentType
 
@@ -68,6 +68,40 @@ class NegotiationTerms(BaseModel):
     source: TermsChannel
     confidence: float = Field(ge=0, le=1)
     open_questions: list[str] = []
+
+
+# Events that carry `NegotiationTerms`; the latest of them is the thread's current position.
+TERMS_EVENT_TYPES = frozenset(
+    {
+        "email_sent",
+        "call_ended",
+        "counter_submitted",
+        "email_received",
+        "accepted",
+        "brand_counter_sent",
+    }
+)
+
+
+class TermsInput(BaseModel):
+    """Terms a person types into a counter form."""
+
+    videos: int = Field(ge=1, le=50)
+    price_cents: int = Field(ge=100)
+    go_live_by: date | None = None
+    conditions: list[Annotated[str, StringConstraints(max_length=200)]] = Field(
+        default_factory=list, max_length=10
+    )
+
+
+class TermsDraft(BaseModel):
+    """Terms as far as speech has filled them in; every field is optional."""
+
+    videos: int | None = Field(None, ge=1, le=50)
+    price_cents: int | None = Field(None, ge=100)
+    go_live_by: date | None = None
+    conditions: list[str] = []
+    note: str | None = Field(None, max_length=1000)
 
 
 class ListedPrice(BaseModel):
