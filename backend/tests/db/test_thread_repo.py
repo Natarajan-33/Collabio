@@ -217,3 +217,33 @@ async def test_transition_sets_latest_terms(db_conn, factory):
     )
     assert json.loads(row["latest_terms"])["price_cents"] == 80_000
     assert row["latest_terms_source"] == "creator"
+
+
+async def expires_at_of(conn, thread: repo.ThreadRef):
+    return await conn.fetchval("select expires_at from public.threads where id = $1", thread.id)
+
+
+async def test_awaiting_reply_sets_expiry(db_conn, factory):
+    thread = await make_thread(factory, status="drafting")
+    await db_conn.execute(
+        "update public.batches set offer_ttl_days = 3 where id = $1", thread.batch_id
+    )
+
+    await repo.transition(db_conn, thread.id, expected={"drafting"}, target="awaiting_reply")
+
+    drift = await db_conn.fetchval(
+        "select abs(extract(epoch from expires_at - (now() + interval '3 days')))"
+        " from public.threads where id = $1",
+        thread.id,
+    )
+    assert drift is not None and drift < 5
+
+
+async def test_leaving_awaiting_reply_clears_expiry(db_conn, factory):
+    thread = await make_thread(factory, status="drafting")
+    await repo.transition(db_conn, thread.id, expected={"drafting"}, target="awaiting_reply")
+    assert await expires_at_of(db_conn, thread) is not None
+
+    await repo.transition(db_conn, thread.id, expected={"awaiting_reply"}, target="failed")
+
+    assert await expires_at_of(db_conn, thread) is None

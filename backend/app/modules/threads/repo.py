@@ -36,7 +36,11 @@ update public.threads
 set status = $2,
     last_error = $3,
     latest_terms = coalesce($4::jsonb, latest_terms),
-    latest_terms_source = coalesce($5, latest_terms_source)
+    latest_terms_source = coalesce($5, latest_terms_source),
+    expires_at = case when $2 = 'awaiting_reply'
+      then now() + make_interval(days => (select b.offer_ttl_days from public.batches b
+                                          where b.id = threads.batch_id))
+      else null end
 where id = $1 and status = any($6::text[])
 """
 CLAIM_QUEUED = """

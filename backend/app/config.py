@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     resend_api_key: str = Field("", repr=False)
     resend_from: str = ""
     resend_inbound_domain: str = ""
+    # Signing secret (whsec_...) of the Resend `email.received` webhook.
+    resend_webhook_secret: str = Field("", repr=False)
 
     # Where ElevenLabs reaches the tool webhooks, and where emailed links point.
     public_backend_url: str = "http://localhost:8000"
@@ -63,6 +65,8 @@ class Settings(BaseSettings):
     demo_password: str = Field("", repr=False)
     demo_helper_phone: str = ""
     demo_helper_email: str = ""
+    # Shows the seeded fictional creators (development only); production hides unregistered ones.
+    demo_mode: bool = False
 
     @property
     def frontend_origins(self) -> list[str]:

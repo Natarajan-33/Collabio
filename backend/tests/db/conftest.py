@@ -13,6 +13,7 @@ import secrets
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, timedelta
 
 import asyncpg
 import pytest
@@ -86,6 +87,17 @@ INSERT_EVENT = (
     " (thread_id, batch_id, brand_id, creator_id, type, actor, payload, external_id)"
     " select t.id, t.batch_id, t.brand_id, t.creator_id, $2, $3, $4::jsonb, $5"
     " from public.threads t where t.id = $1 returning id"
+)
+INSERT_DEAL = (
+    "insert into public.deals"
+    " (thread_id, batch_id, brand_id, creator_id, package_id, videos, format, price_cents,"
+    " go_live_by, awarded_event_id)"
+    " select t.id, t.batch_id, t.brand_id, t.creator_id, t.package_id, $2, 'short_video', $3,"
+    " $4, $5 from public.threads t where t.id = $1 returning id"
+)
+INSERT_MILESTONE = (
+    "insert into public.deal_milestones (deal_id, seq, title, amount_cents, due_date)"
+    " values ($1, $2, $3, $4, $5)"
 )
 INSERT_FLOOR = "insert into public.package_floors (package_id, floor_price_cents) values ($1, $2)"
 
@@ -215,6 +227,41 @@ class Factory:
         return await self.conn.fetchval(
             INSERT_EVENT, thread_id, type, actor, json.dumps(payload or {}), external_id
         )
+
+    async def deal(
+        self,
+        thread_id: uuid.UUID,
+        *,
+        videos: int = 3,
+        price_cents: int = 100_000,
+        go_live_by: date | None = None,
+        milestones: Sequence[int] | None = None,
+    ) -> uuid.UUID:
+        """An `awarded` event, then a deal for the thread and its milestones, in one transaction.
+
+        `milestones` are the amounts in cents; the default splits the price evenly across
+        `videos` (remainder on the last). Pass `[]` to insert the deal alone. The deal's
+        milestone check is deferred, so a mismatch only raises at commit (or on
+        `set constraints all immediate`).
+        """
+        go_live = go_live_by or (datetime.now(UTC) + timedelta(days=30)).date()
+        amounts = split(price_cents, videos) if milestones is None else list(milestones)
+        async with self.conn.transaction():
+            event_id = await self.event(thread_id, "awarded", actor="brand")
+            deal_id = await self.conn.fetchval(
+                INSERT_DEAL, thread_id, videos, price_cents, go_live, event_id
+            )
+            for seq, amount in enumerate(amounts, start=1):
+                await self.conn.execute(
+                    INSERT_MILESTONE, deal_id, seq, f"Video {seq}", amount, go_live
+                )
+        return deal_id
+
+
+def split(total_cents: int, parts: int) -> list[int]:
+    """Even amounts that sum to `total_cents`, the remainder on the last part."""
+    each = total_cents // parts
+    return [each] * (parts - 1) + [total_cents - each * (parts - 1)]
 
 
 @pytest.fixture

@@ -31,6 +31,7 @@ EventType = Literal[
     "needs_review",
     "failed",
     "retried",
+    "offer_expired",
 ]
 # The statuses the `threads.status` check constraint allows; M2 uses the first ten.
 ThreadStatus = Literal[

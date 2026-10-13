@@ -101,3 +101,19 @@ def test_m2_secrets_hidden_from_repr():
     assert "s3cret" not in text
     for field in ("elevenlabs_tool_secret", "elevenlabs_webhook_secret", "resend_api_key"):
         assert f"{field}=" not in text
+
+
+def test_m3_settings_defaults(monkeypatch):
+    for name in ("DEMO_MODE", "RESEND_WEBHOOK_SECRET"):
+        monkeypatch.delenv(name, raising=False)
+    settings = Settings(_env_file=None)
+
+    assert settings.demo_mode is False
+    assert settings.resend_webhook_secret == ""
+
+
+def test_m3_secret_hidden_from_repr():
+    settings = Settings(_env_file=None, resend_webhook_secret="whsec_x")
+
+    assert "whsec_x" not in repr(settings)
+    assert settings.resend_webhook_secret == "whsec_x"

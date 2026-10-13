@@ -42,6 +42,9 @@ from tests.tokens import TEST_JWKS, StaticJWKSClient, auth_header
 # (tests/api/test_lifespan.py) turns them on, and it patches start_workers/stop_workers.
 # Assigned (not setdefault) so a developer's own WORKERS_ENABLED=1 cannot leak in.
 os.environ["WORKERS_ENABLED"] = "0"
+# The suite's fixtures launch to seeded fictional creators (no account). Tests of production
+# behaviour, which hides them, override `demo_mode=False`.
+os.environ["DEMO_MODE"] = "1"
 get_settings.cache_clear()
 
 
