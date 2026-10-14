@@ -11,6 +11,7 @@ The brief's budget ceiling is read here, for the counter check. It never enters 
 outbox payload or a response other than the brand's own counter-preview message.
 """
 
+import logging
 from collections.abc import Collection
 from datetime import UTC, date, datetime
 from typing import Any
@@ -43,12 +44,16 @@ from app.schemas.board import (
 from app.schemas.negotiation import NegotiationTerms
 from app.schemas.packages import PackageTerms
 
+logger = logging.getLogger(__name__)
+
 TermsChanged = threads_repo.TermsChanged  # the router maps it to 409 `terms_changed`
 StaleThread = threads_repo.StaleThread  # ... and this one to 409 `stale_status`
 
 # Statuses where closing the thread is withdrawing an offer the creator has not answered (or
 # never got); in every other open status the brand is declining the creator's position.
 WITHDRAWABLE = frozenset({"awaiting_reply", "no_response", "queued", "failed"})
+# Threads whose offer never reached the creator: closing them records the event but sends no mail.
+NEVER_CONTACTED = frozenset({"queued", "failed"})
 # What "decline the rest" closes: every thread that is not finished and not mid-work.
 OPEN_STATUSES = frozenset(
     {
@@ -276,8 +281,8 @@ class BoardActions:
     async def _close(
         conn: asyncpg.Connection, ref: threads_repo.ThreadRef, status: str, reason: str
     ) -> None:
-        """`closed_lost` with its `reason` code and the creator's notification, in the caller's
-        transaction."""
+        """`closed_lost` with its `reason` code, in the caller's transaction, and the creator's
+        notification unless the offer never reached them (`queued` / `failed`)."""
         event_id = await threads_repo.apply_event_id(
             conn,
             ref,
@@ -288,6 +293,8 @@ class BoardActions:
             payload={"reason": reason},
         )
         assert event_id is not None
+        if status in NEVER_CONTACTED:
+            return
         await outbox.enqueue(
             conn,
             kind="creator_closed",
@@ -331,7 +338,10 @@ class BoardActions:
                 continue
             try:
                 await self._close_not_selected(row["id"])
-            except Exception:  # noqa: BLE001  (per-thread isolation: report it, go on)
+            except Exception as exc:  # noqa: BLE001  (per-thread isolation: report it, go on)
+                logger.warning(
+                    "decline-rest failed for thread %s: %s", row["id"], type(exc).__name__
+                )
                 failed.append(row["id"])
             else:
                 closed.append(row["id"])

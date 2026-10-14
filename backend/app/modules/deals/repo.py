@@ -25,8 +25,10 @@ join public.batches ba on ba.id = t.batch_id
 join public.briefs br on br.id = ba.brief_id
 where t.brand_id = $1 and t.id = $2
 """
-# Serializes awards per batch: the hire-target count below is read under this lock.
-LOCK_BATCH = "select hires_target from public.batches where id = $1 for update"
+# Serializes awards per batch (FOR NO KEY UPDATE conflicts with itself): the hire-target count
+# is read under this lock. It does not block the FOR KEY SHARE locks that event and deal
+# inserts take through their batch_id foreign key, so it cannot deadlock with them.
+LOCK_BATCH = "select hires_target from public.batches where id = $1 for no key update"
 SELECT_BATCH_TARGET = "select hires_target from public.batches where id = $1"
 COUNT_HIRED = "select count(*) from public.threads where batch_id = $1 and status = 'awarded'"
 SELECT_OPEN_OTHERS = """

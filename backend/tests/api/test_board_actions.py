@@ -7,6 +7,7 @@ is $1,234 for three videos (123400 cents) and must never reach an event or an ou
 """
 
 import json
+from uuid import UUID
 
 import pytest
 
@@ -260,6 +261,8 @@ async def test_withdraw_queued(brand_client, launched_batch, api_db):
     assert r.json()["status"] == "closed_lost"
     (event,) = await events_of(api_db, thread_id, "closed_lost")
     assert event["payload"]["reason"] == "withdrawn"
+    # The creator never heard of this offer: no "thanks for considering" mail.
+    assert await outbox_of(api_db, thread_id) == []
 
 
 async def test_decline_countered_reason(brand_client, countered, api_db):
@@ -306,6 +309,11 @@ async def test_decline_twice_second_409(brand_client, offer):
 async def test_decline_rest_preview_and_isolation(brand_client, launched_ten, api_db, monkeypatch):
     ids = list(launched_ten.threads.values())
     sent, drafting, awarded, queued = ids[:3], ids[3], ids[4], ids[5:]
+    failed_before = queued[0]  # a thread that failed before anything reached the creator
+    queued = queued[1:]
+    async with api_db.acquire() as conn:
+        await repo.transition(conn, failed_before, expected={"queued"}, target="drafting")
+        await repo.transition(conn, failed_before, expected={"drafting"}, target="failed")
     for thread_id in sent:
         await send_held(api_db, thread_id)
     async with api_db.acquire() as conn:
@@ -320,10 +328,10 @@ async def test_decline_rest_preview_and_isolation(brand_client, launched_ten, ap
     preview = r.json()
     will_close = {i["thread_id"] for i in preview["will_close"]}
     skipped = {i["thread_id"]: i["status"] for i in preview["skipped"]}
-    assert will_close == {str(t) for t in sent + queued}
+    assert will_close == {str(t) for t in sent + queued + [failed_before]}
     assert skipped == {str(drafting): "drafting", str(awarded): "awarded"}
     assert all(i["creator"]["handle"] for i in preview["will_close"])
-    assert all(i["status"] in {"awaiting_reply", "queued"} for i in preview["will_close"])
+    assert all(i["status"] in {"awaiting_reply", "queued", "failed"} for i in preview["will_close"])
 
     bad = sent[1]
     original = BoardActions._close_not_selected
@@ -338,15 +346,19 @@ async def test_decline_rest_preview_and_isolation(brand_client, launched_ten, ap
     assert done.status_code == 200, done.text
     result = done.json()
     assert result["failed"] == [str(bad)]
-    assert set(result["closed"]) == {str(t) for t in sent + queued} - {str(bad)}
+    assert set(result["closed"]) == {str(t) for t in sent + queued + [failed_before]} - {str(bad)}
 
     for thread_id in result["closed"]:
         row = await thread_row(api_db, thread_id)
         assert row["status"] == "closed_lost"
         (event,) = await events_of(api_db, thread_id, "closed_lost")
         assert event["payload"]["reason"] == "not_selected"
-        (out,) = [o for o in await outbox_of(api_db, thread_id) if o["kind"] == "creator_closed"]
-        assert out["payload"] == {"reason": "not_selected"}
+        mail = [o for o in await outbox_of(api_db, thread_id) if o["kind"] == "creator_closed"]
+        if UUID(thread_id) in queued + [failed_before]:
+            assert mail == []  # never contacted: the event is recorded, no mail
+        else:
+            (out,) = mail
+            assert out["payload"] == {"reason": "not_selected"}
     assert (await thread_row(api_db, bad))["status"] == "awaiting_reply"
     assert (await thread_row(api_db, drafting))["status"] == "drafting"
     assert (await thread_row(api_db, awarded))["status"] == "awarded"
