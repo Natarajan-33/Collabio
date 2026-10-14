@@ -2,8 +2,8 @@
 
 from uuid import UUID, uuid4
 
-from app.core.refs import resolve_creator_refs
-from app.schemas.voice import CreatorRef
+from app.core.refs import resolve_creator_refs, resolve_offer_ref
+from app.schemas.voice import CreatorRef, OfferRef
 
 A, B, C = uuid4(), uuid4(), uuid4()
 VIS = [
@@ -67,3 +67,23 @@ def test_nothing_visible_or_nothing_said_resolves_to_nothing():
 def test_ids_are_uuids():
     [resolved] = resolve_creator_refs(["maya"], VIS)
     assert isinstance(resolved, UUID)
+
+
+def test_resolve_offer_by_brand_name_or_first_word():
+    lumen, nova = (
+        OfferRef(thread_id=A, brand_name="Lumen Audio"),
+        OfferRef(thread_id=B, brand_name="Nova Skin"),
+    )
+    assert resolve_offer_ref("lumen", [lumen, nova]) == A
+    assert resolve_offer_ref(" NOVA  skin ", [lumen, nova]) == B
+    assert resolve_offer_ref("Lumen Audioo", [lumen, nova]) == A  # speech-to-text slip
+    assert resolve_offer_ref("Acme", [lumen, nova]) is None
+    assert resolve_offer_ref("  ", [lumen, nova]) is None
+
+
+def test_resolve_offer_is_none_when_the_brand_has_two_offers():
+    first, second = (
+        OfferRef(thread_id=A, brand_name="Lumen Audio"),
+        OfferRef(thread_id=B, brand_name="Lumen Audio"),
+    )
+    assert resolve_offer_ref("lumen", [first, second]) is None

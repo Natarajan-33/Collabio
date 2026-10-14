@@ -10,12 +10,21 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.schemas.discovery import SearchRequest
+from app.schemas.negotiation import TermsDraft
 from app.schemas.packages import PackageDraft
 
-VoiceScreen = Literal["discover", "review", "packages", "brief", "board", "any"]
+VoiceScreen = Literal[
+    "discover", "review", "packages", "brief", "board", "offers", "offer_desk", "any"
+]
 # The pages a spoken "go to ..." may open; the model cannot name any other route.
 NavigateRoute = Literal[
-    "/brand/discover", "/brand/discover/review", "/brand/batches", "/creator/packages"
+    "/brand/discover",
+    "/brand/discover/review",
+    "/brand/batches",
+    "/brand/deals",
+    "/creator/packages",
+    "/creator/offers",
+    "/creator/deals",
 ]
 IntentKind = Literal[
     "search",
@@ -25,6 +34,11 @@ IntentKind = Literal[
     "package_draft",
     "open_thread",
     "sort",
+    "open_offer",
+    "counter",
+    "accept",
+    "decline",
+    "award",
     "navigate",
     "unclear",
 ]
@@ -37,7 +51,9 @@ ALLOWED_INTENTS: dict[VoiceScreen, set[str]] = {
     "review": {"search", "select", "clear_selection", "open_review", "navigate"},
     "packages": {"package_draft", "navigate"},
     "brief": {"navigate"},  # the conversation agent handles the brief itself
-    "board": {"open_thread", "sort", "navigate"},
+    "board": {"open_thread", "sort", "counter", "award", "decline", "navigate"},
+    "offers": {"open_offer", "navigate"},
+    "offer_desk": {"counter", "accept", "decline", "navigate"},
     "any": {"navigate"},
 }
 
@@ -57,11 +73,21 @@ class CreatorRef(BaseModel):
     handle: str
 
 
+class OfferRef(BaseModel):
+    """An offer on the creator's list, so "open the Lumen offer" can be resolved to its thread."""
+
+    thread_id: UUID
+    brand_name: str
+
+
 class VoiceContext(BaseModel):
-    """What the screen shows: the creators in view and the package draft being dictated."""
+    """What the screen shows: the creators or offers in view, the package draft being
+    dictated and the terms on the table (the offer desk's, or the open board drawer's)."""
 
     visible_creators: list[CreatorRef] = []
+    visible_offers: list[OfferRef] = []
     package_draft: PackageDraft | None = None
+    current_terms: TermsDraft | None = None
 
 
 class VoiceCommandRequest(BaseModel):
@@ -101,6 +127,10 @@ class RoutedIntent(BaseModel):
     open_thread_name: str | None = None
     sort: BoardSortKey | None = None
     navigate: NavigateRoute | None = None
+    terms: TermsDraft | None = None
+    creator_name: str | None = None
+    brand_name: str | None = None
+    reason: str | None = None
     suggestions: list[str] = []
 
 
@@ -116,4 +146,8 @@ class VoiceIntent(BaseModel):
     open_thread: OpenThreadArgs | None = None
     sort: BoardSortKey | None = None
     navigate: NavigateRoute | None = None
+    terms: TermsDraft | None = None
+    creator_id: UUID | None = None
+    thread_id: UUID | None = None
+    reason: str | None = None
     suggestions: list[str] = []

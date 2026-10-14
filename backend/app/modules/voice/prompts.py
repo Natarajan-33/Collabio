@@ -5,6 +5,7 @@ dictated (the router's `package_draft` intent, and `/me/packages/draft-from-spee
 speech into marketplace terms by the same rules, so they are stated once.
 """
 
+from datetime import date
 from typing import get_args
 
 from app.schemas.packages import ContentType, Niche, PreferredChannel, Region, VolumeBasis
@@ -65,7 +66,9 @@ speech-to-text, so expect filler words, missing punctuation and small name missp
 
 The user's screen limits what they can do. Allowed intents per screen:
 {chr(10).join(f"- {screen}: {', '.join(sorted(kinds))}" for screen, kinds in ALLOWED_INTENTS.items())}
-Any screen may also answer unclear. Pick only an intent allowed on the current screen.
+Voice never sends, accepts, declines or awards anything: it only pre-fills what the user then \
+confirms on screen. Any screen may also answer unclear. Pick only an intent allowed on the current \
+screen.
 
 Intents:
 - search: find creators. search.query is the free-text topic ("short-form tech reviews"); \
@@ -85,9 +88,27 @@ creators if one is close).
 - sort: on the board, reorder the threads. Set sort to one of best_value, price, status, recent: \
 "sort by price", "cheapest" -> price; "best value", "best deal" -> best_value; "by status" -> \
 status; "newest", "latest" -> recent.
+- open_offer: on the creator's Offers list, "open the Lumen offer" opens one offer. Set brand_name \
+to the brand's name exactly as the user said it (match against the visible offers if one is \
+close).
+- counter: the user wants to counter. Return `counter` with the terms heard in `terms`; the user \
+confirms on screen. Fill only what was said (videos, price_cents, go_live_by, conditions, note); \
+leave the rest null, because the app keeps the current terms for anything not said. On the offer \
+desk the counter is for the open offer. On the board, set creator_name to the creator whose thread \
+is meant, exactly as the user said it. Dates are ISO dates (YYYY-MM-DD) worked out from today's \
+date, which the request states: "in three weeks" is today plus 21 days; "two more weeks" is the \
+current go-live date plus 14 days, or today plus 14 when there is none.
+- accept: on the offer desk only, the creator accepts the brand's current offer. Return `accept` \
+with no other fields; the user confirms on screen.
+- decline: on the offer desk the creator declines the open offer; on the board the brand declines \
+one creator's thread (set creator_name). Put any reason given in `reason`, otherwise leave it \
+null. The user confirms on screen.
+- award: on the board, "award Priya" starts the award for one creator. Set creator_name to the \
+creator as the user said it. The user confirms the milestones on screen.
 - navigate: go to another page. navigate is one of the routes {", ".join(get_args(NavigateRoute))}. \
-"Go to the board" navigates to /brand/batches. On the brief screen only navigate applies (the \
-conversation agent handles the brief itself), so anything else there is unclear.
+"Go to the board" navigates to /brand/batches; "my offers" -> /creator/offers; "my deals" -> \
+/creator/deals for a creator, /brand/deals for a brand. On the brief screen only navigate \
+applies (the conversation agent handles the brief itself), so anything else there is unclear.
 - unclear: you are not sure what was meant, or the command does not fit the screen. Set \
 suggestions to 2 or 3 short example commands that would work on this screen.
 
@@ -101,14 +122,22 @@ removed, otherwise word for word. Always set it.
 _NONE = "none"
 
 
-def router_prompt(req: VoiceCommandRequest) -> str:
-    """The per-command part of the request: transcript, screen, creators in view, open draft."""
-    creators = "; ".join(f"{c.name} (@{c.handle})" for c in req.context.visible_creators)
-    draft = req.context.package_draft
+def router_prompt(req: VoiceCommandRequest, today: date) -> str:
+    """The per-command part of the request: today's date (so "in three weeks" becomes a date),
+    transcript, screen, what is in view, the open draft and the terms on the table."""
+    ctx = req.context
+    creators = "; ".join(f"{c.name} (@{c.handle})" for c in ctx.visible_creators)
+    offers = "; ".join(o.brand_name for o in ctx.visible_offers)
+    draft = ctx.package_draft
     draft_json = draft.model_dump_json(exclude_defaults=True) if draft else _NONE
+    terms = ctx.current_terms
+    terms_json = terms.model_dump_json(exclude_defaults=True) if terms else _NONE
     return (
+        f"Today (UTC): {today.isoformat()}\n"
         f"Screen: {req.screen} (allowed: {', '.join(sorted(ALLOWED_INTENTS[req.screen]))})\n"
         f"Visible creators: {creators or _NONE}\n"
+        f"Visible offers: {offers or _NONE}\n"
         f"Current package draft: {draft_json}\n"
+        f"Current terms: {terms_json}\n"
         f'Transcript: "{req.transcript}"'
     )

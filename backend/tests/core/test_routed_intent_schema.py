@@ -6,13 +6,16 @@ report as an unusable reply for every request.
 """
 
 import json
+from datetime import date
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from app.adapters.gemini import GeminiClient
 from app.config import Settings
 from app.modules.negotiation.prompts import StructuredCall
+from app.schemas.negotiation import TermsDraft
 from app.schemas.packages import ExtractedDraft
 from app.schemas.voice import RoutedIntent
 
@@ -27,6 +30,24 @@ OPEN_THREAD_REPLY = {
     "kind": "open_thread",
     "heard": "open Priya's thread",
     "open_thread_name": "priya",
+}
+COUNTER_REPLY = {
+    "kind": "counter",
+    "heard": "make it twelve hundred and two more weeks",
+    "creator_name": "priya",
+    "terms": {
+        "videos": 3,
+        "price_cents": 120000,
+        "go_live_by": "2026-11-18",
+        "conditions": ["30-day usage rights"],
+        "note": "Happy to start next week",
+    },
+}
+DECLINE_REPLY = {
+    "kind": "decline",
+    "heard": "decline, it is not a fit",
+    "brand_name": "lumen",
+    "reason": "Not a fit",
 }
 SORT_REPLY = {"kind": "sort", "heard": "sort by price", "sort": "price"}
 EXTRACTED_DRAFT_REPLY = {
@@ -61,6 +82,8 @@ def settings() -> Settings:
         (RoutedIntent, ROUTED_INTENT_REPLY),
         (RoutedIntent, OPEN_THREAD_REPLY),
         (RoutedIntent, SORT_REPLY),
+        (RoutedIntent, COUNTER_REPLY),
+        (RoutedIntent, DECLINE_REPLY),
         (ExtractedDraft, EXTRACTED_DRAFT_REPLY),
         (StructuredCall, STRUCTURED_CALL_REPLY),
     ],
@@ -78,3 +101,19 @@ async def test_the_sdk_accepts_our_response_schemas(settings, respx_mock, schema
     )
     sent = route.calls.last.request.content.decode()
     assert "responseSchema" in sent and "exclusiveMinimum" not in sent
+
+
+def test_routed_intent_schema_accepts_terms():
+    routed = RoutedIntent.model_validate(COUNTER_REPLY)
+
+    assert routed.terms == TermsDraft(
+        videos=3,
+        price_cents=120_000,
+        go_live_by=date(2026, 11, 18),
+        conditions=["30-day usage rights"],
+        note="Happy to start next week",
+    )
+    assert routed.creator_name == "priya"
+    assert RoutedIntent.model_validate(DECLINE_REPLY).reason == "Not a fit"
+    with pytest.raises(ValidationError):
+        RoutedIntent.model_validate({"kind": "counter", "heard": "x", "terms": {"price_cents": 5}})

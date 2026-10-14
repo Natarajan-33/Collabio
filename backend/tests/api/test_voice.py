@@ -9,6 +9,7 @@ import pytest
 from app.adapters.elevenlabs import ElevenLabsUnavailable
 from app.adapters.gemini import GeminiInvalidOutput, GeminiUnavailable
 from app.api.deps import get_elevenlabs, get_gemini
+from app.schemas.negotiation import TermsDraft
 from app.schemas.packages import Addon, PackageDraft
 from app.schemas.voice import RoutedIntent, RoutedSelect
 from tests.fakes import FakeElevenLabs, FakeGemini
@@ -170,6 +171,67 @@ async def test_model_unavailable_is_503_voice_unavailable(brand_client, app):
 async def test_invalid_command_is_422_without_asking_the_model(brand_client, fake_gemini, body):
     r = await brand_client.post(COMMAND, json=body)
     assert r.status_code == 422
+    assert fake_gemini.calls == []
+
+
+# Offers, offer desk and board deal intents -----------------------------------
+
+
+async def test_offer_desk_counter_prefills_terms_from_the_screen(creator_client, fake_gemini):
+    fake_gemini.queue_structured(
+        RoutedIntent(kind="counter", heard="twelve hundred", terms=TermsDraft(price_cents=120_000))
+    )
+    r = await creator_client.post(
+        COMMAND,
+        json=command(
+            "offer_desk",
+            "twelve hundred",
+            current_terms={"videos": 3, "price_cents": 110_000},
+        ),
+    )
+
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["kind"] == "counter"
+    assert (body["terms"]["videos"], body["terms"]["price_cents"]) == (3, 120_000)
+    assert "Today (UTC): " in fake_gemini.calls[0][1]
+
+
+async def test_offers_open_offer_resolves_the_thread(creator_client, fake_gemini):
+    fake_gemini.queue_structured(
+        RoutedIntent(kind="open_offer", heard="open lumen", brand_name="lumen")
+    )
+    r = await creator_client.post(
+        COMMAND,
+        json=command(
+            "offers", "open lumen", visible_offers=[{"thread_id": A, "brand_name": "Lumen Audio"}]
+        ),
+    )
+
+    assert r.status_code == 200, r.text
+    assert (r.json()["kind"], r.json()["thread_id"]) == ("open_offer", A)
+
+
+async def test_board_award_resolves_a_creator(brand_client, fake_gemini):
+    fake_gemini.queue_structured(
+        RoutedIntent(kind="award", heard="award maya", creator_name="maya")
+    )
+
+    r = await brand_client.post(
+        COMMAND, json=command("board", "award maya", visible_creators=VISIBLE)
+    )
+
+    assert r.status_code == 200, r.text
+    assert (r.json()["kind"], r.json()["creator_id"]) == ("award", A)
+
+
+async def test_whitespace_transcript_is_unclear_without_asking_the_model(
+    creator_client, fake_gemini
+):
+    r = await creator_client.post(COMMAND, json=command("offer_desk", "   "))
+
+    assert r.status_code == 200, r.text
+    assert r.json()["kind"] == "unclear" and r.json()["suggestions"] == []
     assert fake_gemini.calls == []
 
 
