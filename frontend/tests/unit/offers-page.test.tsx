@@ -1,7 +1,22 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  configure,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useEffect } from "react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest"
 
 import CreatorOffersPage from "@/app/creator/offers/page"
 import {
@@ -88,6 +103,23 @@ function listCalls() {
     .map(([, init]) => (init as Init | undefined)?.params?.query)
 }
 
+/**
+ * Rendering this page pulls in a lot, and a full run puts many files on the same CPUs, so
+ * a first render or a user-event flow can take longer than testing-library's one second
+ * (and vitest's five). Waiting longer costs nothing when the work is quick; asserting
+ * before the page has settled is what made this file flaky.
+ */
+const ASYNC_TIMEOUT = 8_000
+const TEST_TIMEOUT = 20_000
+
+/** The tab labels, once the counts have arrived: they load apart from the list. */
+function tabLabels(): string[] {
+  const tabs = screen.getByRole("tablist")
+  return Array.from(tabs.querySelectorAll("[role='tab']")).map(
+    (t) => t.textContent ?? ""
+  )
+}
+
 let registry: VoiceRegistry | null = null
 function Probe() {
   const value = useVoiceRegistry()
@@ -95,6 +127,19 @@ function Probe() {
     registry = value
   })
   return null
+}
+
+/**
+ * The voice screen's handlers are swapped to the newest render in a passive effect, which
+ * can run a moment after the rows are on screen. Until the context lists the offer, an
+ * intent would be judged against the empty list the page started with.
+ */
+async function untilScreenSeesOffers() {
+  await waitFor(() =>
+    expect(registry?.current()?.getContext().visible_offers).toEqual([
+      { thread_id: "t1", brand_name: "Lumen" },
+    ])
+  )
 }
 
 function renderPage() {
@@ -105,6 +150,10 @@ function renderPage() {
     </VoiceScreenProvider>
   )
 }
+
+beforeAll(() => {
+  configure({ asyncUtilTimeout: ASYNC_TIMEOUT })
+})
 
 beforeEach(() => {
   h.api.GET.mockReset()
@@ -118,7 +167,7 @@ afterEach(() => {
   cleanup()
 })
 
-describe("creator offers page", () => {
+describe("creator offers page", { timeout: TEST_TIMEOUT }, () => {
   it("renders the offer rows from the API", async () => {
     serve(() => [
       offer("t1", "Lumen", { delta_flags: ["below_base_price"] }),
@@ -127,19 +176,21 @@ describe("creator offers page", () => {
     renderPage()
 
     expect(await screen.findByText("Lumen")).toBeTruthy()
-    expect(screen.getByText("Orbit")).toBeTruthy()
-    expect(screen.getByText("Lumen Pods")).toBeTruthy()
-    // Closest package, the delta, the flags, the total and the status.
-    expect(screen.getAllByText("Launch pack").length).toBe(2)
-    expect(screen.getAllByText("$250 under your rate").length).toBe(2)
-    expect(screen.getByText("Below base price")).toBeTruthy()
-    expect(screen.getAllByText("$950").length).toBe(2)
-    expect(screen.getByText("Sent")).toBeTruthy()
-    expect(screen.getByText("Countered")).toBeTruthy()
-    // Only the offer that expires gets a badge.
-    expect(document.querySelectorAll("[data-slot='expiry-badge']").length).toBe(
-      1
-    )
+    await waitFor(() => {
+      expect(screen.getByText("Orbit")).toBeTruthy()
+      expect(screen.getByText("Lumen Pods")).toBeTruthy()
+      // Closest package, the delta, the flags, the total and the status.
+      expect(screen.getAllByText("Launch pack").length).toBe(2)
+      expect(screen.getAllByText("$250 under your rate").length).toBe(2)
+      expect(screen.getByText("Below base price")).toBeTruthy()
+      expect(screen.getAllByText("$950").length).toBe(2)
+      expect(screen.getByText("Sent")).toBeTruthy()
+      expect(screen.getByText("Countered")).toBeTruthy()
+      // Only the offer that expires gets a badge.
+      expect(
+        document.querySelectorAll("[data-slot='expiry-badge']").length
+      ).toBe(1)
+    })
   })
 
   it("fetches the needs-you tab sorted by fit first", async () => {
@@ -147,7 +198,9 @@ describe("creator offers page", () => {
     renderPage()
     await screen.findByText("Lumen")
 
-    expect(listCalls()[0]).toEqual({ tab: "needs_you", sort: "fit" })
+    await waitFor(() =>
+      expect(listCalls()[0]).toEqual({ tab: "needs_you", sort: "fit" })
+    )
   })
 
   it("shows each tab's count and switches tabs by refetching with tab=", async () => {
@@ -160,11 +213,14 @@ describe("creator offers page", () => {
     renderPage()
     await screen.findByText("Lumen")
 
-    const tabs = screen.getByRole("tablist")
-    const labels = Array.from(tabs.querySelectorAll("[role='tab']")).map(
-      (t) => t.textContent
+    await waitFor(() =>
+      expect(tabLabels()).toEqual([
+        "Needs you2",
+        "Waiting1",
+        "Booked0",
+        "Closed4",
+      ])
     )
-    expect(labels).toEqual(["Needs you2", "Waiting1", "Booked0", "Closed4"])
     expect(
       screen
         .getByRole("tab", { name: /Needs you/ })
@@ -174,11 +230,15 @@ describe("creator offers page", () => {
     await user.click(screen.getByRole("tab", { name: /Waiting/ }))
 
     expect(await screen.findByText("Quill")).toBeTruthy()
-    expect(screen.queryByText("Lumen")).toBeNull()
-    expect(listCalls().at(-1)).toEqual({ tab: "waiting", sort: "fit" })
-    expect(
-      screen.getByRole("tab", { name: /Waiting/ }).getAttribute("aria-selected")
-    ).toBe("true")
+    await waitFor(() => {
+      expect(screen.queryByText("Lumen")).toBeNull()
+      expect(listCalls().at(-1)).toEqual({ tab: "waiting", sort: "fit" })
+      expect(
+        screen
+          .getByRole("tab", { name: /Waiting/ })
+          .getAttribute("aria-selected")
+      ).toBe("true")
+    })
   })
 
   it("sorts by revenue and timeline by refetching with sort=", async () => {
@@ -225,6 +285,11 @@ describe("creator offers page", () => {
     serve(() => [offer("t1", "Lumen")])
     renderPage()
     await screen.findByText("Lumen")
+    // Both requests of the first load are in before the bell rings.
+    await waitFor(() =>
+      expect(h.api.GET.mock.calls.length).toBeGreaterThanOrEqual(2)
+    )
+    await waitFor(() => expect(h.ring).not.toBeNull())
     const before = h.api.GET.mock.calls.length
 
     await act(async () => {
@@ -241,17 +306,20 @@ describe("creator offers page", () => {
     renderPage()
     await screen.findByText("Lumen")
 
-    expect(registry?.current()?.screen).toBe("offers")
-    expect(registry?.current()?.getContext().visible_offers).toEqual([
-      { thread_id: "t1", brand_name: "Lumen" },
-      { thread_id: "t2", brand_name: "Orbit" },
-    ])
+    await waitFor(() => {
+      expect(registry?.current()?.screen).toBe("offers")
+      expect(registry?.current()?.getContext().visible_offers).toEqual([
+        { thread_id: "t1", brand_name: "Lumen" },
+        { thread_id: "t2", brand_name: "Orbit" },
+      ])
+    })
   })
 
   it("an open_offer intent navigates to that offer", async () => {
     serve(() => [offer("t1", "Lumen")])
     renderPage()
     await screen.findByText("Lumen")
+    await untilScreenSeesOffers()
 
     act(() => {
       registry?.current()?.onIntent({
@@ -269,6 +337,7 @@ describe("creator offers page", () => {
     serve(() => [offer("t1", "Lumen")])
     renderPage()
     await screen.findByText("Lumen")
+    await untilScreenSeesOffers()
 
     act(() => {
       registry?.current()?.onIntent({
