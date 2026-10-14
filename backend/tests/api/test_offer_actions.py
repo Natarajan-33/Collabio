@@ -357,3 +357,17 @@ async def test_counter_validation(creator_client, offer):
         json=counter_body(120000, videos=2, based_on=sent_id, note="x" * 1001),
     )
     assert long_note.status_code == 422
+
+
+async def test_stale_accept_409(creator_client, offer, api_db):
+    thread_id, sent_id = offer
+    counter_id = await record_brand_counter(api_db, thread_id, 110000)
+    r = await creator_client.post(
+        f"{OFFERS}/{thread_id}/accept", json={"based_on_event_id": sent_id}
+    )
+    assert r.status_code == 409, r.text
+    detail = r.json()["detail"]
+    assert detail["code"] == "terms_changed"
+    assert detail["terms_event_id"] == counter_id
+    assert await events_of(api_db, thread_id, "accepted") == []
+    assert (await thread_row(api_db, thread_id))["status"] == "awaiting_reply"

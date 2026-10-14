@@ -121,6 +121,14 @@ def _brand_offer(row: dict[str, Any], *, with_counter: bool = True) -> Negotiati
     )
 
 
+def _creator_latest(row: dict[str, Any]) -> NegotiationTerms | None:
+    """The creator's own latest position. Latest terms from the brand side (an agent's spoken
+    offer on a call) are not the brand's offer (Ruling 2) and never show on the creator side."""
+    if row["latest_terms_source"] != "creator":
+        return None
+    return _terms(row["latest_terms"])
+
+
 def _delta(row: dict[str, Any], today: date, latest: NegotiationTerms | None):
     return compute_delta(
         row["package_id"],
@@ -135,7 +143,7 @@ def _delta(row: dict[str, Any], today: date, latest: NegotiationTerms | None):
 
 def _list_item(row: dict[str, Any], today: date) -> OfferListItem:
     package = PackageTerms.model_validate(row["package"])
-    latest = _terms(row["latest_terms"])
+    latest = _creator_latest(row)
     delta = _delta(row, today, latest)
     price = latest.price_cents if latest and latest.price_cents else None
     if price is None:
@@ -186,7 +194,7 @@ async def build_desk(
     package = PackageTerms.model_validate(row["package"])
     summary = package_summary(row["package_id"], package)
     offer = _brand_offer(row)
-    latest = _terms(row["latest_terms"]) if row["latest_terms_source"] == "creator" else None
+    latest = _creator_latest(row)
     events = await repo.offer_events(conn, creator_id, thread_id)
     transcripts = await repo.offer_transcripts(conn, creator_id, thread_id)
     return OfferDesk(
@@ -197,7 +205,7 @@ async def build_desk(
         status=row["status"],
         waiting_on=waiting_on(row["status"]),
         package=summary,
-        delta=_delta(row, today, _terms(row["latest_terms"])),
+        delta=_delta(row, today, latest),
         my_package=TermsColumn(
             videos=package.volume_count,
             price_cents=package.base_price_cents,

@@ -9,6 +9,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.modules.threads import repo
+from app.schemas.negotiation import NegotiationTerms
 from tests.api.helpers import record_brand_counter, send_held
 
 pytestmark = pytest.mark.db
@@ -143,3 +145,23 @@ async def test_desk_never_contains_ceiling_or_brand_contact(creator_client, laun
         assert "budget_ceiling" not in text
         if contact:
             assert contact not in text
+
+
+async def test_unconfirmed_brand_latest_terms_do_not_drive_value_or_delta(
+    creator_client, launched_batch, api_db
+):
+    """An agent's spoken offer (latest terms with source brand) is not the brand's offer."""
+    thread_id = launched_batch.threads["priyareviews"]
+    await send_held(api_db, thread_id)
+    spoken = NegotiationTerms(
+        videos=3, price_cents=111100, stance="offer", source="call", confidence=0.9
+    )
+    async with api_db.acquire() as conn:
+        await repo.update_latest_terms(conn, thread_id, spoken, "brand")
+
+    (item,) = (await creator_client.get(OFFERS)).json()
+    assert item["total_value_cents"] == 100000
+    desk = (await creator_client.get(f"{OFFERS}/{thread_id}")).json()
+    assert desk["their_ask"]["price_cents"] == 100000
+    assert desk["delta"]["latest_price_cents"] is None
+    assert desk["latest"] is None
