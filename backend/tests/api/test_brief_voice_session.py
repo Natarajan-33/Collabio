@@ -43,6 +43,7 @@ def make_brief(**overrides) -> DealBrief:
         "creator_ids": [],
         "approved_at": None,
         "batch_id": None,
+        "hires_target": 1,
         "missing": [],
         "violations": [],
         "brand_name": "Lumen Audio",

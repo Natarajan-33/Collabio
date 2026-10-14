@@ -26,7 +26,10 @@ def brief_dynamic_variables(
         "product_summary": brief.product_summary or "",
         "contact_email": brief.contact_email or "",
         "selected_creators_summary": "; ".join(f"{name} — {line}" for name, line in creators),
-        "current_brief_json": json.dumps(fields.model_dump(mode="json", exclude_none=True)),
+        "current_brief_json": json.dumps(
+            # The hire target is the form's; the agent does not dictate it (it is never "none").
+            fields.model_dump(mode="json", exclude_none=True, exclude={"hires_target"})
+        ),
         "missing_fields": ", ".join(missing) or "nothing",
         "today": today.isoformat(),
     }
