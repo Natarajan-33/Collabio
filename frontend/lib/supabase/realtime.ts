@@ -19,19 +19,20 @@ export type ThreadEventsFilter = {
   id: string
 }
 
+let channelCount = 0
+
 /**
- * The batch channel keeps the name it has always had. Creator doorbells are mounted
- * several at once (the rail badge and the page), and a topic names one channel in the
- * client, so each hook instance gets its own: otherwise one would reuse (or, on cleanup,
- * remove) the other's channel.
+ * A topic names one channel in the client, and leaving a channel is asynchronous. So every
+ * subscription (every run of the effect) gets a topic of its own: creator doorbells are
+ * mounted several at once (the rail badge and the page), and React Strict Mode unmounts
+ * and remounts an effect at once in development; reusing a topic would hand back (or
+ * remove) a channel that is still leaving, and `.on` after `subscribe` throws.
  */
-function channelName(
-  { column, id }: ThreadEventsFilter,
-  instance: string
-): string {
-  return column === "batch_id"
-    ? `thread-events:${id}`
-    : `thread-events:creator:${id}:${instance}`
+function channelName({ column, id }: ThreadEventsFilter): string {
+  channelCount += 1
+  const prefix =
+    column === "batch_id" ? `thread-events:${id}` : `thread-events:creator:${id}`
+  return `${prefix}:${channelCount}`
 }
 
 /**
@@ -46,7 +47,6 @@ export function useThreadEventsDoorbell(
   onRing: () => void,
   { live = false, pollMs = 10_000, debounceMs = 250 }: BatchDoorbellOptions = {}
 ): void {
-  const instance = React.useId()
   const latest = React.useRef(onRing)
   React.useEffect(() => {
     latest.current = onRing
@@ -62,7 +62,7 @@ export function useThreadEventsDoorbell(
     let debounce: ReturnType<typeof setTimeout> | undefined
 
     const channel = supabase
-      .channel(channelName({ column, id }, instance))
+      .channel(channelName({ column, id }))
       .on(
         "postgres_changes",
         {
@@ -84,7 +84,7 @@ export function useThreadEventsDoorbell(
       clearTimeout(debounce)
       void supabase.removeChannel(channel)
     }
-  }, [column, id, debounceMs, instance])
+  }, [column, id, debounceMs])
 
   React.useEffect(() => {
     if (!live) return

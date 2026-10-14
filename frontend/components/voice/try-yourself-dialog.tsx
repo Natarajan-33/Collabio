@@ -105,17 +105,25 @@ export function TryYourselfDialog({
   const [message, setMessage] = React.useState("")
   const [busy, setBusy] = React.useState(false)
 
-  React.useEffect(() => {
-    if (!open) {
-      setStep("channel")
-      setMode("call")
-      setPhone("")
-      setEmail("")
-      setScenario("standard")
-      setMessage("")
-      setBusy(false)
-    }
-  }, [open])
+  // Closing the dialog clears it, so each opening starts from the first step. Reset while
+  // rendering (guarded, so it settles at once) rather than in an effect.
+  const dirty =
+    step !== "channel" ||
+    mode !== "call" ||
+    phone !== "" ||
+    email !== "" ||
+    scenario !== "standard" ||
+    message !== "" ||
+    busy
+  if (!open && dirty) {
+    setStep("channel")
+    setMode("call")
+    setPhone("")
+    setEmail("")
+    setScenario("standard")
+    setMessage("")
+    setBusy(false)
+  }
 
   const intro = ROLE_INTRO[role]
 

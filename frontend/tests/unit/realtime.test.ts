@@ -47,7 +47,9 @@ describe("useBatchDoorbell", () => {
   it("subscribes to thread_events inserts for the batch", () => {
     renderHook(() => useBatchDoorbell("batch-1", vi.fn()))
 
-    expect(h.supabase.channel).toHaveBeenCalledWith("thread-events:batch-1")
+    expect(h.supabase.channel).toHaveBeenCalledWith(
+      expect.stringMatching(/^thread-events:batch-1:\d+$/)
+    )
     expect(h.channel.on).toHaveBeenCalledWith(
       "postgres_changes",
       {
@@ -174,7 +176,9 @@ describe("useBatchDoorbell", () => {
     rerender({ id: "b" })
 
     expect(h.supabase.removeChannel).toHaveBeenCalledTimes(1)
-    expect(h.supabase.channel).toHaveBeenLastCalledWith("thread-events:b")
+    expect(h.supabase.channel).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^thread-events:b:\d+$/)
+    )
   })
 })
 
@@ -239,7 +243,44 @@ describe("useThreadEventsDoorbell", () => {
     renderHook(() =>
       useThreadEventsDoorbell({ column: "batch_id", id: "b-1" }, vi.fn())
     )
-    expect(h.supabase.channel).toHaveBeenCalledWith("thread-events:b-1")
+    expect(h.supabase.channel).toHaveBeenCalledWith(
+      expect.stringMatching(/^thread-events:b-1:\d+$/)
+    )
+  })
+})
+
+describe("channel topics are never reused", () => {
+  it("gives every subscription its own topic, even for the same batch", () => {
+    const first = renderHook(() => useBatchDoorbell("same", vi.fn()))
+    first.unmount()
+    renderHook(() => useBatchDoorbell("same", vi.fn()))
+
+    const topics = h.supabase.channel.mock.calls.map(([topic]) => topic)
+    expect(topics).toHaveLength(2)
+    expect(new Set(topics).size).toBe(2)
+  })
+
+  it("survives Strict Mode's simulated remount: the new channel is not the one leaving", () => {
+    const made: { on: unknown; subscribe: unknown }[] = []
+    h.supabase.channel.mockImplementation(() => {
+      const channel = {
+        on: vi.fn().mockReturnThis(),
+        subscribe: vi.fn().mockReturnThis(),
+      }
+      made.push(channel)
+      return channel
+    })
+
+    renderHook(() => useCreatorDoorbell("creator-1", vi.fn()), {
+      reactStrictMode: true,
+    })
+
+    const topics = h.supabase.channel.mock.calls.map(([topic]) => topic)
+    expect(topics).toHaveLength(2) // mounted, cleaned up, mounted again
+    expect(new Set(topics).size).toBe(2)
+    expect(h.supabase.removeChannel).toHaveBeenCalledTimes(1)
+    expect(h.supabase.removeChannel).toHaveBeenCalledWith(made[0])
+    expect(h.supabase.removeChannel).not.toHaveBeenCalledWith(made[1])
   })
 })
 
