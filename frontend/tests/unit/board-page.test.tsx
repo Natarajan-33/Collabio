@@ -339,7 +339,7 @@ describe("BatchBoardPage", () => {
               skipped: [],
             },
           }
-        : { data: { closed: ["t1", "t2"], failed: [] } }
+        : { data: { closed: ["t1", "t2"], failed: [], skipped: [] } }
     )
     render(<BatchBoardPage />)
     await screen.findByText("Arjun")
@@ -360,12 +360,75 @@ describe("BatchBoardPage", () => {
     await waitFor(() =>
       expect(h.api.POST).toHaveBeenCalledWith(
         "/api/v1/batches/{batch_id}/decline-rest",
-        { params: { path: { batch_id: "batch-1" } } }
+        {
+          params: { path: { batch_id: "batch-1" } },
+          // Exactly the people the dialog listed.
+          body: { thread_ids: ["t1", "t2"] },
+        }
       )
     )
     await waitFor(() => expect(h.toast.success).toHaveBeenCalled())
     // The board is reloaded.
     await waitFor(() => expect(h.api.GET.mock.calls.length).toBeGreaterThan(1))
+  })
+
+  it("labels threads still being worked on and reports ones that moved on", async () => {
+    const user = userEvent.setup()
+    h.api.GET.mockResolvedValue({
+      data: view([card("t1", "Arjun"), card("t2", "Priya")], { hired: 1 }),
+    })
+    const chip = (id: string, name: string) => ({
+      id: `c-${id}`,
+      name,
+      handle: name.toLowerCase(),
+      initials: name.slice(0, 2).toUpperCase(),
+    })
+    h.api.POST.mockImplementation(async (path: string) =>
+      path.endsWith("/decline-rest/preview")
+        ? {
+            data: {
+              will_close: [
+                {
+                  thread_id: "t1",
+                  creator: chip("t1", "Arjun"),
+                  status: "awaiting_reply",
+                  in_progress: false,
+                },
+              ],
+              skipped: [
+                {
+                  thread_id: "t2",
+                  creator: chip("t2", "Priya"),
+                  status: "calling",
+                  in_progress: true,
+                },
+                {
+                  thread_id: "t3",
+                  creator: chip("t3", "Maya"),
+                  status: "awarded",
+                  in_progress: false,
+                },
+              ],
+            },
+          }
+        : { data: { closed: [], failed: [], skipped: ["t1"] } }
+    )
+    render(<BatchBoardPage />)
+    await screen.findByText("Arjun")
+    await user.click(screen.getByRole("button", { name: "Decline remaining" }))
+    const dialog = await screen.findByRole("dialog", {
+      name: /Decline the remaining/,
+    })
+    expect(
+      await within(dialog).findByText("Priya — in progress — decline later")
+    ).toBeTruthy()
+    expect(within(dialog).getByText("Left alone: Maya")).toBeTruthy()
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Decline 1 creator" })
+    )
+    await waitFor(() => expect(h.toast.info).toHaveBeenCalled())
+    expect(h.toast.info.mock.calls[0][0]).toMatch(/already moved on/)
   })
 
   it("says so when nobody is left to decline", async () => {

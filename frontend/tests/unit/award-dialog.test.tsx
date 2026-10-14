@@ -46,6 +46,7 @@ function makePreview(over: Partial<AwardPreview> = {}): AwardPreview {
     would_reach_target: false,
     over_target: false,
     open_others: [],
+    open_other_thread_ids: [],
     terms_event_id: 12,
     ...over,
   }
@@ -72,6 +73,7 @@ const DEAL: DealView = {
   created_at: "2026-01-01T00:00:00Z",
 }
 
+const OTHER_THREADS = ["t2", "t3"]
 const OTHERS = [
   { id: "c2", name: "Arjun", handle: "arjun", initials: "AR" },
   { id: "c3", name: "Maya", handle: "maya", initials: "MA" },
@@ -242,7 +244,11 @@ describe("AwardDialog", () => {
   it("offers to decline the rest, checked, and does so after the award", async () => {
     const user = userEvent.setup()
     servePreview(
-      makePreview({ would_reach_target: true, open_others: OTHERS })
+      makePreview({
+        would_reach_target: true,
+        open_others: OTHERS,
+        open_other_thread_ids: OTHER_THREADS,
+      })
     )
     const { onAwarded } = renderDialog()
     const d = await dialog()
@@ -254,9 +260,13 @@ describe("AwardDialog", () => {
 
     await user.click(confirmButton(d))
     await waitFor(() => expect(posts(DECLINE_REST)).toHaveLength(1))
+    // Only the people shown in the dialog are sent.
     expect(posts(DECLINE_REST)[0]).toEqual([
       DECLINE_REST,
-      { params: { path: { batch_id: "batch-1" } } },
+      {
+        params: { path: { batch_id: "batch-1" } },
+        body: { thread_ids: ["t2", "t3"] },
+      },
     ])
     // The award came first.
     const order = h.api.POST.mock.calls.map(([p]) => p)
@@ -267,7 +277,11 @@ describe("AwardDialog", () => {
   it("keeps the rest when the box is cleared", async () => {
     const user = userEvent.setup()
     servePreview(
-      makePreview({ would_reach_target: true, open_others: OTHERS })
+      makePreview({
+        would_reach_target: true,
+        open_others: OTHERS,
+        open_other_thread_ids: OTHER_THREADS,
+      })
     )
     const { onAwarded } = renderDialog()
     const d = await dialog()
@@ -283,7 +297,11 @@ describe("AwardDialog", () => {
 
   it("does not offer to decline the rest while the target is not reached", async () => {
     servePreview(
-      makePreview({ would_reach_target: false, open_others: OTHERS })
+      makePreview({
+        would_reach_target: false,
+        open_others: OTHERS,
+        open_other_thread_ids: OTHER_THREADS,
+      })
     )
     renderDialog()
     const d = await dialog()
@@ -294,12 +312,20 @@ describe("AwardDialog", () => {
   it("still reports the award when declining the rest fails", async () => {
     const user = userEvent.setup()
     servePreview(
-      makePreview({ would_reach_target: true, open_others: OTHERS })
+      makePreview({
+        would_reach_target: true,
+        open_others: OTHERS,
+        open_other_thread_ids: OTHER_THREADS,
+      })
     )
     h.api.POST.mockImplementation(async (path: string) => {
       if (path === PREVIEW)
         return {
-          data: makePreview({ would_reach_target: true, open_others: OTHERS }),
+          data: makePreview({
+        would_reach_target: true,
+        open_others: OTHERS,
+        open_other_thread_ids: OTHER_THREADS,
+      }),
         }
       if (path === AWARD) return { data: DEAL }
       return { error: { detail: { code: "x", message: "No" } } }

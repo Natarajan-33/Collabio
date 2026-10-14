@@ -70,13 +70,22 @@ export function DeclineRestDialog({
   }, [api, batchId, open])
 
   const count = preview?.will_close.length ?? 0
+  // Being reached right now (drafting, calling, on a call): not closed, declined later.
+  const inProgress = preview?.skipped.filter((s) => s.in_progress) ?? []
+  const leftAlone = preview?.skipped.filter((s) => !s.in_progress) ?? []
 
   async function confirm() {
     setBusy(true)
     try {
+      // Only the people the brand was shown are closed, and only if still open.
       const { data, error } = await api.POST(
         "/api/v1/batches/{batch_id}/decline-rest",
-        { params: { path: { batch_id: batchId } } }
+        {
+          params: { path: { batch_id: batchId } },
+          body: {
+            thread_ids: (preview?.will_close ?? []).map((i) => i.thread_id),
+          },
+        }
       )
       if (error || !data) {
         reportActionError(error)
@@ -87,6 +96,13 @@ export function DeclineRestDialog({
       )
       if (data.failed.length > 0) {
         toast.error(`${data.failed.length} could not be declined`)
+      }
+      if (data.skipped.length > 0) {
+        toast.info(
+          `${data.skipped.length} had already moved on and ${
+            data.skipped.length === 1 ? "was" : "were"
+          } left alone`
+        )
       }
       onClose()
       onDone()
@@ -139,9 +155,21 @@ export function DeclineRestDialog({
           </ul>
         )}
 
-        {preview && preview.skipped.length > 0 ? (
+        {inProgress.length > 0 ? (
+          <div className="text-xs text-muted-foreground">
+            <p>In progress, decline later:</p>
+            <ul>
+              {inProgress.map((s) => (
+                <li key={s.thread_id}>
+                  {s.creator.name} — in progress — decline later
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {leftAlone.length > 0 ? (
           <p className="text-xs text-muted-foreground">
-            Left alone: {preview.skipped.map((s) => s.creator.name).join(", ")}
+            Left alone: {leftAlone.map((s) => s.creator.name).join(", ")}
           </p>
         ) : null}
 

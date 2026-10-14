@@ -544,6 +544,7 @@ describe("resolve dialog", () => {
       created_at: "2026-01-03T00:00:00Z",
       subject: "Re: Hi",
       body_text: "Could we do two videos for $900?",
+      raw_text: "Could we do two videos for $900?" + String.fromCharCode(10) + "> 3 videos for $1,100",
       turns: [],
       summary: null,
     },
@@ -576,6 +577,15 @@ describe("resolve dialog", () => {
       (within(dialog).getByRole("textbox", { name: "Price" }) as HTMLInputElement)
         .value
     ).toMatch(/900/)
+  })
+
+  it("lets the brand read the whole email, quoted history included", async () => {
+    const { user, dialog } = await openResolve()
+    expect(within(dialog).queryByText(/> 3 videos for/)).toBeNull()
+    await user.click(
+      within(dialog).getByRole("button", { name: "Show full email" })
+    )
+    expect(within(dialog).getByText(/> 3 videos for \$1,100/)).toBeTruthy()
   })
 
   it("accepting names the brand's own current offer, not the reply's terms", async () => {

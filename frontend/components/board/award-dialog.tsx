@@ -16,10 +16,7 @@ import {
 import { useApi } from "@/hooks/use-api"
 import { apiErrorCode, apiErrorDetail } from "@/lib/api/errors"
 import type { components } from "@/lib/api/schema"
-import {
-  GENERIC_ERROR,
-  TERMS_CHANGED_MESSAGE,
-} from "@/lib/board/action-error"
+import { GENERIC_ERROR, TERMS_CHANGED_MESSAGE } from "@/lib/board/action-error"
 import { milestoneErrors, type MilestoneDraft } from "@/lib/deal/milestones"
 import { termsSummary } from "@/lib/deal/terms"
 import { formatCents } from "@/lib/money"
@@ -174,7 +171,9 @@ export function AwardDialog({
           const issues = apiErrorDetail<{ errors?: string[] }>(error)?.errors
           setServerIssue({
             key: scheduleKey,
-            errors: issues?.length ? issues : ["The payment schedule is not valid"],
+            errors: issues?.length
+              ? issues
+              : ["The payment schedule is not valid"],
           })
         } else if (code === "terms_changed") {
           toast.info(TERMS_CHANGED_MESSAGE)
@@ -195,12 +194,18 @@ export function AwardDialog({
 
       if (offerDeclineRest && declineRest) {
         try {
+          // The people the brand was shown, not whoever is open by now.
           const rest = await api.POST(
             "/api/v1/batches/{batch_id}/decline-rest",
-            { params: { path: { batch_id: deal.batch_id } } }
+            {
+              params: { path: { batch_id: deal.batch_id } },
+              body: { thread_ids: preview.open_other_thread_ids },
+            }
           )
           if (rest.error || !rest.data || rest.data.failed.length > 0) {
-            toast.error("The deal is booked, but not everyone could be declined")
+            toast.error(
+              "The deal is booked, but not everyone could be declined"
+            )
           }
         } catch {
           toast.error("The deal is booked, but not everyone could be declined")

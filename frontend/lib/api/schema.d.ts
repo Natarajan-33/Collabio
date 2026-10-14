@@ -583,7 +583,8 @@ export interface paths {
         put?: never;
         /**
          * Decline Rest
-         * @description Politely close every open thread of the batch; a thread that fails is reported.
+         * @description Politely close the open threads of the batch (those named in `thread_ids`, if given); a
+         *     thread that fails is reported, one that is no longer open is skipped.
          */
         post: operations["decline_rest_api_v1_batches__batch_id__decline_rest_post"];
         delete?: never;
@@ -983,6 +984,11 @@ export interface components {
             over_target: boolean;
             /** Open Others */
             open_others: components["schemas"]["CreatorChip"][];
+            /**
+             * Open Other Thread Ids
+             * @default []
+             */
+            open_other_thread_ids: string[];
             /** Terms Event Id */
             terms_event_id: number | null;
         };
@@ -1598,6 +1604,11 @@ export interface components {
              * @enum {string}
              */
             status: "queued" | "drafting" | "awaiting_reply" | "calling" | "in_call" | "countered" | "accepted" | "declined" | "needs_review" | "failed" | "awarded" | "closed_lost" | "no_response" | "follow_up_suggested";
+            /**
+             * In Progress
+             * @default false
+             */
+            in_progress: boolean;
         };
         /** DeclineRestPreview */
         DeclineRestPreview: {
@@ -1606,12 +1617,26 @@ export interface components {
             /** Skipped */
             skipped: components["schemas"]["DeclineRestItem"][];
         };
+        /**
+         * DeclineRestRequest
+         * @description `thread_ids` are the threads the brand saw in the preview; only those are closed, and only
+         *     if still open. Without them every open thread of the batch is closed.
+         */
+        DeclineRestRequest: {
+            /** Thread Ids */
+            thread_ids?: string[] | null;
+        };
         /** DeclineRestResult */
         DeclineRestResult: {
             /** Closed */
             closed: string[];
             /** Failed */
             failed: string[];
+            /**
+             * Skipped
+             * @default []
+             */
+            skipped: string[];
         };
         /**
          * DraftFromSpeechRequest
@@ -2522,6 +2547,8 @@ export interface components {
             subject: string | null;
             /** Body Text */
             body_text: string | null;
+            /** Raw Text */
+            raw_text?: string | null;
             /** Turns */
             turns: components["schemas"]["TranscriptTurn"][];
             /** Summary */
@@ -3657,7 +3684,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `above_ceiling` (counter only) */
+            /** @description `above_ceiling`, `go_live_in_past` (counter, resolve) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3704,7 +3731,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `above_ceiling` (counter only) */
+            /** @description `above_ceiling`, `go_live_in_past` (counter, resolve) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3751,7 +3778,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `above_ceiling` (counter only) */
+            /** @description `above_ceiling`, `go_live_in_past` (counter, resolve) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3798,7 +3825,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `above_ceiling` (counter only) */
+            /** @description `above_ceiling`, `go_live_in_past` (counter, resolve) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3854,7 +3881,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeclineRestRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -4101,7 +4132,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `below_floor` (counter only) */
+            /** @description `below_floor`, `go_live_in_past` (counter only) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4148,7 +4179,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `below_floor` (counter only) */
+            /** @description `below_floor`, `go_live_in_past` (counter only) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4195,7 +4226,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `below_floor` (counter only) */
+            /** @description `below_floor`, `go_live_in_past` (counter only) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4242,7 +4273,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `below_floor` (counter only) */
+            /** @description `below_floor`, `go_live_in_past` (counter only) */
             422: {
                 headers: {
                     [name: string]: unknown;

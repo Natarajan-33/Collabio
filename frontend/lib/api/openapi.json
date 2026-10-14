@@ -1248,7 +1248,7 @@
             "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
           },
           "422": {
-            "description": "`above_ceiling` (counter only)"
+            "description": "`above_ceiling`, `go_live_in_past` (counter, resolve)"
           }
         }
       }
@@ -1306,7 +1306,7 @@
             "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
           },
           "422": {
-            "description": "`above_ceiling` (counter only)"
+            "description": "`above_ceiling`, `go_live_in_past` (counter, resolve)"
           }
         }
       }
@@ -1364,7 +1364,7 @@
             "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
           },
           "422": {
-            "description": "`above_ceiling` (counter only)"
+            "description": "`above_ceiling`, `go_live_in_past` (counter, resolve)"
           }
         }
       }
@@ -1422,7 +1422,7 @@
             "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
           },
           "422": {
-            "description": "`above_ceiling` (counter only)"
+            "description": "`above_ceiling`, `go_live_in_past` (counter, resolve)"
           }
         }
       }
@@ -1485,7 +1485,7 @@
           "board"
         ],
         "summary": "Decline Rest",
-        "description": "Politely close every open thread of the batch; a thread that fails is reported.",
+        "description": "Politely close the open threads of the batch (those named in `thread_ids`, if given); a\nthread that fails is reported, one that is no longer open is skipped.",
         "operationId": "decline_rest_api_v1_batches__batch_id__decline_rest_post",
         "security": [
           {
@@ -1504,6 +1504,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DeclineRestRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1849,7 +1866,7 @@
             "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
           },
           "422": {
-            "description": "`below_floor` (counter only)"
+            "description": "`below_floor`, `go_live_in_past` (counter only)"
           }
         }
       }
@@ -1907,7 +1924,7 @@
             "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
           },
           "422": {
-            "description": "`below_floor` (counter only)"
+            "description": "`below_floor`, `go_live_in_past` (counter only)"
           }
         }
       }
@@ -1965,7 +1982,7 @@
             "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
           },
           "422": {
-            "description": "`below_floor` (counter only)"
+            "description": "`below_floor`, `go_live_in_past` (counter only)"
           }
         }
       }
@@ -2023,7 +2040,7 @@
             "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
           },
           "422": {
-            "description": "`below_floor` (counter only)"
+            "description": "`below_floor`, `go_live_in_past` (counter only)"
           }
         }
       }
@@ -2535,6 +2552,15 @@
             },
             "type": "array",
             "title": "Open Others"
+          },
+          "open_other_thread_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Open Other Thread Ids",
+            "default": []
           },
           "terms_event_id": {
             "anyOf": [
@@ -4182,6 +4208,11 @@
               "follow_up_suggested"
             ],
             "title": "Status"
+          },
+          "in_progress": {
+            "type": "boolean",
+            "title": "In Progress",
+            "default": false
           }
         },
         "type": "object",
@@ -4216,6 +4247,29 @@
         ],
         "title": "DeclineRestPreview"
       },
+      "DeclineRestRequest": {
+        "properties": {
+          "thread_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array",
+                "maxItems": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thread Ids"
+          }
+        },
+        "type": "object",
+        "title": "DeclineRestRequest",
+        "description": "`thread_ids` are the threads the brand saw in the preview; only those are closed, and only\nif still open. Without them every open thread of the batch is closed."
+      },
       "DeclineRestResult": {
         "properties": {
           "closed": {
@@ -4233,6 +4287,15 @@
             },
             "type": "array",
             "title": "Failed"
+          },
+          "skipped": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Skipped",
+            "default": []
           }
         },
         "type": "object",
@@ -6271,6 +6334,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 100000000.0,
                 "minimum": 100.0
               },
               {
@@ -6326,6 +6390,7 @@
           },
           "price_cents": {
             "type": "integer",
+            "maximum": 100000000.0,
             "minimum": 100.0,
             "title": "Price Cents"
           },
@@ -6731,6 +6796,17 @@
               }
             ],
             "title": "Body Text"
+          },
+          "raw_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Text"
           },
           "turns": {
             "items": {
