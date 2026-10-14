@@ -14,15 +14,22 @@ import asyncpg
 
 from app.adapters.db import Database
 from app.core.delta import compute_delta
-from app.core.terms import brand_offer_terms, terms_changed
+from app.core.guardrails import floor_shortfall
+from app.core.terms import brand_offer_terms, terms_changed, terms_from_input
 from app.core.thread_state import CREATOR_VISIBLE, creator_actions, waiting_on
 from app.modules.discovery.service import package_summary
+from app.modules.notify import outbox
 from app.modules.offers import repo
 from app.modules.threads import repo as threads_repo
 from app.schemas.board import ThreadEventView, TranscriptView
 from app.schemas.negotiation import NegotiationTerms
 from app.schemas.offers import (
+    AcceptRequest,
     BrandChip,
+    CreatorCounterPreview,
+    CreatorCounterPreviewRequest,
+    CreatorCounterRequest,
+    DeclineRequest,
     OfferCounts,
     OfferDesk,
     OfferListItem,
@@ -43,6 +50,25 @@ TAB_STATUSES: dict[str, frozenset[str]] = {
 
 class OfferNotFound(Exception):
     """No such offer among this creator's visible offers."""
+
+
+class ActionNotAllowed(Exception):
+    """The offer's status does not allow this action; `status` is what it is now."""
+
+    def __init__(self, status: str) -> None:
+        super().__init__(f"Not allowed while the offer is {status}")
+        self.status = status
+
+
+class BelowFloor(Exception):
+    """The counter is under the creator's own floor and was not confirmed."""
+
+    def __init__(self, by_cents: int) -> None:
+        super().__init__(f"{by_cents} cents below the floor")
+        self.by_cents = by_cents
+
+
+TermsChanged = threads_repo.TermsChanged  # the router maps it to 409 `terms_changed`
 
 
 async def find_creator_id(db: Database, profile_id: UUID) -> UUID | None:
@@ -95,7 +121,7 @@ def _brand_offer(row: dict[str, Any], *, with_counter: bool = True) -> Negotiati
     )
 
 
-def _delta(row: dict[str, Any], today: date):
+def _delta(row: dict[str, Any], today: date, latest: NegotiationTerms | None):
     return compute_delta(
         row["package_id"],
         PackageTerms.model_validate(row["package"]),
@@ -103,14 +129,14 @@ def _delta(row: dict[str, Any], today: date):
         ask_price_cents=row["ask_price_cents"],
         go_live_by=row["go_live_by"],
         today=today,
-        latest=_terms(row["latest_terms"]),
+        latest=latest,
     )
 
 
 def _list_item(row: dict[str, Any], today: date) -> OfferListItem:
     package = PackageTerms.model_validate(row["package"])
-    delta = _delta(row, today)
     latest = _terms(row["latest_terms"])
+    delta = _delta(row, today, latest)
     price = latest.price_cents if latest and latest.price_cents else None
     if price is None:
         price = _brand_offer(row).price_cents
@@ -171,7 +197,7 @@ async def build_desk(
         status=row["status"],
         waiting_on=waiting_on(row["status"]),
         package=summary,
-        delta=_delta(row, today),
+        delta=_delta(row, today, _terms(row["latest_terms"])),
         my_package=TermsColumn(
             videos=package.volume_count,
             price_cents=package.base_price_cents,
@@ -208,6 +234,151 @@ class OffersService:
 
     async def desk(self, thread_id: UUID, today: date) -> OfferDesk:
         async with self._db.acquire() as conn:
+            return await build_desk(conn, self._creator_id, thread_id, today)
+
+    async def _lock(
+        self,
+        conn: asyncpg.Connection,
+        thread_id: UUID,
+        action: str,
+        based_on_event_id: int | None,
+        *,
+        fresh: bool = True,
+    ) -> tuple[dict[str, Any], threads_repo.ThreadRef]:
+        """Inside the caller's transaction: check ownership, lock the thread, check the caller
+        saw the newest terms (`TermsChanged`) and that `action` is open in its status
+        (`ActionNotAllowed`). Returns the offer row as it is under the lock, and the thread ref.
+        """
+        if await repo.get_offer(conn, self._creator_id, thread_id, CREATOR_VISIBLE) is None:
+            raise OfferNotFound
+        if fresh:
+            status = await threads_repo.assert_fresh(conn, thread_id, based_on_event_id)
+        else:
+            status = await repo.lock_status(conn, thread_id)
+        if action not in creator_actions(status):
+            raise ActionNotAllowed(status)
+        row = await repo.get_offer(conn, self._creator_id, thread_id, CREATOR_VISIBLE)
+        ref = await threads_repo.load_ref(conn, thread_id)
+        assert row is not None and ref is not None
+        return row, ref
+
+    @staticmethod
+    def _shortfall(row: dict[str, Any], terms: NegotiationTerms) -> int | None:
+        """How far the counter is below the creator's own floor, or None. Only this number
+        leaves; the floor itself stays here."""
+        floor = row["floor_price_cents"]
+        if floor is None or terms.price_cents is None or terms.videos is None:
+            return None
+        return floor_shortfall(
+            price_cents=terms.price_cents,
+            videos=terms.videos,
+            package_volume=row["package"]["volume_count"],
+            floor_cents=floor,
+        )
+
+    async def counter_preview(
+        self, thread_id: UUID, req: CreatorCounterPreviewRequest, today: date
+    ) -> CreatorCounterPreview:
+        """The counter as it would be recorded, with its delta and floor shortfall; writes
+        nothing."""
+        async with self._db.acquire() as conn:
+            row = await repo.get_offer(conn, self._creator_id, thread_id, CREATOR_VISIBLE)
+        if row is None:
+            raise OfferNotFound
+        if "counter" not in creator_actions(row["status"]):
+            raise ActionNotAllowed(row["status"])
+        terms = terms_from_input(
+            req.terms, stance="counter", source="in_app", format=row["deliverables_format"]
+        )
+        return CreatorCounterPreview(
+            terms=terms,
+            delta=_delta(row, today, latest=terms),
+            below_floor_by_cents=self._shortfall(row, terms),
+        )
+
+    async def counter(self, thread_id: UUID, req: CreatorCounterRequest, today: date) -> OfferDesk:
+        """Record the creator's counter (or revision) and tell the brand.
+
+        Raises `OfferNotFound`, `TermsChanged`, `ActionNotAllowed`, and `BelowFloor` when the
+        price is under the floor and `confirm_below_floor` is not set.
+        """
+        async with self._db.transaction() as conn:
+            row, ref = await self._lock(conn, thread_id, "counter", req.based_on_event_id)
+            terms = terms_from_input(
+                req.terms, stance="counter", source="in_app", format=row["deliverables_format"]
+            )
+            shortfall = self._shortfall(row, terms)
+            if shortfall is not None and not req.confirm_below_floor:
+                raise BelowFloor(shortfall)
+            note = (req.note or "").strip() or None
+            extra = {"note": note} if note else {}
+            event_id = await threads_repo.apply_event_id(
+                conn,
+                ref,
+                expected={row["status"]},
+                target="countered",
+                type="counter_submitted",
+                actor="creator",
+                payload=extra,
+                terms=terms,
+                latest_terms=terms,
+                latest_terms_source="creator",
+            )
+            assert event_id is not None
+            await outbox.enqueue(
+                conn,
+                kind="brand_creator_countered",
+                thread_id=thread_id,
+                event_id=event_id,
+                payload=extra,
+            )
+            return await build_desk(conn, self._creator_id, thread_id, today)
+
+    async def accept(self, thread_id: UUID, req: AcceptRequest, today: date) -> OfferDesk:
+        """Accept the brand's current offer (Ruling 3) and tell the brand."""
+        async with self._db.transaction() as conn:
+            row, ref = await self._lock(conn, thread_id, "accept", req.based_on_event_id)
+            terms = _brand_offer(row).model_copy(update={"stance": "accept"})
+            event_id = await threads_repo.apply_event_id(
+                conn,
+                ref,
+                expected={row["status"]},
+                target="accepted",
+                type="accepted",
+                actor="creator",
+                terms=terms,
+                latest_terms=terms,
+                latest_terms_source="creator",
+            )
+            assert event_id is not None
+            await outbox.enqueue(
+                conn, kind="brand_creator_accepted", thread_id=thread_id, event_id=event_id
+            )
+            return await build_desk(conn, self._creator_id, thread_id, today)
+
+    async def decline(self, thread_id: UUID, req: DeclineRequest, today: date) -> OfferDesk:
+        """Decline the offer, with an optional reason the brand is told."""
+        async with self._db.transaction() as conn:
+            row, ref = await self._lock(conn, thread_id, "decline", None, fresh=False)
+            reason = (req.reason or "").strip() or None
+            extra = {"reason": reason} if reason else {}
+            event_id = await threads_repo.apply_event_id(
+                conn,
+                ref,
+                expected={row["status"]},
+                target="declined",
+                type="declined",
+                actor="creator",
+                payload=extra,
+            )
+            assert event_id is not None
+            await outbox.enqueue(
+                conn,
+                kind="brand_creator_declined",
+                thread_id=thread_id,
+                event_id=event_id,
+                payload=extra,
+            )
             return await build_desk(conn, self._creator_id, thread_id, today)
 
     # Last on purpose: once defined, `list[...]` in a later annotation would name this method.

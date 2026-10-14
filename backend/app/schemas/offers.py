@@ -8,12 +8,18 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.thread_state import CreatorAction
 from app.schemas.board import ThreadEventView, TranscriptView
 from app.schemas.discovery import PackageSummary
-from app.schemas.negotiation import DeltaFlag, PackageDelta, ThreadStatus
+from app.schemas.negotiation import (
+    DeltaFlag,
+    NegotiationTerms,
+    PackageDelta,
+    TermsInput,
+    ThreadStatus,
+)
 
 WaitingOn = Literal["creator", "brand", "none"]
 OfferTab = Literal["needs_you", "waiting", "booked", "closed"]
@@ -86,3 +92,31 @@ class OfferDesk(BaseModel):
     transcripts: list[TranscriptView]
     deal_id: UUID | None
     expires_at: datetime | None
+
+
+class CreatorCounterPreviewRequest(BaseModel):
+    terms: TermsInput
+
+
+class CreatorCounterPreview(BaseModel):
+    """The counter as it would be recorded, against the package, and how far it sits below the
+    creator's own floor (None when it does not)."""
+
+    terms: NegotiationTerms
+    delta: PackageDelta
+    below_floor_by_cents: int | None
+
+
+class CreatorCounterRequest(BaseModel):
+    terms: TermsInput
+    based_on_event_id: int | None
+    confirm_below_floor: bool = False
+    note: str | None = Field(None, max_length=1000)
+
+
+class AcceptRequest(BaseModel):
+    based_on_event_id: int | None
+
+
+class DeclineRequest(BaseModel):
+    reason: str | None = Field(None, max_length=1000)

@@ -67,6 +67,7 @@ left join public.deals d on d.thread_id = t.id
 where t.creator_id = $1 and t.id = $2 and t.status = any($3::text[])
 """
 )
+SELECT_STATUS_FOR_UPDATE = "select status from public.threads where id = $1 for update"
 COUNT_BY_STATUS = """
 select status, count(*) as n from public.threads
 where creator_id = $1 and status = any($2::text[])
@@ -153,3 +154,8 @@ async def offer_transcripts(
     """The offer's transcripts, newest first."""
     rows = await conn.fetch(SELECT_TRANSCRIPTS, creator_id, thread_id)
     return [dict(r) | {"turns": _loads(r["turns"])} for r in rows]
+
+
+async def lock_status(conn: asyncpg.Connection, thread_id: UUID) -> str:
+    """Lock the thread row until the caller's transaction ends and return its status."""
+    return await conn.fetchval(SELECT_STATUS_FOR_UPDATE, thread_id)
