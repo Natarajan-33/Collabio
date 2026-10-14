@@ -83,11 +83,14 @@ TERMS_EVENT_TYPES = frozenset(
 )
 
 
+MAX_PRICE_CENTS = 100_000_000  # $1,000,000: above this a number is a typo or a misread
+
+
 class TermsInput(BaseModel):
     """Terms a person types into a counter form."""
 
     videos: int = Field(ge=1, le=50)
-    price_cents: int = Field(ge=100)
+    price_cents: int = Field(ge=100, le=MAX_PRICE_CENTS)
     go_live_by: date | None = None
     conditions: list[Annotated[str, StringConstraints(max_length=200)]] = Field(
         default_factory=list, max_length=10
@@ -98,7 +101,7 @@ class TermsDraft(BaseModel):
     """Terms as far as speech has filled them in; every field is optional."""
 
     videos: int | None = Field(None, ge=1, le=50)
-    price_cents: int | None = Field(None, ge=100)
+    price_cents: int | None = Field(None, ge=100, le=MAX_PRICE_CENTS)
     go_live_by: date | None = None
     conditions: list[str] = []
     note: str | None = Field(None, max_length=1000)

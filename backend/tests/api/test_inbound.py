@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from app.adapters.email import EmailUnavailable, ReceivedEmail
+from app.adapters.email import EmailRejected, EmailUnavailable, ReceivedEmail
 from app.adapters.gemini import GeminiUnavailable
 from app.api.deps import get_settings
 from app.modules.negotiation.prompts import StructuredReply
@@ -537,3 +537,178 @@ async def test_the_brand_ceiling_never_reaches_the_prompt(
     for text in (system, prompt):
         assert "1,234" not in text  # the brief's private ceiling
         assert "123400" not in text
+
+
+# Accepting with strings attached, a bad fetch, inline replies, races and bounds --------------
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"conditions": ["Only if I keep the usage rights"]},
+        {"open_questions": ["Is there a usage window?"]},
+        {"price_cents": 120000},
+        {"videos": 5},
+    ],
+    ids=["conditions", "open_questions", "different_price", "different_videos"],
+)
+async def test_accept_with_changes_needs_review(
+    client, reply, fake_email, fake_gemini, api_db, overrides
+):
+    fake_gemini.queue_structured(
+        reply_terms(stance="accept", **({"videos": None, "price_cents": None} | overrides))
+    )
+
+    r, _ = await deliver(client, fake_email, reply, text="Yes, but see below")
+
+    assert r.json() == {"outcome": "needs_review"}
+    row = await thread_row(api_db, reply.thread_id)
+    assert row["status"] == "needs_review"
+    assert row["latest_terms_source"] != "creator"  # nothing is booked at the brand's offer
+    [event] = await reply_events(api_db, reply.thread_id)
+    assert event["payload"]["reason"] == "The creator accepted with conditions"
+    assert [o["kind"] for o in await outbox_of(api_db, reply.thread_id)] == ["brand_needs_review"]
+
+
+async def test_accept_restating_the_offer_is_still_applied(
+    client, reply, fake_email, fake_gemini, api_db
+):
+    fake_gemini.queue_structured(reply_terms(stance="accept", videos=3, price_cents=100000))
+
+    r, _ = await deliver(client, fake_email, reply, text="3 videos for $1,000, deal")
+
+    assert r.json() == {"outcome": "applied"}
+    assert (await thread_row(api_db, reply.thread_id))["status"] == "accepted"
+
+
+async def test_fetch_rejected_is_ignored_and_logged_at_error(
+    client, reply, fake_email, api_db, caplog
+):
+    email_id, message = received(reply)
+    fake_email.received[email_id] = message
+    fake_email.received_failure = EmailRejected("Invalid id")
+
+    with caplog.at_level("ERROR"):
+        r = await signed_post(client, reply.event(email_id))
+
+    assert r.status_code == 200
+    assert r.json() == {"outcome": "ignored"}
+    assert any(rec.levelname == "ERROR" and email_id in rec.getMessage() for rec in caplog.records)
+    assert await reply_events(api_db, reply.thread_id) == []
+
+
+async def test_inline_reply_reaches_the_model_and_the_raw_text_is_kept(
+    client, reply, fake_email, fake_gemini, api_db
+):
+    fake_gemini.queue_structured(reply_terms(price_cents=120000))
+    text = (
+        "Thanks!\n\nOn Tue, Oct 13, 2026, Lumen Audio <a@b.com> wrote:\n"
+        "> 3 videos for $1,000\nI'd need $1,200\n> rest"
+    )
+
+    r, email_id = await deliver(client, fake_email, reply, text=text)
+
+    assert r.json() == {"outcome": "applied"}
+    ((_, prompt, _),) = fake_gemini.calls
+    body = prompt.split("<<<EMAIL\n", 1)[1].split("\nEMAIL>>>", 1)[0]
+    assert "I'd need $1,200" in body
+    assert "$1,000" not in body
+    async with api_db.acquire() as conn:
+        row = await conn.fetchrow(
+            "select body_text, raw_text from public.transcripts where external_id = $1", email_id
+        )
+    assert row["body_text"] == "Thanks!\n\nI'd need $1,200"
+    assert row["raw_text"] == text
+
+
+async def test_raw_text_of_an_html_reply_is_its_plain_text(
+    client, reply, fake_email, fake_gemini, api_db
+):
+    fake_gemini.queue_structured(reply_terms())
+
+    _, email_id = await deliver(
+        client,
+        fake_email,
+        reply,
+        text=None,
+        html="<p>3 for $1,200</p><p>-- </p>",
+    )
+
+    async with api_db.acquire() as conn:
+        raw = await conn.fetchval(
+            "select raw_text from public.transcripts where external_id = $1", email_id
+        )
+    assert raw == "3 for $1,200\n--"
+
+
+async def test_status_changing_during_the_read_sends_the_reply_to_review(
+    client, reply, fake_email, fake_gemini, api_db, monkeypatch
+):
+    """Read as an accept of an awaiting offer; by the time the lock is taken the thread is
+    `countered`, where an accept is not a legal move. The brand is told, nothing is booked."""
+    fake_gemini.queue_structured(reply_terms(stance="accept", videos=None, price_cents=None))
+    real = fake_gemini.generate_structured
+
+    async def racing(**kwargs):
+        result = await real(**kwargs)
+        await force_status(
+            api_db, reply.thread_id, "countered", event="counter_submitted", actor="creator"
+        )
+        return result
+
+    monkeypatch.setattr(fake_gemini, "generate_structured", racing)
+
+    r, _ = await deliver(client, fake_email, reply, text="Fine, I accept")
+
+    assert r.json() == {"outcome": "needs_review"}
+    assert (await thread_row(api_db, reply.thread_id))["status"] == "needs_review"
+    [event] = await reply_events(api_db, reply.thread_id)
+    assert event["payload"]["reason"] == "The negotiation changed while this reply was being read"
+
+
+async def test_thread_closing_during_the_read_is_recorded_only(
+    client, reply, fake_email, fake_gemini, api_db, monkeypatch
+):
+    fake_gemini.queue_structured(reply_terms())
+    real = fake_gemini.generate_structured
+
+    async def racing(**kwargs):
+        result = await real(**kwargs)
+        await force_status(
+            api_db,
+            reply.thread_id,
+            "closed_lost",
+            event="closed_lost",
+            actor="brand",
+            payload={"reason": "withdrawn"},
+        )
+        return result
+
+    monkeypatch.setattr(fake_gemini, "generate_structured", racing)
+
+    r, _ = await deliver(client, fake_email, reply)
+
+    assert r.json() == {"outcome": "recorded"}
+    assert (await thread_row(api_db, reply.thread_id))["status"] == "closed_lost"
+
+
+@pytest.mark.parametrize("stance", ["counter", "accept"])
+async def test_absurd_price_needs_review(client, reply, fake_email, fake_gemini, api_db, stance):
+    fake_gemini.queue_structured(reply_terms(stance=stance, price_cents=100_000_001))
+
+    r, _ = await deliver(client, fake_email, reply, text="1 million dollars")
+
+    assert r.json() == {"outcome": "needs_review"}
+    row = await thread_row(api_db, reply.thread_id)
+    assert row["status"] == "needs_review"
+    assert row["latest_terms_source"] != "creator"
+    [event] = await reply_events(api_db, reply.thread_id)
+    assert event["payload"]["reason"] == "The reply wasn't clear enough to apply"
+
+
+async def test_the_largest_price_is_still_applied(client, reply, fake_email, fake_gemini, api_db):
+    fake_gemini.queue_structured(reply_terms(price_cents=100_000_000))
+
+    r, _ = await deliver(client, fake_email, reply, text="a lot")
+
+    assert r.json() == {"outcome": "applied"}

@@ -208,12 +208,25 @@ async def test_get_received_gives_up_after_three_5xx(client, respx_mock):
     assert route.call_count == 3
 
 
-async def test_get_received_404_rejected(client, respx_mock):
+@pytest.mark.parametrize("status", [401, 403, 404, 409])
+async def test_get_received_auth_and_missing_are_unavailable(client, respx_mock, status):
     route = respx_mock.get(RECEIVED_URL + "rcv_1").mock(
-        return_value=httpx.Response(404, json={"message": "Email not found"})
+        return_value=httpx.Response(status, json={"message": "Nope"})
     )
 
-    with pytest.raises(EmailRejected, match="Email not found"):
+    with pytest.raises(EmailUnavailable, match="Nope"):
+        await client.get_received("rcv_1")
+
+    assert route.call_count == 1
+
+
+@pytest.mark.parametrize("status", [400, 422])
+async def test_get_received_invalid_request_is_rejected(client, respx_mock, status):
+    route = respx_mock.get(RECEIVED_URL + "rcv_1").mock(
+        return_value=httpx.Response(status, json={"message": "Bad id"})
+    )
+
+    with pytest.raises(EmailRejected, match="Bad id"):
         await client.get_received("rcv_1")
 
     assert route.call_count == 1

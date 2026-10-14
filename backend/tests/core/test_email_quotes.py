@@ -101,3 +101,25 @@ def test_parse_reply_address_first_match():
     assert parse_reply_address(["someone@x.com", f"t-{TOKEN}@{DOMAIN}"], DOMAIN) == TOKEN
     other = "zzzzzzzzzz999999"
     assert parse_reply_address([f"t-{TOKEN}@{DOMAIN}", f"t-{other}@{DOMAIN}"], DOMAIN) == TOKEN
+
+
+def test_strip_reply_keeps_inline_answers_between_quoted_lines():
+    text = (
+        "Thanks!\n\nOn Tue, Oct 13, 2026, Lumen <a@b.com> wrote:\n"
+        "> 3 videos for $1,000\nI'd need $1,200\n> rest"
+    )
+    assert strip_reply(text) == "Thanks!\n\nI'd need $1,200"
+
+
+def test_strip_reply_inline_keeps_a_wrapped_attribution_out():
+    text = "Hi\n\nOn Tue, Oct 13, 2026 at 9:41 AM Lumen Audio\n<a@b.com> wrote:\n> q1\nA1\n> q2\nA2"
+    assert strip_reply(text) == "Hi\n\nA1\nA2"
+
+
+def test_strip_reply_inline_stops_at_a_signature():
+    text = "OK\n\nOn Tue Lumen wrote:\n> old\nBut $1,100\n\n-- \nPriya\nold sig"
+    assert strip_reply(text) == "OK\n\nBut $1,100"
+
+
+def test_strip_reply_unquoted_history_after_attribution_is_still_cut():
+    assert strip_reply("OK\n\nOn Tue Lumen wrote:\nold $1,000\nmore old") == "OK"

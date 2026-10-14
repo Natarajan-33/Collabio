@@ -19,17 +19,27 @@ _BLOCK_END_TAGS = frozenset({"p", "div", "li"})
 _SKIPPED_TAGS = frozenset({"style", "script", "head"})
 
 
-def _starts_quote(lines: list[str], i: int) -> bool:
-    """Whether the quoted history (or a signature) begins at line `i`."""
+def _attribution_length(lines: list[str], i: int) -> int:
+    """How many lines an "On ... wrote:" attribution starting at line `i` takes; 0 if none."""
     line = lines[i].strip()
-    if _ON_WROTE.match(line) or _ORIGINAL_MESSAGE.match(line) or _OUTLOOK_RULE.match(line):
-        return True
+    if _ON_WROTE.match(line):
+        return 1
     # Mail clients wrap a long attribution over two or three lines.
     if line.startswith("On "):
         for n in (2, 3):
             joined = " ".join(part.strip() for part in lines[i : i + n])
             if _ON_WROTE.match(joined):
-                return True
+                return n
+    return 0
+
+
+def _starts_quote(lines: list[str], i: int) -> bool:
+    """Whether the quoted history (or a signature) begins at line `i`."""
+    line = lines[i].strip()
+    if _attribution_length(lines, i) or _ORIGINAL_MESSAGE.match(line):
+        return True
+    if _OUTLOOK_RULE.match(line):
+        return True
     if lines[i].rstrip("\r\n") in ("-- ", "--") or _SENT_FROM.match(line):
         return True
     if _FROM_HEADER.match(line):
@@ -37,17 +47,40 @@ def _starts_quote(lines: list[str], i: int) -> bool:
     return False
 
 
+def _inline_answers(lines: list[str]) -> list[str]:
+    """The creator's lines written between the quoted (`>`) lines after an attribution.
+
+    Only when the quote really is `>`-marked: anything else after the header is history, so
+    nothing is kept. A signature or another header ends the reply.
+    """
+    first = next((line for line in lines if line.strip()), "")
+    if not first.lstrip().startswith(">"):
+        return []
+    kept: list[str] = []
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith(">"):
+            continue
+        if _starts_quote(lines, i):
+            break
+        kept.append(line)
+    return kept
+
+
 def strip_reply(text: str) -> str:
     """The new text of a reply: quoted history and signature cut off, `>` lines dropped.
 
-    The result is trimmed and runs of blank lines collapse to one.
+    Lines the creator wrote between `>`-quoted lines after an attribution are kept (an inline
+    reply). The result is trimmed and runs of blank lines collapse to one.
     """
     lines = text.splitlines()
     cut = next((i for i in range(len(lines)) if _starts_quote(lines, i)), len(lines))
     kept: list[str] = []
-    for line in lines[:cut]:
-        if line.lstrip().startswith(">"):
-            continue
+    candidates = [line for line in lines[:cut] if not line.lstrip().startswith(">")]
+    if cut < len(lines):
+        header = _attribution_length(lines, cut)
+        if header:
+            candidates += _inline_answers(lines[cut + header :])
+    for line in candidates:
         line = line.rstrip()
         if not line and kept and not kept[-1]:
             continue

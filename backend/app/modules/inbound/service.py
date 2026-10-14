@@ -40,7 +40,7 @@ from app.modules.notify import outbox
 from app.modules.notify.outbox import OutboxKind
 from app.modules.threads import repo
 from app.modules.threads.repo import TermsSource, ThreadRef
-from app.schemas.negotiation import NegotiationTerms
+from app.schemas.negotiation import MAX_PRICE_CENTS, NegotiationTerms
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +60,8 @@ QUESTION = "The creator asked a question"
 NO_POSITION = "The creator hasn't taken a position yet"
 NO_PRICE = "The reply has no price"
 ACCEPTED_AFTER_COUNTER = "The creator accepted after making a counter-offer"
+ACCEPTED_WITH_CONDITIONS = "The creator accepted with conditions"
+CHANGED = "The negotiation changed while this reply was being read"
 AFTER_ACCEPT = "The creator replied after accepting"
 AFTER_REVIEW = "The creator sent another reply while this one was waiting for you"
 
@@ -77,8 +79,8 @@ select exists (
 )
 """
 INSERT_TRANSCRIPT = """
-insert into public.transcripts (thread_id, kind, external_id, subject, body_text, summary)
-values ($1, 'email_in', $2, $3, $4, $5)
+insert into public.transcripts (thread_id, kind, external_id, subject, body_text, summary, raw_text)
+values ($1, 'email_in', $2, $3, $4, $5, $6)
 on conflict (kind, external_id) do nothing
 returning id
 """
@@ -112,6 +114,17 @@ def _review(reason: str, summary: str, terms: NegotiationTerms | None = None) ->
     )
 
 
+def _accepts_with_changes(terms: NegotiationTerms, offer: NegotiationTerms) -> bool:
+    """An "accept" that carries conditions or questions, or names a price or video count
+    other than the brand's current offer, is not a plain accept."""
+    return bool(
+        any(c.strip() for c in terms.conditions)
+        or any(q.strip() for q in terms.open_questions)
+        or (terms.price_cents is not None and terms.price_cents != offer.price_cents)
+        or (terms.videos is not None and terms.videos != offer.videos)
+    )
+
+
 def _decide(
     status: str,
     *,
@@ -141,6 +154,9 @@ def _decide(
         else:
             reason = NO_POSITION
         return _review(reason, summary, terms)
+    too_big = terms.price_cents is not None and terms.price_cents > MAX_PRICE_CENTS
+    if too_big and target in ("countered", "accepted"):
+        return _review(UNCLEAR, summary)  # a misread number must not reach the board
     if target == "countered":
         completed = complete_counter(terms, offer)
         if completed is None:
@@ -155,6 +171,8 @@ def _decide(
     if target == "accepted":
         if status == "countered":  # the state machine has no countered -> accepted
             return _review(ACCEPTED_AFTER_COUNTER, summary, terms)
+        if _accepts_with_changes(terms, offer):  # booking the brand's offer would be wrong
+            return _review(ACCEPTED_WITH_CONDITIONS, summary, terms)
         accepted = offer.model_copy(update={"stance": "accept"})  # Ruling 3
         return _Decision(
             "accepted",
@@ -166,11 +184,11 @@ def _decide(
     return _Decision("declined", summary, terms=terms, notify="brand_creator_declined")
 
 
-def _plain_body(received: ReceivedEmail) -> str:
-    """The new text of the reply: quoted history and signature stripped."""
+def _raw_body(received: ReceivedEmail) -> str:
+    """The reply as written, quoted history and signature included."""
     if received.text:
-        return strip_reply(received.text)
-    return strip_reply(html_to_text(received.html)) if received.html else ""
+        return received.text
+    return html_to_text(received.html) if received.html else ""
 
 
 def _sender_matches(sender: str, creator_email: str) -> bool:
@@ -199,6 +217,36 @@ async def _reply_context(conn: asyncpg.Connection, thread: ThreadRef) -> ReplyCo
             counter=counter,
         ),
     )
+
+
+async def _locked_decision(
+    conn: asyncpg.Connection,
+    thread: ThreadRef,
+    *,
+    read_status: str,
+    locked_status: str,
+    sender_ok: bool,
+    body: str,
+    structured: StructuredReply | None,
+    offer: NegotiationTerms,
+) -> _Decision:
+    """The decision for the status found under the lock.
+
+    The reply was read (and the brand's offer fetched) in `read_status`. If the thread moved
+    meanwhile, the offer is read again, and a reply whose effect depended on the old status
+    waits for the brand instead of being applied to a negotiation it never saw.
+    """
+    decide = {"sender_ok": sender_ok, "body": body, "structured": structured}
+    if locked_status == read_status:
+        return _decide(locked_status, offer=offer, **decide)
+    fresh = (await _reply_context(conn, thread)).brand_offer
+    decision = _decide(locked_status, offer=fresh, **decide)
+    if locked_status not in OPEN_STATUSES:
+        return decision  # closed or waiting on the brand: recorded without moving anything
+    if decision == _decide(read_status, offer=offer, **decide):
+        return decision
+    summary = structured.summary if structured else _snippet(body)
+    return _review(CHANGED, summary, structured.terms if structured else None)
 
 
 async def ingest(
@@ -247,10 +295,13 @@ async def ingest(
     try:
         received = await email.get_received(email_id)
     except EmailRejected:
-        logger.exception("Resend has no readable inbound email %s", email_id)
+        # Resend called the request invalid (400/422): a retry cannot fix it, so the reply is
+        # lost. Say so loudly; 401/403/404/409 are `EmailUnavailable` and get retried.
+        logger.exception("Resend rejected the fetch of inbound email %s; dropping it", email_id)
         return "ignored"
 
-    body = _plain_body(received)
+    raw = _raw_body(received)
+    body = strip_reply(raw)
     sender_ok = _sender_matches(received.from_, creator_email)
     structured = None
     if status in OPEN_STATUSES and sender_ok and body:
@@ -265,15 +316,18 @@ async def ingest(
             locked = await conn.fetchval(repo.SELECT_STATUS_FOR_UPDATE, thread.id)
             if locked is None:  # the brief was deleted meanwhile
                 return "unknown_token"
-            decision = _decide(
-                locked,
+            decision = await _locked_decision(
+                conn,
+                thread,
+                read_status=status,
+                locked_status=locked,
                 sender_ok=sender_ok,
                 body=body,
                 structured=structured,
                 offer=context.brand_offer,
             )
             transcript_id = await conn.fetchval(
-                INSERT_TRANSCRIPT, thread.id, email_id, subject, body, decision.summary
+                INSERT_TRANSCRIPT, thread.id, email_id, subject, body, decision.summary, raw
             )
             if transcript_id is None:
                 raise _Duplicate

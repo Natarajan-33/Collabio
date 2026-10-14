@@ -25,6 +25,10 @@ RETRY_ATTEMPTS = 3
 RETRY_WAIT = wait_exponential_jitter(initial=0.5, max=4.0)
 RATE_LIMITED = 429
 SERVER_ERROR = 500  # 5xx and up is transient; every other 4xx fails at once
+# Fetching an inbound body: these four are about our key or Resend's state, not the email, so
+# they are `EmailUnavailable` (the webhook answers 503 and Resend retries). Only 400/422 mean
+# "this email cannot be read".
+RECEIVED_RETRYABLE_STATUSES = frozenset({401, 403, 404, 409})
 
 
 class OutboundEmail(BaseModel):
@@ -66,8 +70,9 @@ class EmailPort(Protocol):
         ...
 
     async def get_received(self, email_id: str) -> ReceivedEmail:
-        """The inbound email `email_id`. `EmailRejected` when Resend has no such email,
-        `EmailUnavailable` on a network or server error after retrying."""
+        """The inbound email `email_id`. `EmailRejected` when Resend says the request is invalid
+        (400/422); `EmailUnavailable` on a network or server error after retrying and on
+        401/403/404/409 (a bad key or an email not stored yet: worth another delivery)."""
         ...
 
 
@@ -146,6 +151,10 @@ class ResendClient:
         status_code = response.status_code
         if status_code == RATE_LIMITED or status_code >= SERVER_ERROR:
             raise _TransientStatus(f"{status_code} {_error_message(response)}")
+        if status_code in RECEIVED_RETRYABLE_STATUSES:
+            # A bad key, a missing scope or a body not stored yet: Resend should deliver the
+            # webhook again once that is fixed, so this is not "the email is unreadable".
+            raise EmailUnavailable(f"Resend answered {status_code} {_error_message(response)}")
         if response.is_client_error:
             raise EmailRejected(_error_message(response))
         try:
