@@ -265,3 +265,23 @@ export function termsToDraft(terms: NegotiationTerms | null): TermsDraft {
     conditions: [...(terms?.conditions ?? [])],
   }
 }
+
+/**
+ * The brand's current offer: the terms of its newest counter, else the brief's ask. This
+ * is what a creator's "yes" accepts, whatever terms their reply was read as.
+ */
+export function currentBrandOffer(
+  events: ThreadEventView[],
+  brief: BriefSummary
+): TermsDraft {
+  const counter = events
+    .filter((e) => e.type === "brand_counter_sent" && e.terms !== null)
+    .sort((a, b) => b.id - a.id)[0]
+  if (counter?.terms) return termsToDraft(counter.terms)
+  return {
+    videos: brief.deliverables_count,
+    price_cents: brief.ask_price_cents,
+    go_live_by: brief.go_live_by,
+    conditions: [],
+  }
+}

@@ -408,6 +408,7 @@ export default function BatchBoardPage() {
 
       <ThreadDrawer
         threadId={openThreadId}
+        brief={view.brief}
         refreshKey={refreshKey}
         onClose={() => openThread(null)}
         onRetry={(tid) => void retry(tid)}

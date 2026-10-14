@@ -17,10 +17,11 @@ import {
 import { useApi } from "@/hooks/use-api"
 import type { components } from "@/lib/api/schema"
 import { GENERIC_ERROR, reportActionError } from "@/lib/board/action-error"
-import { termsToDraft } from "@/lib/board/state"
+import { currentBrandOffer, termsToDraft } from "@/lib/board/state"
 import { draftToInput, termsSummary, type TermsDraft } from "@/lib/deal/terms"
 
 type ThreadCard = components["schemas"]["ThreadCard"]
+type BriefSummary = components["schemas"]["BriefSummary"]
 type ThreadEventView = components["schemas"]["ThreadEventView"]
 type TranscriptViewModel = components["schemas"]["TranscriptView"]
 type Outcome = components["schemas"]["ResolveRequest"]["outcome"]
@@ -33,6 +34,8 @@ const OUTCOMES: { value: Outcome; label: string }[] = [
 
 export type ResolveDialogProps = {
   card: ThreadCard
+  /** For the brand's opening ask, when it has not countered. */
+  brief: BriefSummary
   events: ThreadEventView[]
   transcripts: TranscriptViewModel[]
   open: boolean
@@ -54,11 +57,13 @@ function newestWords(
 
 /**
  * Settles a reply the system could not read with confidence: what the creator said sits
- * beside the terms it took from it, and the brand counters, accepts or declines. What is
- * sent is bound to the terms event the dialog opened on.
+ * beside the terms it took from it, and the brand counters, accepts or declines.
+ * Accepting confirms the creator took the brand's own current offer (not the terms read
+ * from the reply). What is sent is bound to the terms event the dialog opened on.
  */
 export function ResolveDialog({
   card,
+  brief,
   events,
   transcripts,
   open,
@@ -74,14 +79,17 @@ export function ResolveDialog({
   // reply, and the event they came from. A refetch while it is open changes neither.
   const [bound, setBound] = React.useState<{
     eventId: number | null
-    summary: string
+    offer: string
   } | null>(null)
   if (!open) {
     if (bound !== null) setBound(null)
   } else if (bound === null) {
     const event = events.find((e) => e.id === card.terms_event_id)
     const read = termsToDraft(event?.terms ?? card.latest_terms)
-    setBound({ eventId: card.terms_event_id, summary: termsSummary(read) })
+    setBound({
+      eventId: card.terms_event_id,
+      offer: termsSummary(currentBrandOffer(events, brief)),
+    })
     setDraft(read)
     setOutcome("counter")
   }
@@ -180,9 +188,8 @@ export function ResolveDialog({
             ) : null}
             {outcome === "accept" ? (
               <p className="num rounded-lg border bg-muted/40 p-3 text-sm">
-                {bound?.summary
-                  ? `Accepts the terms read from the reply: ${bound.summary}`
-                  : "Accepts the terms read from the reply."}
+                Confirms the creator accepted your current offer
+                {bound?.offer ? `: ${bound.offer}` : "."}
               </p>
             ) : null}
             {outcome === "decline" ? (

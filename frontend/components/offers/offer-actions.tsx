@@ -16,14 +16,12 @@ import {
 import { Label } from "@/components/ui/label"
 import { useApi } from "@/hooks/use-api"
 import { apiErrorCode, apiErrorDetail } from "@/lib/api/errors"
+import { PREVIEW_DEBOUNCE_MS } from "@/lib/deal/constants"
 import { brandOffer, type OfferDesk } from "@/lib/deal/offers"
 import { draftToInput, termsSummary, type TermsDraft } from "@/lib/deal/terms"
 import { formatCents } from "@/lib/money"
 
 export type OfferDialog = "accept" | "decline" | "counter"
-
-/** How long the draft must sit still before the counter is previewed. */
-export const PREVIEW_DEBOUNCE_MS = 350
 
 const TERMS_CHANGED_MESSAGE = "Terms changed — review the latest"
 const GENERIC_ERROR = "Something went wrong. Try again."

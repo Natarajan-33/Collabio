@@ -24,6 +24,7 @@ import type { TermsDraft } from "@/lib/deal/terms"
 
 type ThreadDetail = components["schemas"]["ThreadDetail"]
 type ThreadCard = components["schemas"]["ThreadCard"]
+type BriefSummary = components["schemas"]["BriefSummary"]
 type BrandAction = ThreadCard["allowed_actions"][number]
 
 /** The buttons, in the order they read: the decisive ones first. */
@@ -38,6 +39,7 @@ const ACTIONS: { action: BrandAction; label: string }[] = [
 
 export function ThreadDrawer({
   threadId,
+  brief,
   onClose,
   refreshKey,
   onRetry,
@@ -49,6 +51,8 @@ export function ThreadDrawer({
   onChanged,
 }: {
   threadId: string | null
+  /** The batch's brief: the ask a reply is measured against. */
+  brief: BriefSummary
   onClose: () => void
   refreshKey: number
   onRetry: (threadId: string) => void
@@ -225,6 +229,7 @@ export function ThreadDrawer({
             />
             <ResolveDialog
               card={card}
+              brief={brief}
               events={detail?.events ?? []}
               transcripts={detail?.transcripts ?? []}
               open={dialog === "resolve"}

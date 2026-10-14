@@ -53,6 +53,7 @@ function Drawer({
   return (
     <ThreadDrawer
       threadId="t1"
+      brief={brief}
       refreshKey={refreshKey}
       onClose={vi.fn()}
       onRetry={onRetry}
@@ -491,6 +492,24 @@ describe("resolve dialog", () => {
   }
   const events = [
     {
+      id: 3,
+      type: "brand_counter_sent",
+      actor: "brand",
+      created_at: "2026-01-02T12:00:00Z",
+      payload: {},
+      terms: {
+        videos: 3,
+        price_cents: 110000,
+        go_live_by: "2026-11-30",
+        conditions: [],
+        addons: [],
+        stance: "offer",
+        source: "in_app",
+        confidence: 1,
+        open_questions: [],
+      },
+    },
+    {
       id: 5,
       type: "email_received",
       actor: "creator",
@@ -559,6 +578,30 @@ describe("resolve dialog", () => {
     ).toMatch(/900/)
   })
 
+  it("accepting names the brand's own current offer, not the reply's terms", async () => {
+    const { user, dialog } = await openResolve()
+    await user.click(within(dialog).getByRole("radio", { name: "Accept" }))
+    const note = within(dialog).getByText(/Confirms the creator accepted your current offer/)
+    expect(note.textContent).toContain("3 videos · $1,100 · live by Nov 30, 2026")
+    // The reply asked for two videos at $900: that is not what is being accepted.
+    expect(note.textContent).not.toContain("$900")
+    expect(within(dialog).queryByText(/read from the reply/)).toBeNull()
+  })
+
+  it("accepting falls back to the brief's ask when the brand never countered", async () => {
+    const user = userEvent.setup()
+    serve({ card: review, events: events.slice(1), transcripts })
+    h.api.POST.mockResolvedValue({ data: { id: "t1" } })
+    wrap(<Drawer />)
+    await user.click(await screen.findByRole("button", { name: "Resolve" }))
+    const dialog = await screen.findByRole("dialog", { name: /Resolve/ })
+    await user.click(within(dialog).getByRole("radio", { name: "Accept" }))
+    expect(
+      within(dialog).getByText(/Confirms the creator accepted your current offer/)
+        .textContent
+    ).toContain("3 videos · $1,000 · live by Nov 14, 2026")
+  })
+
   it("posts the accept outcome, bound to the event, without terms", async () => {
     const { user, dialog } = await openResolve()
     await user.click(within(dialog).getByRole("radio", { name: "Accept" }))
@@ -606,7 +649,7 @@ describe("resolve dialog", () => {
 })
 
 describe("decline and withdraw dialogs", () => {
-  it("declines with an optional reason", async () => {
+  it("declines without asking for a reason, which would never be sent", async () => {
     const user = userEvent.setup()
     serve({
       card: { status: "countered", allowed_actions: ["award", "decline"] },
@@ -615,17 +658,15 @@ describe("decline and withdraw dialogs", () => {
     wrap(<Drawer />)
     await user.click(await screen.findByRole("button", { name: "Decline" }))
     const dialog = await screen.findByRole("dialog", { name: /Decline Priya/ })
-    await user.type(within(dialog).getByRole("textbox"), "Too pricey")
+    expect(within(dialog).queryByRole("textbox")).toBeNull()
+    expect(within(dialog).queryByText(/Reason/)).toBeNull()
     await user.click(
       within(dialog).getByRole("button", { name: "Decline creator" })
     )
     await waitFor(() => expect(postsTo("/decline")).toHaveLength(1))
     expect(postsTo("/decline")[0]).toEqual([
       "/api/v1/threads/{thread_id}/decline",
-      {
-        params: { path: { thread_id: "t1" } },
-        body: { reason: "Too pricey" },
-      },
+      { params: { path: { thread_id: "t1" } }, body: {} },
     ])
     await waitFor(() => expect(h.changed).toHaveBeenCalled())
   })
@@ -641,7 +682,7 @@ describe("decline and withdraw dialogs", () => {
       within(dialog).getByRole("button", { name: "Withdraw offer" })
     )
     await waitFor(() => expect(postsTo("/decline")).toHaveLength(1))
-    expect(postsTo("/decline")[0][1].body).toEqual({ reason: null })
+    expect(postsTo("/decline")[0][1].body).toEqual({})
   })
 
   it("opens straight into a dialog the board asked for", async () => {

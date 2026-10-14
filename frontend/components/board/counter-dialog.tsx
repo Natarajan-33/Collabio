@@ -4,7 +4,6 @@ import * as React from "react"
 import { toast } from "sonner"
 
 import { TermsCard } from "@/components/deal/terms-card"
-import { PREVIEW_DEBOUNCE_MS } from "@/components/offers/offer-actions"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,6 +17,7 @@ import { useApi } from "@/hooks/use-api"
 import { apiErrorCode, apiErrorDetail } from "@/lib/api/errors"
 import type { components } from "@/lib/api/schema"
 import { GENERIC_ERROR, reportActionError } from "@/lib/board/action-error"
+import { PREVIEW_DEBOUNCE_MS } from "@/lib/deal/constants"
 import { draftToInput, type TermsDraft } from "@/lib/deal/terms"
 
 type ThreadCard = components["schemas"]["ThreadCard"]

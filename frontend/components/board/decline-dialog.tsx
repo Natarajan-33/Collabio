@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import { useApi } from "@/hooks/use-api"
 import type { components } from "@/lib/api/schema"
 import { GENERIC_ERROR, reportActionError } from "@/lib/board/action-error"
@@ -28,7 +27,10 @@ export type DeclineDialogProps = {
   onChanged: () => void
 }
 
-/** Ends a conversation, with an optional reason. Nothing is sent until it is confirmed. */
+/**
+ * Ends a conversation. Nothing is sent until it is confirmed. There is no reason to
+ * give: what a brand types is never stored or passed on to the creator.
+ */
 export function DeclineDialog({
   card,
   action,
@@ -37,25 +39,15 @@ export function DeclineDialog({
   onChanged,
 }: DeclineDialogProps) {
   const api = useApi()
-  const [reason, setReason] = React.useState("")
   const [busy, setBusy] = React.useState(false)
-  const reasonId = React.useId()
   const name = card.creator.name
 
-  // A fresh dialog starts with no reason.
-  const [wasOpen, setWasOpen] = React.useState(open)
-  if (wasOpen !== open) {
-    setWasOpen(open)
-    if (open) setReason("")
-  }
-
   async function confirm() {
-    const text = reason.trim()
     setBusy(true)
     try {
       const { error } = await api.POST("/api/v1/threads/{thread_id}/decline", {
         params: { path: { thread_id: card.id } },
-        body: { reason: text === "" ? null : text },
+        body: {},
       })
       if (!error) {
         toast.success(
@@ -94,17 +86,6 @@ export function DeclineDialog({
             This closes the conversation with {name}.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={reasonId}>Reason (optional)</Label>
-          <textarea
-            id={reasonId}
-            value={reason}
-            rows={3}
-            maxLength={1000}
-            onChange={(event) => setReason(event.target.value)}
-            className="w-full min-w-0 resize-y rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-          />
-        </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
