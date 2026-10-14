@@ -434,7 +434,12 @@ async def test_board_counter_resolves_creator_and_merges_terms(gemini):
         creator_name="arjun",
         terms=TermsDraft(price_cents=90_000),
     )
-    req = request("board", visible_creators=[PRIYA, ARJUN], current_terms=current)
+    req = request(
+        "board",
+        visible_creators=[PRIYA, ARJUN],
+        current_terms=current,
+        current_terms_creator_id=ARJUN.id,
+    )
 
     intent = await route(gemini, req, reply)
 
@@ -542,3 +547,28 @@ async def test_whitespace_transcript_skips_gemini(gemini, transcript):
 
     assert intent.kind == "unclear" and intent.suggestions == []
     assert gemini.calls == []
+
+
+@pytest.mark.parametrize("drawer_of", [PRIYA.id, None])
+async def test_board_counter_for_another_creator_ignores_current_terms(gemini, drawer_of):
+    """Priya's drawer is open (or nobody's); "counter Arjun at ninety" pre-fills only what was said."""
+    current = TermsDraft(
+        videos=3,
+        price_cents=110_000,
+        go_live_by=date(2026, 11, 4),
+        conditions=["30-day usage rights"],
+        note="For Priya",
+    )
+    said = TermsDraft(price_cents=90_000)
+    reply = RoutedIntent(kind="counter", heard="x", creator_name="arjun", terms=said)
+    req = request(
+        "board",
+        visible_creators=[PRIYA, ARJUN],
+        current_terms=current,
+        current_terms_creator_id=drawer_of,
+    )
+
+    intent = await route(gemini, req, reply)
+
+    assert intent.creator_id == ARJUN.id
+    assert intent.terms == said

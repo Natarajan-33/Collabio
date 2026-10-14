@@ -88,6 +88,8 @@ class VoiceContext(BaseModel):
     visible_offers: list[OfferRef] = []
     package_draft: PackageDraft | None = None
     current_terms: TermsDraft | None = None
+    # On the board: whose thread `current_terms` belong to (the open drawer's creator).
+    current_terms_creator_id: UUID | None = None
 
 
 class VoiceCommandRequest(BaseModel):

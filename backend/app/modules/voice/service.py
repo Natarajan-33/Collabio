@@ -133,7 +133,10 @@ def _to_intent(req: VoiceCommandRequest, routed: RoutedIntent) -> VoiceIntent:
                 creator_id = _board_creator(routed, req)
                 if creator_id is None:
                     return unclear
-            terms = _merge_terms(req.context.current_terms, routed.terms)
+            current = req.context.current_terms
+            if req.screen == "board" and req.context.current_terms_creator_id != creator_id:
+                current = None  # the open drawer is another creator's: nothing of it carries over
+            terms = _merge_terms(current, routed.terms)
             return VoiceIntent(kind=kind, heard=heard, terms=terms, creator_id=creator_id)
         case "accept":
             return VoiceIntent(kind=kind, heard=heard)

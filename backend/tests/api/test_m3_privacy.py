@@ -64,20 +64,60 @@ class Tap:
         return r
 
 
+_HEX_ID = re.compile(r"\b[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\b")
+_LONG_TOKEN = re.compile(r"\b[A-Za-z0-9]{16,}\b")  # reply tokens, hex ids
+
+
 def mentions(text: str, *needles: str) -> list[str]:
-    """The needles that appear in `text` as whole tokens (not inside a longer number or word)."""
-    return [
-        needle for needle in needles if re.search(rf"(?<![\w,.]){re.escape(needle)}(?![\w])", text)
-    ]
+    """The needles that appear in `text`.
 
-
-def ceiling_forms() -> tuple[str, ...]:
-    return (str(CEILING_CENTS), format_cents(CEILING_CENTS), "1,234")
+    A raw cents amount (all digits) matches anywhere it is not part of a longer number, so it is
+    found in compact JSON (`[110000,123400]`) and after an escaped newline (`\n123400`). A
+    formatted amount (`$1,234`, `1,234`) must not sit inside a longer figure. Ids and tokens are
+    scrubbed first so a random hex run can never pass for an amount.
+    """
+    text = _LONG_TOKEN.sub(" ", _HEX_ID.sub(" ", text))
+    found = []
+    for needle in needles:
+        if needle.isdigit():
+            pattern = rf"(?<!\d){needle}(?!\d)"
+        else:
+            pattern = rf"(?<![\d,.]){re.escape(needle)}(?!\d|,\d)"
+        if re.search(pattern, text):
+            found.append(needle)
+    return found
 
 
 def amount_forms(*cents: int) -> tuple[str, ...]:
-    """Raw cents and `$`-formatted dollars of each amount."""
-    return tuple(form for c in cents for form in (str(c), format_cents(c)))
+    """Raw cents, `$`-formatted dollars and, from $1,000 up, the bare comma form (`1,234`)."""
+    forms: list[str] = []
+    for c in cents:
+        formatted = format_cents(c)
+        forms += [str(c), formatted]
+        if "," in formatted:
+            forms.append(formatted.removeprefix("$"))
+    return tuple(dict.fromkeys(forms))
+
+
+def ceiling_forms() -> tuple[str, ...]:
+    return amount_forms(CEILING_CENTS)
+
+
+def test_matcher_finds_every_form_in_every_shape():
+    """The detector's own positive control: each form is found where real responses put it."""
+    for cents in (CEILING_CENTS, 85000, 127500, 48000, 110000):
+        for form in amount_forms(cents):
+            raw = form.isdigit()
+            shapes = (
+                [f"[110001,{form},2]", f'{{"a":{form}}}', f"x\\n{form}", f" {form} "]
+                if raw
+                else [f"costs {form} now", f"<b>{form}</b>", f"({form})", f"a\\n{form}."]
+            )
+            for text in shapes:
+                assert mentions(text, form) == [form], (form, text)
+    # ... and nothing is found inside a longer figure.
+    assert mentions("x 1234000 y $11,234 12,345,234", "123400", "$1,234", "1,234") == []
+    assert mentions("id 3f2a123400b1c2d3e4f5a6b7c8d9e0f1", "123400") == []
 
 
 @pytest.fixture
@@ -137,7 +177,6 @@ async def test_full_deal_loop_leaks_no_limits_or_contacts(
         )
     floor, volume = floor_row["floor"], floor_row["volume"]
     floor_for_three = -(-floor * 3 // volume)  # what the floor means for 3 videos
-    floor_forms = amount_forms(floor, floor_for_three)
     priya = next(p for p in people if p["handle"] == "priyareviews")
     creator_emails = [p["email"] for p in people if p["email"]]
     creator_phones = [p["phone"] for p in people if p["phone"]]
@@ -162,6 +201,12 @@ async def test_full_deal_loop_leaks_no_limits_or_contacts(
     ).status_code == 200
     refused = await creator.post(f"{OFFERS}/{thread_id}/counter", counter_body)
     assert refused.status_code == 422 and refused.json()["detail"]["code"] == "below_floor"
+    # The app's own numbers: the raw floor on Priya's desk, and (price + shortfall) the floor
+    # scaled to three videos. Both must agree with the recomputation the forms were built from.
+    assert desk["floor_price_cents"] == floor
+    app_scaled_floor = below + refused.json()["detail"]["below_by_cents"]
+    assert app_scaled_floor == floor_for_three
+    floor_forms = amount_forms(floor, app_scaled_floor)
     r = await creator.post(
         f"{OFFERS}/{thread_id}/counter", counter_body | {"confirm_below_floor": True}
     )
@@ -291,6 +336,10 @@ async def test_full_deal_loop_leaks_no_limits_or_contacts(
     # price (just under her floor) is on the brand's side and in the stored events.
     assert any(mentions(s.text, *ceiling_forms()) for s in brand_saw)
     assert any(mentions(s.text, str(below)) for s in brand_saw)
+    # ... and the floor forms do match where the floor is legitimately shown: Priya's own desk.
+    own_desk = [s for s in creator_saw if '"floor_price_cents"' in s.text]
+    assert own_desk and all(mentions(s.text, str(floor)) for s in own_desk)
+    assert str(floor) in floor_forms and format_cents(app_scaled_floor) in floor_forms
 
     for s in creator_saw:
         label = f"{s.method} {s.path}"
