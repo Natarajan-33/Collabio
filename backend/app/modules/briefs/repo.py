@@ -32,6 +32,14 @@ where c.id = any($1::uuid[])
   )
 """
 
+SELECT_UNREGISTERED = """
+select c.id
+from unnest($1::uuid[]) with ordinality as wanted (id, position)
+join public.creators c on c.id = wanted.id
+where c.profile_id is null
+order by wanted.position
+"""
+
 INSERT_BRIEF = """
 insert into public.briefs
   (brand_id, product_id, brand_name, product_name, product_summary, contact_email, creator_ids)
@@ -40,8 +48,8 @@ returning id
 """
 
 INSERT_BATCH = """
-insert into public.batches (brief_id, brand_id, follow_up_policy, brief_embedding)
-values ($1, $2, $3, $4)
+insert into public.batches (brief_id, brand_id, follow_up_policy, brief_embedding, hires_target)
+values ($1, $2, $3, $4, $5)
 returning id
 """
 # `next_action_at` stays null (due now) unless the thread is held back with 'infinity'.
@@ -130,6 +138,14 @@ async def listed_creator_ids(conn: asyncpg.Connection, creator_ids: Sequence[UUI
     return {row["id"] for row in rows}
 
 
+async def unregistered_creator_ids(
+    conn: asyncpg.Connection, creator_ids: Sequence[UUID]
+) -> list[UUID]:
+    """The ids among `creator_ids` whose creator has no account (`profile_id is null`), in order."""
+    rows = await conn.fetch(SELECT_UNREGISTERED, list(creator_ids))
+    return [row["id"] for row in rows]
+
+
 async def insert_brief(
     conn: asyncpg.Connection,
     *,
@@ -190,9 +206,12 @@ async def insert_batch(
     brand_id: UUID,
     follow_up_policy: str,
     embedding: list[float] | None,
+    hires_target: int,
 ) -> UUID:
     """The brief's batch; `unique (brief_id)` makes a second one fail."""
-    return await conn.fetchval(INSERT_BATCH, brief_id, brand_id, follow_up_policy, embedding)
+    return await conn.fetchval(
+        INSERT_BATCH, brief_id, brand_id, follow_up_policy, embedding, hires_target
+    )
 
 
 async def insert_thread(

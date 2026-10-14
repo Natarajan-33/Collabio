@@ -68,6 +68,14 @@ class BriefIncomplete(Exception):
         self.violations = violations
 
 
+class CreatorsNotRegistered(Exception):
+    """Some creators have no account yet, so they cannot be contacted outside demo mode."""
+
+    def __init__(self, ids: list[UUID]) -> None:
+        super().__init__(", ".join(str(i) for i in ids))
+        self.ids = ids
+
+
 class NoCreators(Exception):
     """Nobody is left to contact: every creator opted out or no longer has a published package."""
 
@@ -166,6 +174,8 @@ class BriefService:
                 value = getattr(patch, name)
                 if name == "flexibility" and value is None:
                     value = []
+                if name == "hires_target" and value is None:
+                    value = 1  # the column is not null: clearing it means the default
                 message = brief_rules.field_error(name, value, today)
                 if message:
                     raise InvalidField(name, message)
@@ -238,14 +248,16 @@ class BriefService:
         today: date,
         embedding: list[float] | None,
         hold: bool = False,
+        registered_only: bool = False,
     ) -> LaunchResponse:
         """Turn a complete brief into a batch with one queued thread per creator.
 
         The brief row is locked for the whole transaction, so two launches of one brief
         cannot interleave (the loser sees it launched; `unique (brief_id)` on batches backs
         that up). `embedding` is the brief's search embedding, None when Gemini failed.
-        Raises `BriefNotFound`, `BriefLaunched`, `BriefIncomplete`, `ChannelNotAllowed` and
-        `NoCreators`. `hold=True` is for tests only: it parks every new thread at
+        Raises `BriefNotFound`, `BriefLaunched`, `BriefIncomplete`, `CreatorsNotRegistered`
+        (only with `registered_only`), `ChannelNotAllowed` and `NoCreators`. The brief's
+        `hires_target` is copied to the batch. `hold=True` is for tests only: it parks every new thread at
         `next_action_at = 'infinity'` so a running worker never claims it.
         """
         async with self._db.transaction() as conn:
@@ -259,6 +271,11 @@ class BriefService:
                 raise BriefIncomplete(
                     brief_rules.missing_fields(fields), brief_rules.violations(fields, today)
                 )
+
+            if registered_only:
+                unregistered = await repo.unregistered_creator_ids(conn, row["creator_ids"])
+                if unregistered:
+                    raise CreatorsNotRegistered(unregistered)
 
             candidates = []
             for creator in await repo.preview_rows(conn, row["creator_ids"]):
@@ -288,6 +305,7 @@ class BriefService:
                 brand_id=self._brand_id,
                 follow_up_policy=req.follow_up_policy,
                 embedding=embedding,
+                hires_target=row["hires_target"],
             )
             for plan in planned:
                 thread_id = await repo.insert_thread(

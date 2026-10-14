@@ -26,9 +26,10 @@ class SearchUnavailable(Exception):
 
 
 class DiscoveryService:
-    def __init__(self, db: Database, gemini: GeminiPort) -> None:
+    def __init__(self, db: Database, gemini: GeminiPort, *, registered_only: bool = False) -> None:
         self._db = db
         self._gemini = gemini
+        self._registered_only = registered_only
 
     async def search(self, req: SearchRequest) -> SearchResponse:
         """Creators that pass the filters, ranked by meaning when `req.query` is given
@@ -45,19 +46,26 @@ class DiscoveryService:
 
         async with self._db.acquire() as conn:
             ids = await repo.match_creator_ids(
-                conn, embedding=embedding, filters=req.filters, limit=req.limit
+                conn,
+                embedding=embedding,
+                filters=req.filters,
+                limit=req.limit,
+                registered_only=self._registered_only,
             )
-            rows = await repo.fetch_cards(conn, ids)
+            rows = await repo.fetch_cards(conn, ids, registered_only=self._registered_only)
         return SearchResponse(
             query=req.query, filters=req.filters, results=[_card(row) for row in rows]
         )
 
 
-async def get_creator(db: Database, creator_id: UUID) -> CreatorCard | None:
-    """The creator's card, or None when there is no such creator or none of their
-    packages is published (they are not in the marketplace yet)."""
+async def get_creator(
+    db: Database, creator_id: UUID, *, registered_only: bool = False
+) -> CreatorCard | None:
+    """The creator's card, or None when there is no such creator, none of their packages is
+    published (they are not in the marketplace yet) or, with `registered_only`, they have no
+    account."""
     async with db.acquire() as conn:
-        rows = await repo.fetch_cards(conn, [creator_id])
+        rows = await repo.fetch_cards(conn, [creator_id], registered_only=registered_only)
     if not rows or not rows[0]["packages"]:
         return None
     return _card(rows[0])

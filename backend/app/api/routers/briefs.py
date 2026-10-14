@@ -81,6 +81,13 @@ def _http_errors() -> Iterator[None]:
             "message": exc.message,
         }
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail) from exc
+    except service.CreatorsNotRegistered as exc:
+        detail = {
+            "code": "creator_not_registered",
+            "message": "Some of these creators haven't joined Collabio yet.",
+            "creator_ids": [str(i) for i in exc.ids],
+        }
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail) from exc
     except service.NoCreators as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, {"error": "no_creators"}
@@ -153,7 +160,8 @@ async def _brief_embedding(brief: DealBrief, gemini: GeminiPort | None) -> list[
         status.HTTP_409_CONFLICT: {"description": "`brief_launched`"},
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "`detail` is `{error: brief_incomplete, missing, violations}`, "
-            "`{error: channel_not_allowed, creator_id, message}` or `{error: no_creators}`"
+            "`{error: channel_not_allowed, creator_id, message}`, `{error: no_creators}` or "
+            "`{code: creator_not_registered, message, creator_ids}`"
         },
     },
 )
@@ -163,6 +171,7 @@ async def launch_brief(
     req: LaunchRequest,
     briefs: Briefs,
     gemini: Annotated[GeminiPort | None, Depends(optional_gemini)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> LaunchResponse:
     """Launch a complete brief: one batch, and a queued negotiation thread per creator."""
     today = utc_today()
@@ -170,7 +179,13 @@ async def launch_brief(
         brief = await briefs.get(brief_id, today)
         # Embedded before the launch transaction: a slow Gemini must not hold the brief lock.
         embedding = await _brief_embedding(brief, gemini)
-        launched = await briefs.launch(brief_id, req, today=today, embedding=embedding)
+        launched = await briefs.launch(
+            brief_id,
+            req,
+            today=today,
+            embedding=embedding,
+            registered_only=not settings.demo_mode,
+        )
     wake_orchestrator(request.app)
     return launched
 

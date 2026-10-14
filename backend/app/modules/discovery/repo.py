@@ -24,7 +24,8 @@ from public.match_creators(
   niches => $4,
   region => $5,
   min_followers => $6,
-  match_limit => $7
+  match_limit => $7,
+  registered_only => $8
 )
 """
 
@@ -57,6 +58,7 @@ select
   ) as packages
 from unnest($1::uuid[]) with ordinality as wanted (id, position)
 join public.creators c on c.id = wanted.id
+where (not $2 or c.profile_id is not null)
 order by wanted.position
 """
 
@@ -67,8 +69,10 @@ async def match_creator_ids(
     embedding: list[float] | None,
     filters: SearchFilters,
     limit: int,
+    registered_only: bool = False,
 ) -> list[UUID]:
-    """Ids of the best matches, best first. Creators without an embedding rank last."""
+    """Ids of the best matches, best first. Creators without an embedding rank last.
+    `registered_only` leaves out creators with no account (`profile_id is null`)."""
     rows = await conn.fetch(
         MATCH_CREATORS,
         embedding,
@@ -78,17 +82,19 @@ async def match_creator_ids(
         filters.region,
         filters.min_followers,
         limit,
+        registered_only,
     )
     return [row["creator_id"] for row in rows]
 
 
 async def fetch_cards(
-    conn: asyncpg.Connection, creator_ids: Sequence[UUID]
+    conn: asyncpg.Connection, creator_ids: Sequence[UUID], *, registered_only: bool = False
 ) -> list[dict[str, Any]]:
     """Card data for `creator_ids`, in that order; unknown ids are skipped.
 
     Each dict has the creator's public columns plus `packages`, a list of dicts for the
-    published packages only. A creator with none has an empty list.
+    published packages only. A creator with none has an empty list. `registered_only`
+    skips creators with no account.
     """
-    rows = await conn.fetch(SELECT_CARDS, list(creator_ids))
+    rows = await conn.fetch(SELECT_CARDS, list(creator_ids), registered_only)
     return [dict(row) | {"packages": json.loads(row["packages"])} for row in rows]

@@ -174,3 +174,50 @@ async def test_creator_cannot_launch(creator_client):
     r = await creator_client.post(f"{BASE}/{UUID(int=1)}/launch", json={})
 
     assert r.status_code == 403
+
+
+async def test_launch_rejects_unregistered_in_production(
+    app, brand_client, api_db, brief_cleanup, fictional_ids
+):
+    from app.config import get_settings
+
+    brief_id = await complete_brief(brand_client, brief_cleanup, *fictional_ids)
+    settings = get_settings().model_copy(update={"demo_mode": False})
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    r = await launch(brand_client, brief_id)
+
+    assert r.status_code == 422, r.text
+    detail = r.json()["detail"]
+    assert detail["code"] == "creator_not_registered"
+    assert set(detail["creator_ids"]) == {str(i) for i in fictional_ids}
+    async with api_db.acquire() as conn:
+        assert (
+            await conn.fetchval(
+                "select count(*) from public.batches where brief_id = $1", UUID(brief_id)
+            )
+            == 0
+        )
+        status = await conn.fetchval(
+            "select status from public.briefs where id = $1", UUID(brief_id)
+        )
+    assert status == "ready"
+
+
+async def test_launch_copies_hires_target(brand_client, api_db, brief_cleanup, fictional_ids):
+    brief_id = await complete_brief(brand_client, brief_cleanup, *fictional_ids)
+    r = await patch(brand_client, brief_id, hires_target=2)
+    assert r.status_code == 200 and r.json()["hires_target"] == 2
+
+    r = await launch(brand_client, brief_id)
+
+    assert r.status_code == 201, r.text
+    batch_id = UUID(r.json()["batch_id"])
+    async with api_db.acquire() as conn:
+        target = await conn.fetchval(
+            "select hires_target from public.batches where id = $1", batch_id
+        )
+    assert target == 2
+    view = await brand_client.get(f"/api/v1/batches/{batch_id}")
+    assert view.status_code == 200, view.text
+    assert view.json()["brief"]["hires_target"] == 2

@@ -298,3 +298,49 @@ async def test_creator_role_cannot_get_creators(creator_client, brand_client):
     card = await arjun(brand_client)
     r = await creator_client.get(f"/api/v1/creators/{card['id']}")
     assert r.status_code == 403
+
+
+# Registered-only marketplace (outside DEMO_MODE) ------------------------------
+
+
+@pytest.fixture
+def production(app) -> None:
+    """Serve settings with `demo_mode=False`, as in production."""
+    from app.config import get_settings
+
+    settings = get_settings().model_copy(update={"demo_mode": False})
+    app.dependency_overrides[get_settings] = lambda: settings
+
+
+async def test_search_hides_unregistered_in_production(brand_client, production, api_db):
+    r = await brand_client.post(SEARCH, json={"limit": 48})
+
+    assert r.status_code == 200
+    ids = [card["id"] for card in r.json()["results"]]
+    handles = {card["handle"] for card in r.json()["results"]}
+    assert {"priyareviews", "arjuntech"} <= handles  # the demo accounts are registered
+    assert len(ids) < SEEDED_CREATORS
+    async with api_db.acquire() as conn:
+        unregistered = await conn.fetchval(
+            "select count(*) from public.creators where id = any($1::uuid[])"
+            " and profile_id is null",
+            ids,
+        )
+    assert unregistered == 0
+
+
+async def test_search_shows_seeded_in_demo_mode(brand_client):
+    cards = await everyone(brand_client)  # the suite runs with DEMO_MODE=1
+    assert len(cards) == SEEDED_CREATORS
+    assert "mayamakestech" in {card["handle"] for card in cards}
+
+
+async def test_get_unregistered_creator_404_in_production(brand_client, production, fictional_ids):
+    r = await brand_client.get(f"/api/v1/creators/{fictional_ids[0]}")
+    assert r.status_code == 404
+    assert r.json() == {"detail": "creator_not_found"}
+
+
+async def test_get_unregistered_creator_in_demo_mode(brand_client, fictional_ids):
+    r = await brand_client.get(f"/api/v1/creators/{fictional_ids[0]}")
+    assert r.status_code == 200

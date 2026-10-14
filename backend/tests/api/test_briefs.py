@@ -308,3 +308,19 @@ async def test_responses_never_expose_contact_or_floor(
         assert "floor" not in r.text.lower()
         for value in floor_values:
             assert not re.search(rf"(?<!\d){value}(?!\d)", r.text), value
+
+
+async def test_patch_hires_target(brand_client, brief_cleanup, seeded_ids):
+    brief = await create(brand_client, brief_cleanup, seeded_ids["priya"])
+    assert brief["hires_target"] == 1
+
+    r = await patch(brand_client, brief["id"], hires_target=2)
+    assert r.status_code == 200 and r.json()["hires_target"] == 2
+    assert (await brand_client.get(f"{BASE}/{brief['id']}")).json()["hires_target"] == 2
+
+    for bad in (0, 11):
+        r = await patch(brand_client, brief["id"], hires_target=bad)
+        assert r.status_code == 422
+
+    r = await patch(brand_client, brief["id"], hires_target=None)
+    assert r.status_code == 200 and r.json()["hires_target"] == 1

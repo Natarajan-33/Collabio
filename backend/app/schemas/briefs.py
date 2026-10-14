@@ -47,6 +47,8 @@ class BriefFields(BaseModel):
     flexibility: list[Flexibility] = []
     flexibility_note: str | None = None
     contact_email: str | None = None
+    # How many creators the brand wants to hire; null on a patch resets it to 1.
+    hires_target: int | None = Field(None, ge=1, le=10)
 
 
 INT4_MAX = 2**31 - 1
@@ -80,6 +82,7 @@ class DealBrief(BriefFields):
     """A brief as the brand sees it. `missing` and `violations` are computed on every read."""
 
     id: UUID
+    hires_target: int  # the stored value; 1 unless the brand chose more
     status: BriefStatus
     creator_ids: list[UUID]
     approved_at: datetime | None
