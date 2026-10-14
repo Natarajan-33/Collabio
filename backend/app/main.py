@@ -10,6 +10,7 @@ from app.api.routers import (
     board,
     briefs,
     creators,
+    deals,
     discovery,
     health,
     me,
@@ -80,6 +81,7 @@ def create_app() -> FastAPI:
     api.include_router(briefs.router)
     api.include_router(board.router)
     api.include_router(offers.router)
+    api.include_router(deals.router)
     api.include_router(unsubscribe.router)
     api.include_router(webhooks.router)
     app.include_router(api)

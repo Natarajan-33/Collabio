@@ -7,10 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.adapters.db import Database
 from app.api.deps import CurrentUser, get_db, require_role
+from app.core.money import format_cents
+from app.core.terms import TermsIncomplete
 from app.modules.board import actions, service
 from app.modules.board.actions import BoardActions
 from app.modules.board.service import BoardService
 from app.modules.briefs import service as briefs_service
+from app.modules.deals import service as deals_service
+from app.modules.deals.service import DealsService
 from app.schemas.board import (
     BatchListItem,
     BatchView,
@@ -24,6 +28,7 @@ from app.schemas.board import (
     ThreadCard,
     ThreadDetail,
 )
+from app.schemas.deals import AwardPreview, AwardRequest, DealView
 from app.workers.runtime import wake_orchestrator
 
 router = APIRouter(tags=["board"])
@@ -105,6 +110,28 @@ ACTION_ERRORS = THREAD_NOT_FOUND | {
     },
     status.HTTP_422_UNPROCESSABLE_CONTENT: {"description": "`above_ceiling` (counter only)"},
 }
+AWARD_ERRORS = THREAD_NOT_FOUND | {
+    status.HTTP_409_CONFLICT: {
+        "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+    },
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {
+        "description": "`terms_incomplete`, `milestones_invalid`, `over_ceiling`, `over_target`"
+    },
+}
+
+
+async def my_deals(
+    user: Annotated[CurrentUser, Depends(require_role("brand"))],
+    db: Annotated[Database, Depends(get_db)],
+) -> tuple[DealsService, UUID]:
+    """The deals service and the id of the signed-in brand."""
+    brand_id = await briefs_service.find_brand_id(db, user.id)
+    if brand_id is None:  # a brand profile without its brand row: onboarding never finished
+        raise HTTPException(status.HTTP_409_CONFLICT, "onboarding_required")
+    return DealsService(db), brand_id
+
+
+Deals = Annotated[tuple[DealsService, UUID], Depends(my_deals)]
 
 
 def _error(code: int, name: str, message: str, **extra: object) -> HTTPException:
@@ -141,6 +168,33 @@ async def _act[T](call: Awaitable[T]) -> T:
         ) from exc
     except actions.AboveCeiling as exc:
         raise _error(status.HTTP_422_UNPROCESSABLE_CONTENT, "above_ceiling", exc.message) from exc
+    except TermsIncomplete as exc:
+        raise _error(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "terms_incomplete",
+            "Terms incomplete: counter or resolve first.",
+        ) from exc
+    except deals_service.MilestonesInvalid as exc:
+        raise _error(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "milestones_invalid",
+            "The payment milestones do not fit the agreed terms.",
+            errors=exc.errors,
+        ) from exc
+    except deals_service.OverCeiling as exc:
+        raise _error(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "over_ceiling",
+            f"The agreed price is {format_cents(exc.by_cents)} over your ceiling. "
+            "Confirm to award anyway.",
+            over_by_cents=exc.by_cents,
+        ) from exc
+    except deals_service.OverTarget as exc:
+        raise _error(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "over_target",
+            f"You have already hired {exc.hired} of {exc.target}. Confirm to hire more.",
+        ) from exc
 
 
 def _today():
@@ -183,3 +237,17 @@ async def preview_decline_rest(batch_id: UUID, acts: Actions) -> DeclineRestPrev
 async def decline_rest(batch_id: UUID, acts: Actions) -> DeclineRestResult:
     """Politely close every open thread of the batch; a thread that fails is reported."""
     return await _act(acts.decline_rest(batch_id))
+
+
+@router.post("/threads/{thread_id}/award/preview", responses=AWARD_ERRORS)
+async def preview_award(thread_id: UUID, deals: Deals) -> AwardPreview:
+    """The agreed terms, the even milestone split and the confirmations an award would need."""
+    service_, brand_id = deals
+    return await _act(service_.award_preview(brand_id, thread_id, _today()))
+
+
+@router.post("/threads/{thread_id}/award", responses=AWARD_ERRORS)
+async def award_thread(thread_id: UUID, req: AwardRequest, deals: Deals) -> DealView:
+    """Book the deal on the thread's latest terms with the given payment milestones."""
+    service_, brand_id = deals
+    return await _act(service_.award(brand_id, thread_id, req, _today()))
