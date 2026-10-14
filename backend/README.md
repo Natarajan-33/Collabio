@@ -130,7 +130,7 @@ Extra environment variables (see `backend/.env.example`):
 | `ELEVENLABS_WEBHOOK_SECRET` | HMAC secret for the post-call webhook. |
 | `ELEVENLABS_TOOL_SECRET` | Bearer token for `check_counter` / `log_offer` tool routes. |
 | `RESEND_API_KEY`, `RESEND_FROM` | Outbound email (real domains only; `@example.com` is never sent). |
-| `RESEND_INBOUND_DOMAIN` | Leave empty until M3 inbound reply parsing. |
+| `RESEND_INBOUND_DOMAIN` | Domain that receives creators' replies; used from M3, see [M3](#m3-the-deal-loop). |
 | `PUBLIC_BACKEND_URL`, `PUBLIC_FRONTEND_URL` | Public URLs for email links and agent webhooks. |
 | `WORKERS_ENABLED` | `0` while running `pytest` or a second dev API on the shared DB. |
 
@@ -146,6 +146,94 @@ PATCH, not create). Point ElevenLabs post-call webhooks at
 with a tunnel, for example `cloudflared tunnel --url http://localhost:8000`, set
 `PUBLIC_BACKEND_URL` to the printed `https://…trycloudflare.com` URL, restart the API, and
 re-run the sync whenever the tunnel URL changes.
+
+## M3: the deal loop
+
+M3 closes the loop: creators see their offers, counter, accept or decline; the brand counters
+back, resolves replies that need a person, and awards a creator with a payment schedule;
+both sides get a booked deal with the other's contact email. Email replies are parsed, and
+every status change sends a notification through an outbox. No money moves (that is M4).
+
+**1. Apply the migration** (adds deals, milestones, the outbox and the expiry columns). Use
+the script, not the dashboard, so it is recorded and run in one transaction:
+
+```bash
+uv run python -m scripts.apply_migration supabase/migrations/20261014120000_m3_deal_loop.sql
+```
+
+**2. Environment** (see `backend/.env.example`):
+
+| Variable | Purpose |
+| --- | --- |
+| `DEMO_MODE` | `1` shows the seeded fictional creators (registered or not) in Discover and lets a brief launch to them. Without it only creators with a login are discoverable and launching to an unregistered one fails with `creator_not_registered`. Development only; leave it unset in production. |
+| `RESEND_INBOUND_DOMAIN` | The receiving domain for replies, e.g. `reply.<yourdomain>`. Offer emails carry a reply-to of `t-{token}@{RESEND_INBOUND_DOMAIN}`, and that token is the only thing that routes a reply to its thread. |
+| `RESEND_WEBHOOK_SECRET` | The signing secret (`whsec_...`) of the Resend `email.received` webhook. Without it, or without the domain, the inbound endpoint answers `503 inbound_unconfigured`. |
+
+**3. Workers.** Two more loops start with the API when `WORKERS_ENABLED` is on, beside the
+launch orchestrator:
+
+- **outbox-sender** delivers notification emails (a creator's offer moved, the brand
+  countered, a booking) every 5 seconds, ten at a time. A failed send backs off
+  (`30 s x 2^attempts`, five attempts) and reuses its Resend idempotency key, so a crash
+  never double-sends. Mail to a reserved address (`@example.com`) is marked `skipped`.
+- **expiry-sweep** runs every 60 seconds and moves offers still `awaiting_reply` past their
+  deadline to `no_response`. **Offers expire after 7 days** (each batch stores its own `offer_ttl_days`, 1 to 30, default 7; the app has no screen for it yet);
+  every move back into `awaiting_reply` restarts the clock, and a late reply reopens the
+  thread.
+
+> **Do not run the dev backend with workers on while you run `pytest` or the e2e specs
+> unless you mean to.** Workers read the shared hosted database: stale queued rows can send
+> real email or place a real phone call. Use `WORKERS_ENABLED=0` for tests; the e2e specs
+> (`m2`, `m3`) are the exception and need workers on, so run them only against a freshly
+> seeded database whose queue you know.
+
+**4. Inbound webhook.** In Resend, point an `email.received` webhook at
+
+```
+{PUBLIC_BACKEND_URL}/api/v1/webhooks/resend/inbound
+```
+
+`PUBLIC_BACKEND_URL` must be reachable from the internet (a deploy, or the same tunnel as
+the ElevenLabs webhooks in M2). The signature is checked first (Svix, 5 minute tolerance),
+so a forged request never reaches the database. A reply from an address other than the
+creator's goes to *Needs review* on the board instead of being trusted.
+
+### Live checklist
+
+The automated tests use fictional creators and never reach Resend or the phone. This list is
+what only a person with real inboxes can check. It assumes the M2 setup (Resend sender,
+`PUBLIC_BACKEND_URL`, tunnel) already works.
+
+1. **DEMO_MODE.** Add `DEMO_MODE=1` to the dev `backend/.env`. Without it Discover shows only
+   registered creators. Production leaves it unset.
+2. **Receiving domain.** In Resend, Domains, enable receiving on a subdomain (for example
+   `reply.<yourdomain>`), add the MX record it shows (lowest priority) and wait for it to
+   verify. Set `RESEND_INBOUND_DOMAIN=reply.<yourdomain>`. A quick alternative is the
+   account's own `<id>.resend.app` receiving domain.
+3. **Webhook.** In Resend, Webhooks, add `{PUBLIC_BACKEND_URL}/api/v1/webhooks/resend/inbound`
+   for `email.received`. Copy its signing secret into `RESEND_WEBHOOK_SECRET`, then restart
+   the backend.
+4. **Rehearsal.** Launch a brief to Priya by email. From the helper inbox, reply "I can do 3
+   videos for $1,150 if go-live moves two weeks later". The board shows Priya *Countered*
+   at $1,150 within seconds, and the presenter's inbox gets "Priya Raman countered: ...".
+   Reply again from a different address: the card goes to *Needs review* with "The reply
+   came from an address that isn't the creator's".
+5. **Award.** Award Priya. The helper inbox gets "You're booked: Lumen Audio x ...", and both
+   Deals pages show the payment schedule and each other's contact email.
+6. **Browser smoke (optional, last).** With the stack up, workers on, `DEMO_MODE=1`, a Gemini
+   key and a freshly seeded database (`uv run python -m scripts.seed --reset`), run from
+   `frontend/`:
+
+   ```bash
+   npm run e2e -- m3.spec.ts
+   ```
+
+   It drives two browsers (the demo brand and Priya) through brief, launch, counter,
+   counter, accept and award, with Maya (an `@example.com` address, never emailed) as the
+   creator who is declined. Priya is launched by email, so it sends real email to
+   `DEMO_HELPER_EMAIL` and notifications to the demo inboxes. Expected: `1 passed`. The spec
+   was written against the UI but had not been run when this checklist was added; treat its
+   first run as part of the check.
 
 ## Workers
 
@@ -196,7 +284,7 @@ app/
   modules/           services and repositories: discovery, me, packages, voice
   core/              pure rules: money, package rules, pricing, text helpers
   adapters/          db (asyncpg pool), gemini, elevenlabs, email (Resend)
-  workers/           launch orchestrator, restart sweep, start/stop with the app
+  workers/           launch orchestrator, restart sweep, outbox sender, expiry sweep, start/stop with the app
   schemas/           Pydantic request/response models (the OpenAPI source)
 scripts/             seed, build_embedding_cache, export_openapi
 supabase/            migration and the seed dataset

@@ -47,3 +47,51 @@ export async function whenHydrated(element: Locator) {
     )
     .toBe(true)
 }
+
+/** The two seeded demo logins the smoke specs sign in with. */
+export type DemoRole = "brand" | "creator"
+
+const DEMO_HOME: Record<DemoRole, string> = {
+  brand: "/brand/discover",
+  creator: "/creator/packages",
+}
+
+/**
+ * Signs in as the demo brand (Lumen Audio, `DEMO_BRAND_EMAIL`) or the demo creator
+ * (Priya, `DEMO_HELPER_EMAIL`), both with `DEMO_PASSWORD`, and waits for that role's
+ * home screen.
+ */
+export async function signInAs(page: Page, role: DemoRole) {
+  const email =
+    role === "brand"
+      ? process.env.DEMO_BRAND_EMAIL
+      : process.env.DEMO_HELPER_EMAIL
+  const password = process.env.DEMO_PASSWORD
+  if (!email || !password) {
+    throw new Error(
+      "Set DEMO_BRAND_EMAIL, DEMO_HELPER_EMAIL and DEMO_PASSWORD (in the shell or frontend/.env.e2e)."
+    )
+  }
+  await signIn(page, email, password, DEMO_HOME[role])
+}
+
+/**
+ * Steps a Stepper (the `group` that holds its minus and plus buttons) to `target`, one
+ * click at a time. `noun` is the Stepper's own noun: "videos" for "Increase videos".
+ */
+export async function stepTo(group: Locator, noun: string, target: number) {
+  const output = group.locator("output")
+  for (let step = 0; step < 60; step++) {
+    const current = Number.parseInt((await output.innerText()).trim(), 10)
+    if (current === target) return
+    const up = Number.isNaN(current) || current < target
+    await group
+      .getByRole("button", { name: `${up ? "Increase" : "Decrease"} ${noun}` })
+      .click()
+    // Wait for the click to land before reading again.
+    if (!Number.isNaN(current)) {
+      await expect(output).toHaveText(String(current + (up ? 1 : -1)))
+    }
+  }
+  throw new Error(`Could not step "${noun}" to ${target}.`)
+}

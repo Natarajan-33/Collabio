@@ -65,6 +65,45 @@ from `backend/.env`, shared out of band):
   Realtime inserts on `thread_events` as a doorbell to refetch the server view model; the
   signed-in Supabase session must be present in the browser.
 
+## Offers and Deals (M3)
+
+M3 adds the creator's side of a negotiation and the booked deal. Both roles use the same
+comparison and terms components (`components/deal/`).
+
+**Creator**
+
+- **`/creator/offers` (Offers)** — the inbox. Tabs: *Needs you* (waiting on you), *Waiting*
+  (waiting on the brand), *Booked* and *Closed*; sort by Fit, Revenue or Timeline. Each row
+  shows the brand and product, the package it is closest to, how the ask differs from it, what
+  it is worth and when it lapses. The Offers entry in the left rail carries a badge with the
+  number waiting on you.
+- **`/creator/offers/[threadId]` (Offer desk)** — your package, their ask and the latest
+  position side by side, with rows that moved tinted, the brand's note, the timeline and any
+  transcripts. **Accept**, **Counter** and **Decline** each open a dialog that shows exactly
+  what is about to happen and sends nothing until confirmed. The counter dialog previews your
+  private floor; sending below it asks a second, separate question. Every action is bound to
+  the terms you were looking at: if they moved meanwhile you are told, and shown the latest.
+- **`/creator/deals` and `/creator/deals/[id]`** — booked deals: the agreed terms, the
+  payment schedule and the brand's contact email, which is shown only here.
+
+**Brand**
+
+- **`/brand/batches/[id]`** now acts: the thread drawer has **Counter**, **Resolve**
+  (a reply that needed a person), **Decline** / **Withdraw** and **Award**. **Award** opens
+  the award dialog with the agreed terms and one editable payment per video; it asks a
+  separate yes before going over the budget ceiling or the hiring target, and, once the
+  target is reached, offers to politely decline everyone still open. **Decline remaining**
+  on the board does the same later. Set *Creators to hire* on the brief before launch.
+  A notification email links to `/brand/batches/[id]?thread=<id>`, which opens that thread.
+- **`/brand/deals` and `/brand/deals/[id]`** — booked deals, with the creator's contact email.
+
+**The creator doorbell.** Offers, the offer desk and the rail badge refetch when something
+changes for you. They subscribe to Supabase Realtime inserts on `thread_events`, filtered to
+your creator id, and treat an insert only as a ring: the page then asks the API for the new
+state. Rings are debounced, and the subscription catching up counts as one. Each place that
+listens has a channel of its own. The signed-in Supabase session must be present in the
+browser, as for the board.
+
 ## Scripts
 
 | Command | What it does |
@@ -81,7 +120,7 @@ Before pushing: `npm run test && npm run typecheck && npm run lint && npm run bu
 
 ## End-to-end smoke (Playwright)
 
-`tests/e2e/m1.spec.ts` and `tests/e2e/m2.spec.ts` drive the real UI against a running stack,
+`tests/e2e/m1.spec.ts`, `m2.spec.ts` and `m3.spec.ts` drive the real UI against a running stack,
 using the Voice Dock's
 text box instead of the microphone. Typing a command takes the same road as speaking
 (`POST /api/v1/voice/command`), so everything but the microphone itself is covered. It has
@@ -98,6 +137,14 @@ three tests:
 showing **Sent** and **Not delivered: test address** (fictional `@example.com` creators only).
 It needs `WORKERS_ENABLED=1` on the backend, a Gemini key, and the same demo env vars as M1.
 Run a single file with `npm run e2e -- m2.spec.ts`.
+
+`m3.spec.ts` is the deal loop in two browsers, the demo brand and Priya: brief for Priya and
+Maya, launch, Priya counters 3 videos for $1,200, the brand counters $1,100 with a note,
+Priya accepts, the brand awards a $500 / $300 / $300 schedule and declines Maya, then both
+sides check the booked deal. It needs `WORKERS_ENABLED=1` and `DEMO_MODE=1` on the backend, a
+Gemini key, a freshly seeded database, and it sends real email to the demo inboxes (Priya is
+launched by email; Maya's `@example.com` address is never emailed). Run it with
+`npm run e2e -- m3.spec.ts`. See "Live checklist" in `backend/README.md`.
 
 **One-time setup.** Playwright needs its own browser build; the install is a download you run
 once per machine:
