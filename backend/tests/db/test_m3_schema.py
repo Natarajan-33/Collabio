@@ -134,3 +134,48 @@ async def test_match_creators_registered_only(db_conn):
     assert all(row["profile_id"] is not None for row in only)
     assert any(row["profile_id"] is None for row in every)
     assert len(every) > len(only)
+
+
+async def test_transcripts_have_a_nullable_raw_text(db_conn, factory):
+    thread_id = await make_thread(factory)
+
+    row = await db_conn.fetchrow(
+        "insert into public.transcripts (thread_id, kind, external_id, body_text)"
+        " values ($1, 'email_in', $2, 'hi') returning raw_text",
+        thread_id,
+        f"rcv_{thread_id}",
+    )
+
+    assert row["raw_text"] is None
+    await db_conn.execute(
+        "update public.transcripts set raw_text = 'hi\n> quoted' where thread_id = $1", thread_id
+    )
+    assert (
+        await db_conn.fetchval(
+            "select raw_text from public.transcripts where thread_id = $1", thread_id
+        )
+        == "hi\n> quoted"
+    )
+
+
+async def test_inbound_raw_migration_backfills_open_offers_expiry(db_conn, factory):
+    from pathlib import Path
+
+    sql = Path("supabase/migrations/20261015120000_m3_inbound_raw.sql").read_text()
+    backfill = sql[sql.index("update public.threads") :]
+    waiting = await make_thread(factory, status="awaiting_reply")
+    queued = await make_thread(factory, status="queued")
+
+    await db_conn.execute(backfill)
+
+    rows = await db_conn.fetch(
+        "select t.id, t.expires_at, t.expires_at - now() as left_, b.offer_ttl_days"
+        " from public.threads t join public.batches b on b.id = t.batch_id"
+        " where t.id = any($1::uuid[])",
+        [waiting, queued],
+    )
+    by_id = {r["id"]: r for r in rows}
+    assert by_id[queued]["expires_at"] is None
+    assert by_id[waiting]["expires_at"] is not None
+    days = by_id[waiting]["left_"].total_seconds() / 86400
+    assert by_id[waiting]["offer_ttl_days"] - 0.01 < days <= by_id[waiting]["offer_ttl_days"]
