@@ -2,7 +2,10 @@
 
 import * as React from "react"
 
+import { CounterDialog } from "@/components/board/counter-dialog"
+import { DeclineDialog } from "@/components/board/decline-dialog"
 import { DeltaTable } from "@/components/board/delta-table"
+import { ResolveDialog } from "@/components/board/resolve-dialog"
 import { StatusPill } from "@/components/board/status-pill"
 import { Timeline } from "@/components/board/timeline"
 import { TranscriptView } from "@/components/board/transcript-view"
@@ -13,30 +16,54 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { useApi } from "@/hooks/use-api"
 import type { components } from "@/lib/api/schema"
-import { termsLine } from "@/lib/board/state"
+import { type BoardDialog, termsLine } from "@/lib/board/state"
+import type { TermsDraft } from "@/lib/deal/terms"
 
 type ThreadDetail = components["schemas"]["ThreadDetail"]
+type ThreadCard = components["schemas"]["ThreadCard"]
+type BrandAction = ThreadCard["allowed_actions"][number]
+
+/** The buttons, in the order they read: the decisive ones first. */
+const ACTIONS: { action: BrandAction; label: string }[] = [
+  { action: "award", label: "Award" },
+  { action: "counter", label: "Counter" },
+  { action: "resolve", label: "Resolve" },
+  { action: "decline", label: "Decline" },
+  { action: "withdraw", label: "Withdraw" },
+  { action: "retry", label: "Retry" },
+]
 
 export function ThreadDrawer({
   threadId,
   onClose,
   refreshKey,
   onRetry,
+  dialog,
+  onOpenDialog,
+  onCloseDialog,
+  counterDraft,
+  onCounterDraftChange,
+  onChanged,
 }: {
   threadId: string | null
   onClose: () => void
   refreshKey: number
   onRetry: (threadId: string) => void
+  /** Which confirming dialog is open. The board owns it, so voice can open one. */
+  dialog: BoardDialog | null
+  onOpenDialog: (dialog: BoardDialog, card: ThreadCard) => void
+  onCloseDialog: () => void
+  /** The counter being edited, also owned by the board. */
+  counterDraft: TermsDraft
+  onCounterDraftChange: (draft: TermsDraft) => void
+  /** An action went through, or the thread moved under it: the board loads again. */
+  onChanged: () => void
 }) {
   const api = useApi()
   const [detail, setDetail] = React.useState<ThreadDetail | null>(null)
+  const [failed, setFailed] = React.useState(false)
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({})
   const now = new Date()
 
@@ -47,14 +74,21 @@ export function ThreadDrawer({
       const { data, error } = await api.GET("/api/v1/threads/{thread_id}", {
         params: { path: { thread_id: threadId } },
       })
-      if (!gone && data && !error) setDetail(data)
+      if (gone) return
+      if (data && !error) {
+        setDetail(data)
+        setFailed(false)
+      } else {
+        setFailed(true)
+      }
     })()
     return () => {
       gone = true
     }
   }, [api, threadId, refreshKey])
 
-  const card = detail?.card
+  // A detail left over from the last thread is not this one's.
+  const card = detail?.card.id === threadId ? detail.card : undefined
 
   return (
     <Sheet
@@ -125,7 +159,11 @@ export function ThreadDrawer({
                       }))
                     }
                   >
-                    {tr.kind === "email_out" ? "Drafted email" : "Call"}{" "}
+                    {tr.kind === "email_out"
+                      ? "Drafted email"
+                      : tr.kind === "email_in"
+                        ? "Reply received"
+                        : "Call"}{" "}
                     <span className="text-muted-foreground text-xs">
                       {expanded[tr.id] ? "Hide" : "Show"}
                     </span>
@@ -139,41 +177,74 @@ export function ThreadDrawer({
               ))}
             </section>
 
-            <section className="space-y-2 border-t pt-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Actions
-              </h3>
-              {card.status === "failed" ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => onRetry(card.id)}
-                >
-                  Retry
-                </Button>
-              ) : null}
-              {["Counter by voice", "Award", "Decline"].map((label) => (
-                <Tooltip key={label}>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled
-                        className="mr-2"
-                      />
-                    }
-                  >
-                    {label}
-                  </TooltipTrigger>
-                  <TooltipContent>Coming in M3</TooltipContent>
-                </Tooltip>
-              ))}
-            </section>
+            {card.allowed_actions.length > 0 ? (
+              <section className="space-y-2 border-t pt-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Actions
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {ACTIONS.filter(({ action }) =>
+                    card.allowed_actions.includes(action)
+                  ).map(({ action, label }) => (
+                    <Button
+                      key={action}
+                      type="button"
+                      size="sm"
+                      variant={action === "award" ? "default" : "outline"}
+                      onClick={() =>
+                        action === "retry"
+                          ? onRetry(card.id)
+                          : onOpenDialog(action, card)
+                      }
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            <CounterDialog
+              card={card}
+              open={dialog === "counter"}
+              onClose={onCloseDialog}
+              draft={counterDraft}
+              onDraftChange={onCounterDraftChange}
+              onChanged={onChanged}
+            />
+            <ResolveDialog
+              card={card}
+              events={detail?.events ?? []}
+              transcripts={detail?.transcripts ?? []}
+              open={dialog === "resolve"}
+              onClose={onCloseDialog}
+              onChanged={onChanged}
+            />
+            <DeclineDialog
+              card={card}
+              action="decline"
+              open={dialog === "decline"}
+              onClose={onCloseDialog}
+              onChanged={onChanged}
+            />
+            <DeclineDialog
+              card={card}
+              action="withdraw"
+              open={dialog === "withdraw"}
+              onClose={onCloseDialog}
+              onChanged={onChanged}
+            />
           </>
         ) : (
-          <p className="text-muted-foreground text-sm p-4">Loading thread…</p>
+          <p
+            className={
+              failed
+                ? "text-destructive text-sm p-4"
+                : "text-muted-foreground text-sm p-4"
+            }
+          >
+            {failed ? "Could not load this thread." : "Loading thread…"}
+          </p>
         )}
       </SheetContent>
     </Sheet>

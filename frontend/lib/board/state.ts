@@ -8,6 +8,15 @@ type EventType = components["schemas"]["ThreadEventView"]["type"]
 type NegotiationTerms = components["schemas"]["NegotiationTerms"]
 type ThreadEventView = components["schemas"]["ThreadEventView"]
 type BriefSummary = components["schemas"]["BriefSummary"]
+type TermsDraft = components["schemas"]["TermsDraft"]
+
+/** The confirming dialogs the brand's drawer can show; the board owns which is open. */
+export type BoardDialog =
+  | "counter"
+  | "resolve"
+  | "decline"
+  | "withdraw"
+  | "award"
 
 export type BoardSortKey = "best_value" | "price" | "status" | "recent"
 
@@ -24,7 +33,7 @@ export const STATUS_LABEL: Record<ThreadStatus, string> = {
   failed: "Failed",
   awarded: "Booked",
   closed_lost: "Closed",
-  no_response: "No response",
+  no_response: "No reply",
   follow_up_suggested: "No reply · Call?",
 }
 
@@ -59,6 +68,14 @@ const EVENT_LABEL_EXACT: Partial<Record<EventType, string>> = {
   needs_review: "Needs review",
   failed: "Failed",
   retried: "Retried",
+  email_received: "Reply received",
+  counter_submitted: "Creator countered",
+  brand_counter_sent: "You countered",
+  accepted: "Accepted",
+  declined: "Declined",
+  awarded: "Booked",
+  closed_lost: "Closed",
+  offer_expired: "Offer expired",
 }
 
 export function eventLabel(type: EventType): string {
@@ -220,4 +237,31 @@ export function briefAskLine(brief: BriefSummary): string {
 
 export function launchedAgo(iso: string, now: Date): string {
   return `Launched ${relativeAgo(iso, now)}`
+}
+
+/**
+ * Where a counter starts: the creator's latest terms, with anything they left out taken
+ * from the brief's ask. The brand edits from here.
+ */
+export function counterPrefill(
+  card: ThreadCard,
+  brief: BriefSummary
+): TermsDraft {
+  const latest = card.latest_terms
+  return {
+    videos: latest?.videos ?? brief.deliverables_count,
+    price_cents: latest?.price_cents ?? brief.ask_price_cents,
+    go_live_by: latest?.go_live_by ?? brief.go_live_by,
+    conditions: [...(latest?.conditions ?? [])],
+  }
+}
+
+/** Terms as read from a reply, as an editable draft. What the reply left out stays empty. */
+export function termsToDraft(terms: NegotiationTerms | null): TermsDraft {
+  return {
+    videos: terms?.videos ?? null,
+    price_cents: terms?.price_cents ?? null,
+    go_live_by: terms?.go_live_by ?? null,
+    conditions: [...(terms?.conditions ?? [])],
+  }
 }

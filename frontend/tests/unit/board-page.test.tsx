@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import type { ReactNode } from "react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -12,13 +18,16 @@ type ThreadCard = components["schemas"]["ThreadCard"]
 const h = vi.hoisted(() => ({
   api: { GET: vi.fn(), POST: vi.fn() },
   doorbell: vi.fn(),
+  toast: { info: vi.fn(), error: vi.fn(), success: vi.fn() },
+  search: "",
 }))
 
 vi.mock("@/hooks/use-api", () => ({ useApi: () => h.api }))
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "batch-1" }),
+  useSearchParams: () => new URLSearchParams(h.search),
 }))
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }))
+vi.mock("sonner", () => ({ toast: h.toast }))
 vi.mock("@/lib/supabase/realtime", () => ({
   useBatchDoorbell: (
     _id: string,
@@ -125,7 +134,10 @@ function card(id: string, name: string, over: Partial<ThreadCard> = {}): ThreadC
   }
 }
 
-function view(threads: ThreadCard[]): BatchView {
+function view(
+  threads: ThreadCard[],
+  over: { hired?: number; hires_target?: number } = {}
+): BatchView {
   return {
     id: "batch-1",
     brief: {
@@ -137,13 +149,13 @@ function view(threads: ThreadCard[]): BatchView {
       budget_ceiling_cents: 120000,
       go_live_by: "2026-11-14",
       follow_up_policy: "off",
-      hires_target: 1,
+      hires_target: over.hires_target ?? 1,
     },
     kpis: {
       contacted: 0,
       replied: 0,
       countered: 0,
-      hired: 0,
+      hired: over.hired ?? 0,
       best_per_video_cents: null,
       launched_at: new Date().toISOString(),
     },
@@ -155,6 +167,10 @@ beforeEach(() => {
   h.api.GET.mockReset()
   h.api.POST.mockReset()
   h.doorbell.mockReset()
+  h.toast.info.mockReset()
+  h.toast.error.mockReset()
+  h.toast.success.mockReset()
+  h.search = ""
 })
 
 afterEach(cleanup)
@@ -250,5 +266,121 @@ describe("BatchBoardPage", () => {
     const [[onRing]] = h.doorbell.mock.calls
     onRing()
     await waitFor(() => expect(h.api.GET).toHaveBeenCalledTimes(2))
+  })
+
+  it("shows how many creators are hired against the target", async () => {
+    h.api.GET.mockResolvedValue({
+      data: view([card("t1", "Arjun")], { hired: 1, hires_target: 2 }),
+    })
+    render(<BatchBoardPage />)
+    await screen.findByText("Arjun")
+    const label = screen.getByText("Hired")
+    expect(label.parentElement?.textContent).toBe("Hired1 / 2")
+  })
+
+  it("opens the drawer for ?thread= once the board has loaded", async () => {
+    h.search = "thread=t2"
+    h.api.GET.mockImplementation(async (path: string) =>
+      path === "/api/v1/threads/{thread_id}"
+        ? { data: undefined, error: { detail: "thread_not_found" } }
+        : { data: view([card("t1", "Arjun"), card("t2", "Priya")]) }
+    )
+    render(<BatchBoardPage />)
+    await screen.findByText("Arjun")
+    await waitFor(() =>
+      expect(h.api.GET).toHaveBeenCalledWith("/api/v1/threads/{thread_id}", {
+        params: { path: { thread_id: "t2" } },
+      })
+    )
+    expect(h.api.GET).not.toHaveBeenCalledWith("/api/v1/threads/{thread_id}", {
+      params: { path: { thread_id: "t1" } },
+    })
+  })
+
+  it("ignores a ?thread= that is not on this board", async () => {
+    h.search = "thread=elsewhere"
+    h.api.GET.mockResolvedValue({ data: view([card("t1", "Arjun")]) })
+    render(<BatchBoardPage />)
+    await screen.findByText("Arjun")
+    expect(h.api.GET).not.toHaveBeenCalledWith(
+      "/api/v1/threads/{thread_id}",
+      expect.anything()
+    )
+  })
+
+  it("only offers Decline remaining once someone is hired", async () => {
+    h.api.GET.mockResolvedValue({ data: view([card("t1", "Arjun")]) })
+    render(<BatchBoardPage />)
+    await screen.findByText("Arjun")
+    expect(screen.queryByRole("button", { name: "Decline remaining" })).toBeNull()
+  })
+
+  it("lists who would be declined, then declines them on confirm", async () => {
+    const user = userEvent.setup()
+    h.api.GET.mockResolvedValue({
+      data: view([card("t1", "Arjun"), card("t2", "Priya")], { hired: 1 }),
+    })
+    h.api.POST.mockImplementation(async (path: string) =>
+      path.endsWith("/decline-rest/preview")
+        ? {
+            data: {
+              will_close: [
+                {
+                  thread_id: "t1",
+                  creator: { id: "c-t1", name: "Arjun", handle: "arjun", initials: "AR" },
+                  status: "awaiting_reply",
+                },
+                {
+                  thread_id: "t2",
+                  creator: { id: "c-t2", name: "Priya", handle: "priya", initials: "PR" },
+                  status: "countered",
+                },
+              ],
+              skipped: [],
+            },
+          }
+        : { data: { closed: ["t1", "t2"], failed: [] } }
+    )
+    render(<BatchBoardPage />)
+    await screen.findByText("Arjun")
+    await user.click(screen.getByRole("button", { name: "Decline remaining" }))
+    const dialog = await screen.findByRole("dialog", {
+      name: /Decline the remaining/,
+    })
+    expect(await within(dialog).findByText("Arjun")).toBeTruthy()
+    expect(within(dialog).getByText("Priya")).toBeTruthy()
+    expect(h.api.POST).toHaveBeenCalledTimes(1)
+    expect(h.api.POST).toHaveBeenCalledWith(
+      "/api/v1/batches/{batch_id}/decline-rest/preview",
+      { params: { path: { batch_id: "batch-1" } } }
+    )
+    await user.click(
+      within(dialog).getByRole("button", { name: "Decline 2 creators" })
+    )
+    await waitFor(() =>
+      expect(h.api.POST).toHaveBeenCalledWith(
+        "/api/v1/batches/{batch_id}/decline-rest",
+        { params: { path: { batch_id: "batch-1" } } }
+      )
+    )
+    await waitFor(() => expect(h.toast.success).toHaveBeenCalled())
+    // The board is reloaded.
+    await waitFor(() => expect(h.api.GET.mock.calls.length).toBeGreaterThan(1))
+  })
+
+  it("says so when nobody is left to decline", async () => {
+    const user = userEvent.setup()
+    h.api.GET.mockResolvedValue({
+      data: view([card("t1", "Arjun")], { hired: 1 }),
+    })
+    h.api.POST.mockResolvedValue({ data: { will_close: [], skipped: [] } })
+    render(<BatchBoardPage />)
+    await screen.findByText("Arjun")
+    await user.click(screen.getByRole("button", { name: "Decline remaining" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(await within(dialog).findByText(/No open conversations/)).toBeTruthy()
+    expect(
+      within(dialog).queryByRole("button", { name: /^Decline \d/ })
+    ).toBeNull()
   })
 })

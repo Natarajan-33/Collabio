@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import type { components } from "@/lib/api/schema"
 import {
+  STATUS_LABEL,
   briefAskLine,
+  counterPrefill,
   eventLabel,
   isLive,
   lastEventLine,
@@ -230,5 +232,65 @@ describe("board state", () => {
         hires_target: 1,
       })
     ).toBe("3 short videos · $1,000 · live by Nov 14")
+  })
+
+  it("labels the M3 statuses", () => {
+    expect(STATUS_LABEL.awarded).toBe("Booked")
+    expect(STATUS_LABEL.closed_lost).toBe("Closed")
+    expect(STATUS_LABEL.no_response).toBe("No reply")
+  })
+
+  it("labels the M3 events", () => {
+    expect(eventLabel("counter_submitted")).toBe("Creator countered")
+    expect(eventLabel("brand_counter_sent")).toBe("You countered")
+    expect(eventLabel("email_received")).toBe("Reply received")
+    expect(eventLabel("accepted")).toBe("Accepted")
+    expect(eventLabel("declined")).toBe("Declined")
+    expect(eventLabel("awarded")).toBe("Booked")
+    expect(eventLabel("closed_lost")).toBe("Closed")
+    expect(eventLabel("offer_expired")).toBe("Offer expired")
+  })
+
+  describe("counterPrefill", () => {
+    const brief: components["schemas"]["BriefSummary"] = {
+      brief_id: "b",
+      product_name: "Lamp",
+      deliverables_count: 3,
+      deliverables_format: "short_video",
+      ask_price_cents: 100000,
+      budget_ceiling_cents: 120000,
+      go_live_by: "2026-11-14",
+      follow_up_policy: "off",
+      hires_target: 1,
+    }
+
+    it("starts from the creator's latest terms", () => {
+      const latest: NegotiationTerms = {
+        videos: 2,
+        price_cents: 90000,
+        go_live_by: "2026-12-01",
+        conditions: ["No exclusivity"],
+        addons: [],
+        stance: "counter",
+        source: "email",
+        confidence: 0.9,
+        open_questions: [],
+      }
+      expect(counterPrefill(card("a", { latest_terms: latest }), brief)).toEqual({
+        videos: 2,
+        price_cents: 90000,
+        go_live_by: "2026-12-01",
+        conditions: ["No exclusivity"],
+      })
+    })
+
+    it("falls back to the brief's ask", () => {
+      expect(counterPrefill(card("a", { latest_terms: null }), brief)).toEqual({
+        videos: 3,
+        price_cents: 100000,
+        go_live_by: "2026-11-14",
+        conditions: [],
+      })
+    })
   })
 })

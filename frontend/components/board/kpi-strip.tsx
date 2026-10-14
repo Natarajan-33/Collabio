@@ -11,9 +11,12 @@ type BatchKpis = components["schemas"]["BatchKpis"]
 
 export function KpiStrip({
   kpis,
+  hiresTarget,
   now,
 }: {
   kpis: BatchKpis
+  /** How many creators the brief wants to hire. */
+  hiresTarget: number
   now: Date
 }) {
   const [, bump] = React.useReducer((n) => n + 1, 0)
@@ -30,6 +33,14 @@ export function KpiStrip({
       <Kpi label="Contacted" value={kpis.contacted} />
       <Kpi label="Replied" value={kpis.replied} />
       <Kpi label="Countered" value={kpis.countered} />
+      <div>
+        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+          Hired
+        </p>
+        <p className="num text-lg font-semibold tabular-nums">
+          {kpis.hired} / {hiresTarget}
+        </p>
+      </div>
       <div>
         <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
           Best $/video

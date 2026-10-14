@@ -13,7 +13,7 @@ function roleLabel(role: "agent" | "user"): string {
 }
 
 export function TranscriptView({ transcript }: { transcript: TranscriptView }) {
-  if (transcript.kind === "email_out") {
+  if (transcript.kind === "email_out" || transcript.kind === "email_in") {
     return (
       <div className="space-y-2 text-sm">
         {transcript.subject ? (

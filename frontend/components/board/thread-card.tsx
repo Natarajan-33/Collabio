@@ -1,10 +1,12 @@
 "use client"
 
 import { Mail, Phone } from "lucide-react"
+import Link from "next/link"
 
 import ShinyText from "@/components/ShinyText"
 import { EmailReveal } from "@/components/board/email-reveal"
 import { StatusPill } from "@/components/board/status-pill"
+import { ExpiryBadge } from "@/components/deal/expiry-badge"
 import { Button } from "@/components/ui/button"
 import type { components } from "@/lib/api/schema"
 import { lastEventLine, termsLine } from "@/lib/board/state"
@@ -99,6 +101,9 @@ export function ThreadCardView({
           <p className="text-muted-foreground text-xs">
             {lastEventLine(thread.last_event, now)}
           </p>
+          {thread.status === "awaiting_reply" ? (
+            <ExpiryBadge expiresAt={thread.expires_at} now={now} />
+          ) : null}
         </div>
 
         {thread.status === "calling" ? (
@@ -142,6 +147,17 @@ export function ThreadCardView({
           </div>
         ) : null}
       </button>
+
+      {thread.status === "awarded" && thread.deal_id ? (
+        <div className="border-t pt-3">
+          <Link
+            href={`/brand/deals/${thread.deal_id}`}
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            View deal
+          </Link>
+        </div>
+      ) : null}
 
       {thread.status === "failed" ? (
         <div className="flex flex-col gap-2 border-t pt-3">

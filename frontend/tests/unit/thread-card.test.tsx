@@ -225,4 +225,53 @@ describe("ThreadCardView", () => {
     const price = screen.getByText(/3 videos · \$1,200/)
     expect(price.className).toMatch(/num/)
   })
+
+  it("links a booked card to its deal", () => {
+    render(
+      <ThreadCardView
+        thread={thread({ status: "awarded", deal_id: "deal-9" })}
+        now={now}
+        revealEmail={false}
+        onOpen={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    )
+    expect(screen.getByText("Booked")).toBeTruthy()
+    expect(
+      screen.getByRole("link", { name: "View deal" }).getAttribute("href")
+    ).toBe("/brand/deals/deal-9")
+  })
+
+  it("shows when an offer awaiting a reply expires", () => {
+    const expires = new Date(now.getTime() + 3 * 24 * 3_600_000 + 60_000)
+    render(
+      <ThreadCardView
+        thread={thread({
+          status: "awaiting_reply",
+          expires_at: expires.toISOString(),
+        })}
+        now={now}
+        revealEmail={false}
+        onOpen={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    )
+    expect(screen.getByText(/expires in/).textContent).toContain("3d")
+  })
+
+  it("shows no expiry once the thread has moved on", () => {
+    render(
+      <ThreadCardView
+        thread={thread({
+          status: "countered",
+          expires_at: new Date(now.getTime() + 86_400_000).toISOString(),
+        })}
+        now={now}
+        revealEmail={false}
+        onOpen={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    )
+    expect(screen.queryByText(/expires in/)).toBeNull()
+  })
 })

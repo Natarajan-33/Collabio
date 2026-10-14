@@ -4,23 +4,28 @@ import { useGSAP } from "@gsap/react"
 import gsap from "gsap"
 import { Flip } from "gsap/Flip"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import * as React from "react"
 import { toast } from "sonner"
 
+import { DeclineRestDialog } from "@/components/board/decline-rest-dialog"
 import { KpiStrip } from "@/components/board/kpi-strip"
 import { ThreadCardView } from "@/components/board/thread-card"
 import { ThreadDrawer } from "@/components/board/thread-drawer"
+import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useApi } from "@/hooks/use-api"
 import type { components } from "@/lib/api/schema"
 import {
+  type BoardDialog,
   type BoardSortKey,
   briefAskLine,
+  counterPrefill,
   isLive,
   launchedAgo,
   sortThreads,
 } from "@/lib/board/state"
+import { mergeDraft, type TermsDraft } from "@/lib/deal/terms"
 import { useBatchDoorbell } from "@/lib/supabase/realtime"
 import {
   useVoiceScreen,
@@ -30,6 +35,7 @@ import {
 gsap.registerPlugin(useGSAP, Flip)
 
 type BatchView = components["schemas"]["BatchView"]
+type ThreadCard = components["schemas"]["ThreadCard"]
 
 const SORT_OPTIONS: { key: BoardSortKey; label: string }[] = [
   { key: "best_value", label: "Best value" },
@@ -39,6 +45,18 @@ const SORT_OPTIONS: { key: BoardSortKey; label: string }[] = [
 ]
 
 type FlipState = ReturnType<typeof Flip.getState>
+
+/**
+ * Reads `?thread=<id>` (the link in the brand's notification emails). It sits in its
+ * own component so the rest of the board does not wait on the query string.
+ */
+function ThreadLink({ onThread }: { onThread: (id: string | null) => void }) {
+  const thread = useSearchParams().get("thread")
+  React.useEffect(() => {
+    onThread(thread)
+  }, [thread, onThread])
+  return null
+}
 
 export default function BatchBoardPage() {
   const { id: batchId } = useParams<{ id: string }>()
@@ -53,6 +71,13 @@ export default function BatchBoardPage() {
     Record<string, boolean>
   >({})
   const [openThreadId, setOpenThreadId] = React.useState<string | null>(null)
+  const [dialog, setDialog] = React.useState<BoardDialog | null>(null)
+  const [counterDraft, setCounterDraft] = React.useState<TermsDraft>({
+    conditions: [],
+  })
+  const [declineRestOpen, setDeclineRestOpen] = React.useState(false)
+  const [linkedThread, setLinkedThread] = React.useState<string | null>(null)
+  const [openedLink, setOpenedLink] = React.useState<string | null>(null)
   const [refreshKey, setRefreshKey] = React.useState(0)
   const dealtIn = React.useRef(false)
   const gridRef = React.useRef<HTMLDivElement>(null)
@@ -138,6 +163,36 @@ export default function BatchBoardPage() {
     if (cards.length) flipFrom.current = Flip.getState(cards)
   }, [])
 
+  const openCard = cardsForVoice.find((c) => c.id === openThreadId) ?? null
+
+  /** Opens a thread's drawer (or closes it), with no dialog on top. */
+  const openThread = React.useCallback((id: string | null) => {
+    setOpenThreadId(id)
+    setDialog(null)
+  }, [])
+
+  const openDialog = (kind: BoardDialog, card: ThreadCard) => {
+    if (kind === "counter" && view) {
+      setCounterDraft(counterPrefill(card, view.brief))
+    }
+    setDialog(kind)
+  }
+
+  // The thread a notification email linked to opens once the board has loaded; a link
+  // to a thread that is not on this board is ignored.
+  if (view && linkedThread && openedLink !== linkedThread) {
+    setOpenedLink(linkedThread)
+    if (view.threads.some((t) => t.id === linkedThread)) {
+      setOpenThreadId(linkedThread)
+      setDialog(null)
+    }
+  }
+
+  const onChanged = React.useCallback(() => {
+    setRefreshKey((k) => k + 1)
+    void reload()
+  }, [reload])
+
   useVoiceScreen(
     "board",
     () => ({
@@ -146,17 +201,57 @@ export default function BatchBoardPage() {
         name: c.creator.name,
         handle: c.creator.handle,
       })),
+      // The draft belongs to one creator: the backend lays spoken terms over it only
+      // for that creator.
+      current_terms: dialog === "counter" && openCard ? counterDraft : null,
+      current_terms_creator_id:
+        dialog === "counter" && openCard ? openCard.creator.id : null,
     }),
     (intent: VoiceIntent) => {
       if (intent.kind === "open_thread" && intent.open_thread) {
         const match = cardsForVoice.find(
           (c) => c.creator.id === intent.open_thread?.creator_id
         )
-        if (match) setOpenThreadId(match.id)
+        if (match) openThread(match.id)
       }
       if (intent.kind === "sort" && intent.sort) {
         captureFlip()
         setSortKey(intent.sort)
+      }
+      // Voice only opens the confirming UI: nothing is sent from here.
+      if (
+        view &&
+        (intent.kind === "counter" ||
+          intent.kind === "award" ||
+          intent.kind === "decline")
+      ) {
+        const target = intent.creator_id
+          ? cardsForVoice.find((c) => c.creator.id === intent.creator_id)
+          : openCard
+        if (!target) return
+        const allowed = target.allowed_actions
+        if (intent.kind === "counter" && allowed.includes("counter")) {
+          const base =
+            dialog === "counter" && openThreadId === target.id
+              ? counterDraft
+              : counterPrefill(target, view.brief)
+          setCounterDraft(intent.terms ? mergeDraft(base, intent.terms) : base)
+          setOpenThreadId(target.id)
+          setDialog("counter")
+        } else if (intent.kind === "award" && allowed.includes("award")) {
+          setOpenThreadId(target.id)
+          setDialog("award")
+        } else if (intent.kind === "decline") {
+          const kind = allowed.includes("decline")
+            ? "decline"
+            : allowed.includes("withdraw")
+              ? "withdraw"
+              : null
+          if (kind) {
+            setOpenThreadId(target.id)
+            setDialog(kind)
+          }
+        }
       }
     }
   )
@@ -263,21 +358,37 @@ export default function BatchBoardPage() {
         </p>
       </div>
 
-      <KpiStrip kpis={view.kpis} now={now} />
+      <KpiStrip
+        kpis={view.kpis}
+        hiresTarget={view.brief.hires_target}
+        now={now}
+      />
 
-      <ToggleGroup
-        value={[sortKey]}
-        onValueChange={(values) => {
-          const next = values[0] as BoardSortKey | undefined
-          if (next) onSortChange(next)
-        }}
-      >
-        {SORT_OPTIONS.map((opt) => (
-          <ToggleGroupItem key={opt.key} value={opt.key}>
-            {opt.label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ToggleGroup
+          value={[sortKey]}
+          onValueChange={(values) => {
+            const next = values[0] as BoardSortKey | undefined
+            if (next) onSortChange(next)
+          }}
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <ToggleGroupItem key={opt.key} value={opt.key}>
+              {opt.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        {view.kpis.hired >= 1 ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setDeclineRestOpen(true)}
+          >
+            Decline remaining
+          </Button>
+        ) : null}
+      </div>
 
       <div
         ref={gridRef}
@@ -289,7 +400,7 @@ export default function BatchBoardPage() {
             thread={thread}
             now={now}
             revealEmail={emailAnimate[thread.id] === true}
-            onOpen={() => setOpenThreadId(thread.id)}
+            onOpen={() => openThread(thread.id)}
             onRetry={(tid) => void retry(tid)}
           />
         ))}
@@ -298,9 +409,26 @@ export default function BatchBoardPage() {
       <ThreadDrawer
         threadId={openThreadId}
         refreshKey={refreshKey}
-        onClose={() => setOpenThreadId(null)}
+        onClose={() => openThread(null)}
         onRetry={(tid) => void retry(tid)}
+        dialog={dialog}
+        onOpenDialog={openDialog}
+        onCloseDialog={() => setDialog(null)}
+        counterDraft={counterDraft}
+        onCounterDraftChange={setCounterDraft}
+        onChanged={onChanged}
       />
+
+      <DeclineRestDialog
+        batchId={batchId}
+        open={declineRestOpen}
+        onClose={() => setDeclineRestOpen(false)}
+        onDone={onChanged}
+      />
+
+      <React.Suspense fallback={null}>
+        <ThreadLink onThread={setLinkedThread} />
+      </React.Suspense>
     </div>
   )
 }
