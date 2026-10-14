@@ -65,10 +65,17 @@ function card(board: Page, name: string): Locator {
 
 /** A row of the offer desk's comparison table, by its heading ("Price"). */
 function deskRow(desk: Page, label: string): Locator {
-  return desk
-    .locator('[data-slot="compare-columns"]')
-    .getByRole("row")
-    .filter({ has: desk.getByRole("cell", { name: label, exact: true }) })
+  return (
+    desk
+      .locator('[data-slot="compare-columns"]')
+      .getByRole("row")
+      // A row whose figure moved also reads "(changed)" to a screen reader.
+      .filter({
+        has: desk.getByRole("cell", {
+          name: new RegExp("^" + escapeRegExp(label) + "(\\s*\\(changed\\))?$"),
+        }),
+      })
+  )
 }
 
 /** What the desk's comparison table shows in one column of one row. */
@@ -211,8 +218,10 @@ test.describe("M3 smoke", () => {
       await expect(
         priya.getByRole("tab", { name: /^Needs you/, selected: true })
       ).toBeVisible()
-      const offer = priya.getByRole("link", { name: /Lumen Audio/ }).first()
-      await expect(offer).toBeVisible({ timeout: DOORBELL_TIMEOUT })
+      // Exactly one Lumen Audio offer for Lumen Pods: an older one means the database
+      // was not freshly seeded.
+      const offer = priya.getByRole("link", { name: /Lumen Audio.*Lumen Pods/ })
+      await expect(offer).toHaveCount(1, { timeout: DOORBELL_TIMEOUT })
       await offer.click()
       await priya.waitForURL("**/creator/offers/**")
       await expect(

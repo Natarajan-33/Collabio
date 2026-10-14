@@ -237,8 +237,9 @@ what only a person with real inboxes can check. It assumes the M2 setup (Resend 
 
 ## Workers
 
-When `WORKERS_ENABLED` is on (the default), the app starts the launch orchestrator with the
-API. It claims queued negotiation threads (several at a time, with skip-locked claims, so
+When `WORKERS_ENABLED` is on (the default), the app starts the launch orchestrator, the outbox
+sender and the expiry sweep with the API (the last two are described under
+[M3](#m3-the-deal-loop)). The orchestrator claims queued negotiation threads (several at a time, with skip-locked claims, so
 more than one process is safe) and sends each creator's outreach email. On startup a sweep
 requeues threads a previous process left half-drafted and fails calls that were never placed;
 a call is never re-dialed automatically. Launching a brief wakes the orchestrator at once;
