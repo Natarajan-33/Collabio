@@ -1,4 +1,5 @@
 import type { components } from "@/lib/api/schema"
+import type { TermsDraft } from "@/lib/deal/terms"
 
 export type OfferListItem = components["schemas"]["OfferListItem"]
 export type OfferCounts = components["schemas"]["OfferCounts"]
@@ -28,7 +29,10 @@ export const OFFER_SORTS: { key: OfferSort; label: string }[] = [
   { key: "timeline", label: "Timeline" },
 ]
 
-export const DELTA_FLAG_LABEL: Record<OfferListItem["delta_flags"][number], string> = {
+export const DELTA_FLAG_LABEL: Record<
+  OfferListItem["delta_flags"][number],
+  string
+> = {
   below_base_price: "Below base price",
   lead_time_conflict: "Lead-time conflict",
   estimated: "Estimated",
@@ -44,4 +48,31 @@ export function visibleOffers(items: readonly OfferListItem[]) {
 
 export function offerPath(threadId: string): string {
   return `/creator/offers/${threadId}`
+}
+
+type TermsColumn = OfferDesk["my_package"]
+
+/** A column as a draft the terms card can edit. */
+export function columnToDraft(column: TermsColumn): TermsDraft {
+  return {
+    videos: column.videos,
+    price_cents: column.price_cents,
+    go_live_by: column.go_live_by,
+    conditions: [...column.conditions],
+  }
+}
+
+/** The terms a counter starts from: my latest position, else what the brand asked. */
+export function counterPrefill(desk: OfferDesk): TermsDraft {
+  return columnToDraft(desk.latest ?? desk.their_ask)
+}
+
+/**
+ * The brand's current offer, the terms accepting would record: its latest counter when
+ * it has made one, otherwise the ask in the brief.
+ */
+export function brandOffer(desk: OfferDesk): TermsColumn {
+  return desk.latest && desk.latest_source === "brand"
+    ? desk.latest
+    : desk.their_ask
 }
