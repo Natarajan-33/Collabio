@@ -1,4 +1,11 @@
-import { cleanup, render, screen, within } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -10,6 +17,19 @@ const { router, auth } = vi.hoisted(() => ({
   auth: { signOut: vi.fn() },
 }))
 
+const api = vi.hoisted(() => ({
+  GET: vi.fn(),
+  ring: null as null | (() => void),
+  creatorId: undefined as string | null | undefined,
+}))
+
+vi.mock("@/hooks/use-api", () => ({ useApi: () => ({ GET: api.GET }) }))
+vi.mock("@/lib/supabase/realtime", () => ({
+  useCreatorDoorbell: (id: string | null, onRing: () => void) => {
+    api.creatorId = id
+    api.ring = onRing
+  },
+}))
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname.current,
   useRouter: () => router,
@@ -26,6 +46,11 @@ vi.mock("@/components/voice/try-yourself-dialog", () => ({
 }))
 
 beforeEach(() => {
+  api.GET.mockReset().mockResolvedValue({
+    data: { needs_you: 0, waiting: 0, booked: 0, closed: 0 },
+  })
+  api.ring = null
+  api.creatorId = undefined
   router.replace.mockReset()
   router.refresh.mockReset()
   auth.signOut.mockReset()
@@ -79,10 +104,10 @@ describe("AppShell", () => {
     ).toBe("true")
   })
 
-  it("creator shell shows Packages and disabled Offers and Analytics", () => {
+  it("creator shell links Packages, Offers and Deals; only Analytics is still to come", () => {
     pathname.current = "/creator/packages"
     render(
-      <AppShell role="creator">
+      <AppShell role="creator" creatorId="creator-1">
         <p>page body</p>
       </AppShell>
     )
@@ -93,22 +118,99 @@ describe("AppShell", () => {
     expect(packages.getAttribute("aria-current")).toBe("page")
     expect(within(nav).queryByRole("link", { name: "Discover" })).toBeNull()
 
-    for (const label of ["Offers", "Analytics"]) {
-      const item = within(nav).getByText(label)
-      expect(item.getAttribute("aria-disabled")).toBe("true")
-      // Not navigable, and the reason is announced with the name.
-      expect(item.getAttribute("href")).toBeNull()
-      expect(item.getAttribute("aria-current")).toBeNull()
-      expect(item.textContent).toContain("Soon")
+    const offers = within(nav).getByRole("link", { name: "Offers" })
+    expect(offers.getAttribute("href")).toBe("/creator/offers")
+    expect(offers.getAttribute("aria-disabled")).toBeNull()
+    expect(offers.textContent).not.toContain("Soon")
+    expect(
+      within(nav).getByRole("link", { name: "Deals" }).getAttribute("href")
+    ).toBe("/creator/deals")
 
-      // The accessible name is the label alone; "Coming soon" is its description.
-      const link = within(nav).getByRole("link", { name: label })
-      expect(link).toBe(item)
-      const note = document.getElementById(
-        link.getAttribute("aria-describedby") ?? ""
-      )
-      expect(note?.textContent).toBe("Coming soon")
-    }
+    const analytics = within(nav).getByText("Analytics")
+    expect(analytics.getAttribute("aria-disabled")).toBe("true")
+    // Not navigable, and the reason is announced with the name.
+    expect(analytics.getAttribute("href")).toBeNull()
+    expect(analytics.getAttribute("aria-current")).toBeNull()
+    expect(analytics.textContent).toContain("Soon")
+    // The accessible name is the label alone; "Coming soon" is its description.
+    const link = within(nav).getByRole("link", { name: "Analytics" })
+    expect(link).toBe(analytics)
+    const note = document.getElementById(
+      link.getAttribute("aria-describedby") ?? ""
+    )
+    expect(note?.textContent).toBe("Coming soon")
+  })
+
+  it("brand shell links Deals to /brand/deals and never asks for offer counts", () => {
+    render(<AppShell role="brand">x</AppShell>)
+    expect(
+      within(primaryNav())
+        .getByRole("link", { name: "Deals" })
+        .getAttribute("href")
+    ).toBe("/brand/deals")
+    expect(api.GET).not.toHaveBeenCalled()
+  })
+
+  it("badges Offers with the number waiting on the creator", async () => {
+    api.GET.mockResolvedValue({
+      data: { needs_you: 2, waiting: 1, booked: 0, closed: 0 },
+    })
+    render(
+      <AppShell role="creator" creatorId="creator-1">
+        x
+      </AppShell>
+    )
+
+    const offers = within(primaryNav()).getByRole("link", { name: /^Offers/ })
+    await waitFor(() => expect(within(offers).getByText("2")).toBeTruthy())
+    expect(api.GET).toHaveBeenCalledWith("/api/v1/offers/counts")
+    expect(offers.textContent).not.toContain("Soon")
+  })
+
+  it("hides the badge at zero", async () => {
+    render(
+      <AppShell role="creator" creatorId="creator-1">
+        x
+      </AppShell>
+    )
+
+    await waitFor(() => expect(api.GET).toHaveBeenCalled())
+    const offers = within(primaryNav()).getByRole("link", { name: "Offers" })
+    expect(offers.textContent).toBe("Offers")
+  })
+
+  it("refetches the badge when the creator doorbell rings", async () => {
+    render(
+      <AppShell role="creator" creatorId="creator-1">
+        x
+      </AppShell>
+    )
+    await waitFor(() => expect(api.GET).toHaveBeenCalledTimes(1))
+    expect(api.creatorId).toBe("creator-1")
+
+    api.GET.mockResolvedValue({
+      data: { needs_you: 5, waiting: 0, booked: 0, closed: 0 },
+    })
+    await act(async () => {
+      api.ring!()
+    })
+
+    const offers = within(primaryNav()).getByRole("link", { name: /^Offers/ })
+    await waitFor(() => expect(within(offers).getByText("5")).toBeTruthy())
+  })
+
+  it("keeps Offers active on an offer desk", () => {
+    pathname.current = "/creator/offers/t1"
+    render(
+      <AppShell role="creator" creatorId="creator-1">
+        x
+      </AppShell>
+    )
+    expect(
+      within(primaryNav())
+        .getByRole("link", { name: "Offers" })
+        .getAttribute("aria-current")
+    ).toBe("page")
   })
 
   it("renders the page body and mounts the Voice Dock outside the page", () => {

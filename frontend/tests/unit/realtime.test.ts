@@ -1,7 +1,11 @@
 import { renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { useBatchDoorbell } from "@/lib/supabase/realtime"
+import {
+  useBatchDoorbell,
+  useCreatorDoorbell,
+  useThreadEventsDoorbell,
+} from "@/lib/supabase/realtime"
 
 const h = vi.hoisted(() => {
   const channel = { on: vi.fn(), subscribe: vi.fn() }
@@ -171,5 +175,70 @@ describe("useBatchDoorbell", () => {
 
     expect(h.supabase.removeChannel).toHaveBeenCalledTimes(1)
     expect(h.supabase.channel).toHaveBeenLastCalledWith("thread-events:b")
+  })
+})
+
+describe("useCreatorDoorbell", () => {
+  it("subscribes to thread_events inserts for the creator", () => {
+    renderHook(() => useCreatorDoorbell("creator-1", vi.fn()))
+
+    expect(h.supabase.channel).toHaveBeenCalledWith(
+      "thread-events:creator:creator-1"
+    )
+    expect(h.channel.on).toHaveBeenCalledWith(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "thread_events",
+        filter: "creator_id=eq.creator-1",
+      },
+      expect.any(Function)
+    )
+  })
+
+  it("rings (debounced) on an insert and once when the subscription opens", () => {
+    const onRing = vi.fn()
+    renderHook(() => useCreatorDoorbell("creator-1", onRing))
+
+    h.status!("SUBSCRIBED")
+    expect(onRing).toHaveBeenCalledTimes(1)
+
+    h.insert!()
+    h.insert!()
+    vi.advanceTimersByTime(250)
+    expect(onRing).toHaveBeenCalledTimes(2)
+  })
+
+  it("stays silent, and does not subscribe, until the creator is known", () => {
+    const onRing = vi.fn()
+    const { rerender } = renderHook(
+      ({ id }: { id: string | null }) => useCreatorDoorbell(id, onRing),
+      { initialProps: { id: null as string | null } }
+    )
+    expect(h.supabase.channel).not.toHaveBeenCalled()
+
+    rerender({ id: "creator-9" })
+    expect(h.supabase.channel).toHaveBeenCalledWith(
+      "thread-events:creator:creator-9"
+    )
+  })
+})
+
+describe("useThreadEventsDoorbell", () => {
+  it("takes any column filter and still polls while live without one", () => {
+    const onRing = vi.fn()
+    renderHook(() => useThreadEventsDoorbell(null, onRing, { live: true }))
+
+    expect(h.supabase.channel).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(10_000)
+    expect(onRing).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps the batch channel name that useBatchDoorbell has always used", () => {
+    renderHook(() =>
+      useThreadEventsDoorbell({ column: "batch_id", id: "b-1" }, vi.fn())
+    )
+    expect(h.supabase.channel).toHaveBeenCalledWith("thread-events:b-1")
   })
 })

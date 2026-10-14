@@ -11,5 +11,9 @@ export default async function CreatorLayout({
   if (guard.kind === "unavailable")
     return <SessionError reason={guard.reason} />
 
-  return <AppShell role="creator">{children}</AppShell>
+  return (
+    <AppShell role="creator" creatorId={guard.me.creator?.id ?? null}>
+      {children}
+    </AppShell>
+  )
 }

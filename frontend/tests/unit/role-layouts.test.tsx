@@ -7,12 +7,15 @@ import CreatorLayout from "@/app/creator/layout"
 import Home from "@/app/page"
 import { SessionError } from "@/components/auth/session-error"
 
-const { router, auth, guardRoute, getMe } = vi.hoisted(() => ({
-  router: { replace: vi.fn(), refresh: vi.fn() },
-  auth: { signOut: vi.fn() },
-  guardRoute: vi.fn(),
-  getMe: vi.fn(),
-}))
+const { router, auth, guardRoute, getMe, useCreatorDoorbell } = vi.hoisted(
+  () => ({
+    useCreatorDoorbell: vi.fn(),
+    router: { replace: vi.fn(), refresh: vi.fn() },
+    auth: { signOut: vi.fn() },
+    guardRoute: vi.fn(),
+    getMe: vi.fn(),
+  })
+)
 
 class Redirected extends Error {
   constructor(readonly to: string) {
@@ -30,6 +33,14 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/supabase/browser", () => ({
   getSupabaseBrowser: () => ({ auth }),
 }))
+vi.mock("@/hooks/use-api", () => ({
+  useApi: () => ({
+    GET: async () => ({
+      data: { needs_you: 0, waiting: 0, booked: 0, closed: 0 },
+    }),
+  }),
+}))
+vi.mock("@/lib/supabase/realtime", () => ({ useCreatorDoorbell }))
 vi.mock("@/lib/auth/guard", () => ({ guardRoute }))
 vi.mock("@/lib/auth/me", () => ({ getMe }))
 // The dock needs the API client and a microphone; these tests are about the layouts.
@@ -44,6 +55,7 @@ beforeEach(() => {
   auth.signOut.mockReset()
   guardRoute.mockReset()
   getMe.mockReset()
+  useCreatorDoorbell.mockReset()
 })
 
 afterEach(cleanup)
@@ -71,6 +83,20 @@ describe("role layouts", () => {
     expect(
       screen.getByRole("link", { name: "Packages" }).getAttribute("href")
     ).toBe("/creator/packages")
+  })
+
+  it("creator layout hands the shell the creator's id for the realtime doorbell", async () => {
+    guardRoute.mockResolvedValue({
+      kind: "ok",
+      me: { creator: { id: "creator-7" } },
+    })
+
+    render(await CreatorLayout({ children: <p>page body</p> }))
+
+    expect(useCreatorDoorbell).toHaveBeenCalledWith(
+      "creator-7",
+      expect.any(Function)
+    )
   })
 
   it.each([

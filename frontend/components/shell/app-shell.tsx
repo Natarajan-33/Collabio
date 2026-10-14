@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   ChartColumn,
   Compass,
+  FileSignature,
   Handshake,
   LayoutGrid,
   LogOut,
@@ -18,12 +19,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { CreatorIdProvider } from "@/components/shell/creator-context"
 import { WelcomeNoteToast } from "@/components/auth/welcome-note-toast"
 import { TryYourselfTrigger } from "@/components/voice/try-yourself-dialog"
 import { VoiceDock } from "@/components/voice/voice-dock"
 import { VoiceScreenProvider } from "@/components/voice/voice-screen"
+import { useApi } from "@/hooks/use-api"
 import { clearDiscoverSession } from "@/lib/discover/state"
 import { getSupabaseBrowser } from "@/lib/supabase/browser"
+import { useCreatorDoorbell } from "@/lib/supabase/realtime"
 import { cn } from "@/lib/utils"
 
 export type ShellRole = "brand" | "creator"
@@ -35,6 +39,8 @@ type NavItem = {
   icon: LucideIcon
   /** Absent for entries that are not built yet. */
   href?: string
+  /** This entry carries the creator's "needs you" count. */
+  badge?: "offers"
 }
 
 const NAV: Record<ShellRole, NavItem[]> = {
@@ -51,6 +57,12 @@ const NAV: Record<ShellRole, NavItem[]> = {
       icon: LayoutGrid,
       href: "/brand/batches",
     },
+    {
+      label: "Deals",
+      hint: "Booked deals",
+      icon: FileSignature,
+      href: "/brand/deals",
+    },
     { label: "Analytics", hint: "How your deals perform", icon: ChartColumn },
   ],
   creator: [
@@ -60,7 +72,19 @@ const NAV: Record<ShellRole, NavItem[]> = {
       icon: Package,
       href: "/creator/packages",
     },
-    { label: "Offers", hint: "Offers from brands", icon: Handshake },
+    {
+      label: "Offers",
+      hint: "Offers from brands",
+      icon: Handshake,
+      href: "/creator/offers",
+      badge: "offers",
+    },
+    {
+      label: "Deals",
+      hint: "Your booked deals",
+      icon: FileSignature,
+      href: "/creator/deals",
+    },
     { label: "Analytics", hint: "How your deals perform", icon: ChartColumn },
   ],
 }
@@ -85,10 +109,13 @@ function RailLink({
   item,
   href,
   active,
+  count = 0,
 }: {
   item: NavItem
   href: string
   active: boolean
+  /** Shown as a badge when above zero. */
+  count?: number
 }) {
   const Icon = item.icon
 
@@ -110,12 +137,73 @@ function RailLink({
       >
         <Icon className="size-5" aria-hidden />
         {item.label}
+        {count > 0 ? (
+          <>
+            <span
+              aria-hidden
+              data-slot="rail-badge"
+              className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-voice px-1 num text-[0.625rem] leading-none font-semibold text-white"
+            >
+              {count}
+            </span>
+            <span className="sr-only">, {count} need your reply</span>
+          </>
+        ) : null}
       </TooltipTrigger>
       <TooltipContent side="right" sideOffset={8}>
         {item.hint}
       </TooltipContent>
     </Tooltip>
   )
+}
+
+/**
+ * The creator's Offers entry: its badge is the number of offers waiting on them
+ * (`GET /offers/counts`), fetched on mount and again whenever the creator's doorbell
+ * rings. It lives in its own component so a brand shell never asks for it.
+ */
+function OffersRailLink({
+  item,
+  href,
+  active,
+  creatorId,
+}: {
+  item: NavItem
+  href: string
+  active: boolean
+  creatorId: string | null
+}) {
+  const api = useApi()
+  const [needsYou, setNeedsYou] = React.useState(0)
+
+  const fetchCount = React.useCallback(async () => {
+    try {
+      const { data } = await api.GET("/api/v1/offers/counts")
+      return data?.needs_you ?? null
+    } catch {
+      // The badge is a convenience: keep the last count.
+      return null
+    }
+  }, [api])
+
+  React.useEffect(() => {
+    let gone = false
+    void (async () => {
+      const count = await fetchCount()
+      if (!gone && count !== null) setNeedsYou(count)
+    })()
+    return () => {
+      gone = true
+    }
+  }, [fetchCount])
+
+  useCreatorDoorbell(creatorId, () => {
+    void fetchCount().then((count) => {
+      if (count !== null) setNeedsYou(count)
+    })
+  })
+
+  return <RailLink item={item} href={href} active={active} count={needsYou} />
 }
 
 /**
@@ -212,73 +300,85 @@ function SignOut() {
 
 type AppShellProps = {
   role: ShellRole
+  /** The signed-in creator, for the realtime doorbell; unused for brands. */
+  creatorId?: string | null
   children: React.ReactNode
 }
 
-export function AppShell({ role, children }: AppShellProps) {
+export function AppShell({ role, creatorId = null, children }: AppShellProps) {
   const pathname = usePathname()
 
   return (
     <VoiceScreenProvider>
-      <WelcomeNoteToast />
-      <div className="min-h-svh bg-background text-foreground">
-        <aside
-          data-slot="app-rail"
-          className="fixed inset-y-0 left-0 z-30 flex w-(--rail-width) flex-col items-center border-r border-sidebar-border bg-sidebar py-3 text-sidebar-foreground"
-        >
+      <CreatorIdProvider creatorId={creatorId}>
+        <WelcomeNoteToast />
+        <div className="min-h-svh bg-background text-foreground">
+          <aside
+            data-slot="app-rail"
+            className="fixed inset-y-0 left-0 z-30 flex w-(--rail-width) flex-col items-center border-r border-sidebar-border bg-sidebar py-3 text-sidebar-foreground"
+          >
+            <div
+              role="img"
+              aria-label="Collabio"
+              className="flex size-9 items-center justify-center rounded-lg bg-foreground font-display text-2xl leading-none text-background italic"
+            >
+              C
+            </div>
+
+            <nav
+              aria-label="Primary"
+              className="mt-6 flex flex-1 flex-col items-center gap-1"
+            >
+              {NAV[role].map((item) =>
+                item.href && item.badge === "offers" ? (
+                  <OffersRailLink
+                    key={item.label}
+                    item={item}
+                    href={item.href}
+                    active={isActive(pathname, item.href)}
+                    creatorId={creatorId}
+                  />
+                ) : item.href ? (
+                  <RailLink
+                    key={item.label}
+                    item={item}
+                    href={item.href}
+                    active={isActive(pathname, item.href)}
+                  />
+                ) : (
+                  <RailSoon key={item.label} item={item} />
+                )
+              )}
+            </nav>
+
+            <TryYourselfTrigger role={role} />
+
+            <SignOut />
+
+            <p className="mt-3 text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase [writing-mode:vertical-rl]">
+              {ROLE_LABEL[role]}
+            </p>
+          </aside>
+
+          <div className="pl-(--rail-width)">
+            <main
+              id="main"
+              className="mx-auto min-h-svh w-full max-w-[96rem] px-6 pt-6 pb-32"
+            >
+              {children}
+            </main>
+          </div>
+
           <div
-            role="img"
-            aria-label="Collabio"
-            className="flex size-9 items-center justify-center rounded-lg bg-foreground font-display text-2xl leading-none text-background italic"
+            data-slot="voice-dock"
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-4 pl-(--rail-width)"
           >
-            C
-          </div>
-
-          <nav
-            aria-label="Primary"
-            className="mt-6 flex flex-1 flex-col items-center gap-1"
-          >
-            {NAV[role].map((item) =>
-              item.href ? (
-                <RailLink
-                  key={item.label}
-                  item={item}
-                  href={item.href}
-                  active={isActive(pathname, item.href)}
-                />
-              ) : (
-                <RailSoon key={item.label} item={item} />
-              )
-            )}
-          </nav>
-
-          <TryYourselfTrigger role={role} />
-
-          <SignOut />
-
-          <p className="mt-3 text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase [writing-mode:vertical-rl]">
-            {ROLE_LABEL[role]}
-          </p>
-        </aside>
-
-        <div className="pl-(--rail-width)">
-          <main
-            id="main"
-            className="mx-auto min-h-svh w-full max-w-[96rem] px-6 pt-6 pb-32"
-          >
-            {children}
-          </main>
-        </div>
-
-        <div
-          data-slot="voice-dock"
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-4 pl-(--rail-width)"
-        >
-          <div className="pointer-events-auto">
-            <VoiceDock />
+            <div className="pointer-events-auto">
+              <VoiceDock />
+            </div>
           </div>
         </div>
-      </div>
+      </CreatorIdProvider>
     </VoiceScreenProvider>
   )
 }

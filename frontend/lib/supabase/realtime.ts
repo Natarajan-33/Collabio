@@ -13,14 +13,28 @@ export type BatchDoorbellOptions = {
   debounceMs?: number
 }
 
+/** Which `thread_events` rows ring the bell: those of one batch, or of one creator. */
+export type ThreadEventsFilter = {
+  column: "batch_id" | "creator_id"
+  id: string
+}
+
+/** The batch channel keeps the name it has always had; other columns get their own. */
+function channelName({ column, id }: ThreadEventsFilter): string {
+  return column === "batch_id"
+    ? `thread-events:${id}`
+    : `thread-events:creator:${id}`
+}
+
 /**
- * Rings `onRing` when something may have changed on a batch: an insert into
- * `thread_events` for it (debounced into one ring), the subscription opening (to catch
- * up on anything missed meanwhile), and, while `live`, every `pollMs`. The ring carries
- * no data: the caller refetches. `onRing` may be a new function on every render.
+ * Rings `onRing` when something may have changed in the `thread_events` selected by
+ * `filter`: an insert (debounced into one ring), the subscription opening (to catch up
+ * on anything missed meanwhile), and, while `live`, every `pollMs`. The ring carries
+ * no data: the caller refetches. `onRing` may be a new function on every render. With
+ * a `null` filter nothing is subscribed (the id is not known yet); polling still runs.
  */
-export function useBatchDoorbell(
-  batchId: string,
+export function useThreadEventsDoorbell(
+  filter: ThreadEventsFilter | null,
   onRing: () => void,
   { live = false, pollMs = 10_000, debounceMs = 250 }: BatchDoorbellOptions = {}
 ): void {
@@ -29,20 +43,24 @@ export function useBatchDoorbell(
     latest.current = onRing
   })
 
+  const column = filter?.column
+  const id = filter?.id
+
   React.useEffect(() => {
+    if (!column || !id) return
     const ring = () => latest.current()
     const supabase = getSupabaseBrowser()
     let debounce: ReturnType<typeof setTimeout> | undefined
 
     const channel = supabase
-      .channel(`thread-events:${batchId}`)
+      .channel(channelName({ column, id }))
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "thread_events",
-          filter: `batch_id=eq.${batchId}`,
+          filter: `${column}=eq.${id}`,
         },
         () => {
           clearTimeout(debounce)
@@ -57,11 +75,36 @@ export function useBatchDoorbell(
       clearTimeout(debounce)
       void supabase.removeChannel(channel)
     }
-  }, [batchId, debounceMs])
+  }, [column, id, debounceMs])
 
   React.useEffect(() => {
     if (!live) return
     const poll = setInterval(() => latest.current(), pollMs)
     return () => clearInterval(poll)
   }, [live, pollMs])
+}
+
+/** The doorbell for one batch: the brand's board. */
+export function useBatchDoorbell(
+  batchId: string,
+  onRing: () => void,
+  options?: BatchDoorbellOptions
+): void {
+  useThreadEventsDoorbell({ column: "batch_id", id: batchId }, onRing, options)
+}
+
+/**
+ * The doorbell for one creator across every brand: the Offers inbox, the offer desk and
+ * the rail badge. `null` until the creator is known.
+ */
+export function useCreatorDoorbell(
+  creatorId: string | null,
+  onRing: () => void,
+  options?: BatchDoorbellOptions
+): void {
+  useThreadEventsDoorbell(
+    creatorId ? { column: "creator_id", id: creatorId } : null,
+    onRing,
+    options
+  )
 }
