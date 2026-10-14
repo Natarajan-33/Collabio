@@ -430,3 +430,56 @@ async def test_awarded_mail_links_to_the_deal(db, seed, settings, deliverable):
     sent, _ = email.sent[0]
     assert sent.subject == "You're booked: Lumen Audio × Lumen Pods"
     assert f"/creator/deals/{deal_id}" in sent.text
+
+
+async def opt_out(db: Database, creator_email: str) -> None:
+    async with db.acquire() as conn:
+        await conn.execute(
+            "update public.creators set contact_opt_out = true where email = $1", creator_email
+        )
+
+
+@pytest.mark.parametrize("kind", ["creator_brand_countered", "creator_closed"])
+async def test_opted_out_creator_is_not_mailed(db, seed, settings, deliverable, kind):
+    row = await seed(kind, status="closed_lost" if kind == "creator_closed" else "awaiting_reply")
+    await opt_out(db, row.creator_email)
+    email = FakeEmail()
+
+    assert await run(db, email, settings, row) == 1
+
+    assert email.sent == []
+    stored = await row_of(db, row.outbox_id)
+    assert stored["status"] == "skipped"
+    assert stored["last_error"] == "creator unsubscribed"
+
+
+async def test_opted_out_creator_still_gets_the_booking_without_unsubscribe(
+    db, seed, settings, deliverable
+):
+    row = await seed("creator_awarded", event_type="accepted", status="awarded")
+    async with db.acquire() as conn:
+        await Factory(conn).deal(row.thread_id, videos=3, price_cents=110_000)
+    await opt_out(db, row.creator_email)
+    email = FakeEmail()
+
+    await run(db, email, settings, row)
+
+    [(sent, _)] = email.sent
+    assert sent.to == row.creator_email
+    assert sent.subject.startswith("You're booked")
+    assert "List-Unsubscribe" not in sent.headers
+    assert "List-Unsubscribe-Post" not in sent.headers
+    assert "/unsubscribe/" not in sent.html
+    assert "/unsubscribe/" not in sent.text
+    assert sent.reply_to is not None  # they can still answer
+    assert (await row_of(db, row.outbox_id))["status"] == "sent"
+
+
+async def test_opted_out_creator_does_not_stop_brand_mail(db, seed, settings, deliverable):
+    row = await seed("brand_creator_countered", event_type="counter_submitted")
+    await opt_out(db, row.creator_email)
+    email = FakeEmail()
+
+    await run(db, email, settings, row)
+
+    assert [sent.to for sent, _ in email.sent] == [BRAND_EMAIL]

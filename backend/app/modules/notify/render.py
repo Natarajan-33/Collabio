@@ -24,8 +24,14 @@ def is_creator_mail(ctx: NotifyContext) -> bool:
     return ctx.kind.startswith("creator_")
 
 
+def has_unsubscribe(ctx: NotifyContext) -> bool:
+    """Whether the mail offers the creator an unsubscribe link (and header). One to a creator
+    who has already unsubscribed (their booking confirmation) does not."""
+    return is_creator_mail(ctx) and not ctx.creator_opted_out
+
+
 def render(content: NotifyContent, ctx: NotifyContext) -> RenderedEmail:
-    """The email for `content`; only creator mail carries the unsubscribe link."""
+    """The email for `content`; only mail to a creator who has not opted out carries the unsubscribe link."""
     values = {
         "heading": content.heading,
         "lines": content.lines,
@@ -33,7 +39,7 @@ def render(content: NotifyContent, ctx: NotifyContext) -> RenderedEmail:
         "cta_url": content.cta_url,
         "ai_written": content.ai_written,
         "brand_name": ctx.brand_name,
-        "unsubscribe_url": unsubscribe_url(ctx) if is_creator_mail(ctx) else None,
+        "unsubscribe_url": unsubscribe_url(ctx) if has_unsubscribe(ctx) else None,
     }
     return RenderedEmail(
         subject=content.subject,

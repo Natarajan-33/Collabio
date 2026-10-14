@@ -33,6 +33,8 @@ from app.core.thread_state import status_after_call
 from app.modules.negotiation.calls import load_call_context
 from app.modules.negotiation.prompts import CallAsk
 from app.modules.negotiation.structurer import structure_call
+from app.modules.notify import outbox
+from app.modules.notify.outbox import OutboxKind
 from app.modules.threads import repo
 from app.modules.threads.repo import StaleThread, ThreadRef
 from app.schemas.negotiation import NegotiationTerms
@@ -43,6 +45,13 @@ CALL_STATUSES = {"calling", "in_call"}
 NO_ANSWER = "No answer."
 LOW_CONFIDENCE = "Low confidence in the call terms."
 UNREADABLE = "Couldn't read the call terms."
+# The brand hears about a call's outcome the way it hears about an email reply.
+CALL_NOTIFICATIONS: dict[str, OutboxKind] = {
+    "countered": "brand_creator_countered",
+    "accepted": "brand_creator_accepted",
+    "declined": "brand_creator_declined",
+    "needs_review": "brand_needs_review",
+}
 
 SELECT_CALL_THREAD = """
 select id, batch_id, brand_id, creator_id, status
@@ -171,7 +180,7 @@ async def _complete_call(
             if transcript_id is None:
                 return False
             has_terms = terms is not None and bool(terms.price_cents or terms.videos)
-            await repo.apply_event(
+            ended_id = await repo.apply_event_id(
                 conn,
                 thread,
                 expected=CALL_STATUSES,
@@ -185,10 +194,20 @@ async def _complete_call(
                 latest_terms=terms if has_terms else None,
                 latest_terms_source="creator" if has_terms else None,
             )
+            reason = None
             if target == "needs_review":
                 reason = UNREADABLE if terms is None else LOW_CONFIDENCE
                 await repo.record_event(
                     conn, thread, type="needs_review", actor="system", payload={"reason": reason}
+                )
+            kind = CALL_NOTIFICATIONS.get(target)
+            if kind is not None and ended_id is not None:
+                await outbox.enqueue(
+                    conn,
+                    kind=kind,
+                    thread_id=thread.id,
+                    event_id=ended_id,
+                    payload={"reason": reason} if reason else None,
                 )
     except StaleThread:
         return False

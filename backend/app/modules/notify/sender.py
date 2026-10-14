@@ -22,7 +22,7 @@ from app.config import Settings
 from app.core.contact import first_name, is_reserved_address
 from app.core.reply_token import reply_address
 from app.modules.notify.compose import NotifyContext, closed_paragraph, compose
-from app.modules.notify.render import is_creator_mail, render, unsubscribe_url
+from app.modules.notify.render import has_unsubscribe, is_creator_mail, render, unsubscribe_url
 from app.schemas.negotiation import NegotiationTerms
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ SELECT_CONTEXT = """
 select
   t.reply_token, t.batch_id,
   b.brand_name, b.product_name, b.contact_email as brand_email,
-  c.name as creator_name, c.email as creator_email,
+  c.name as creator_name, c.email as creator_email, c.contact_opt_out as creator_opted_out,
   e.terms as event_terms, e.payload as event_payload
 from public.threads t
 join public.batches ba on ba.id = t.batch_id
@@ -79,6 +79,9 @@ where id = $1 and status = 'pending'
 STORE_PAYLOAD = "update public.outbox_emails set payload = payload || $2::jsonb where id = $1"
 
 NO_ADDRESS = "No deliverable address"
+CREATOR_UNSUBSCRIBED = "creator unsubscribed"
+# Mail to a creator who opted out is not sent, except what they asked for by being booked.
+TRANSACTIONAL_KINDS = frozenset({"creator_awarded"})
 NOT_CONFIGURED_FROM = "Email isn't configured (RESEND_FROM)."
 
 
@@ -143,6 +146,7 @@ async def load_context(
         frontend_url=settings.public_frontend_url,
         backend_url=settings.public_backend_url,
         inbound_domain=settings.resend_inbound_domain,
+        creator_opted_out=bool(found["creator_opted_out"]),
     )
 
 
@@ -181,6 +185,11 @@ async def _deliver(
             await conn.execute(MARK_SKIPPED, outbox_id, NO_ADDRESS)
         return
 
+    if is_creator_mail(ctx) and ctx.creator_opted_out and ctx.kind not in TRANSACTIONAL_KINDS:
+        async with db.acquire() as conn:
+            await conn.execute(MARK_SKIPPED, outbox_id, CREATOR_UNSUBSCRIBED)
+        return
+
     paragraph, ai_written = None, False
     if ctx.kind == "creator_closed":
         paragraph, ai_written = await _closed_text(db, gemini, row, ctx)
@@ -206,7 +215,7 @@ async def _deliver(
                 "List-Unsubscribe": f"<{unsubscribe_url(ctx)}>",
                 "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
             }
-            if creator_mail
+            if has_unsubscribe(ctx)
             else {}
         ),
     )

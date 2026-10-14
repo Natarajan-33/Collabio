@@ -487,3 +487,121 @@ async def test_intake_brief_id_that_is_not_a_uuid_is_ignored(
 
     assert (await client.post(HOOK, **signed(body))).status_code == 200
     assert await transcripts(api_db, brief_id=launched_batch.brief_id) == []
+
+
+# The brand hears about the call's outcome -----------------------------------------------
+
+
+def call_with(stance: str, **overrides) -> StructuredCall:
+    terms = NegotiationTerms(
+        videos=3,
+        price_cents=120000,
+        stance=stance,
+        source="call",
+        confidence=0.9,
+        **overrides,
+    )
+    return StructuredCall(terms=terms, summary="Summary of the call.")
+
+
+async def outbox_rows(api_db, thread_id):
+    async with api_db.acquire() as conn:
+        rows = await conn.fetch(
+            "select kind, event_id, to_role, payload from public.outbox_emails"
+            " where thread_id = $1 order by id",
+            thread_id,
+        )
+    return [dict(r) | {"payload": json.loads(r["payload"])} for r in rows]
+
+
+async def ended_event_id(api_db, thread_id) -> int:
+    async with api_db.acquire() as conn:
+        return await conn.fetchval(
+            "select id from public.thread_events where thread_id = $1 and type = 'call_ended'",
+            thread_id,
+        )
+
+
+@pytest.mark.parametrize(
+    ("stance", "status", "kind"),
+    [
+        ("counter", "countered", "brand_creator_countered"),
+        ("accept", "accepted", "brand_creator_accepted"),
+        ("decline", "declined", "brand_creator_declined"),
+    ],
+)
+async def test_call_outcome_notifies_the_brand(
+    client, m2_settings, api_db, launched_batch, fake_gemini, stance, status, kind
+):
+    thread_id = await in_call_arjun(api_db, launched_batch)
+    fake_gemini.queue_structured(call_with(stance))
+
+    await client.post(HOOK, **signed(hook_body()))
+
+    assert (await thread_row(api_db, thread_id))["status"] == status
+    [row] = await outbox_rows(api_db, thread_id)
+    assert row["kind"] == kind
+    assert row["to_role"] == "brand"
+    assert row["event_id"] == await ended_event_id(api_db, thread_id)
+
+
+async def test_low_confidence_call_notifies_the_brand_it_needs_review(
+    client, m2_settings, api_db, launched_batch, fake_gemini
+):
+    thread_id = await in_call_arjun(api_db, launched_batch)
+    fake_gemini.queue_structured(counter(confidence=0.4))
+
+    await client.post(HOOK, **signed(hook_body()))
+
+    [row] = await outbox_rows(api_db, thread_id)
+    assert row["kind"] == "brand_needs_review"
+    assert row["event_id"] == await ended_event_id(api_db, thread_id)
+    assert row["payload"] == {"reason": "Low confidence in the call terms."}
+
+
+async def test_unreadable_call_notifies_the_brand_it_needs_review(
+    client, m2_settings, api_db, launched_batch, fake_gemini
+):
+    thread_id = await in_call_arjun(api_db, launched_batch)
+    fake_gemini.queue_structured({"terms": {"stance": "bogus"}})
+
+    await client.post(HOOK, **signed(hook_body()))
+
+    [row] = await outbox_rows(api_db, thread_id)
+    assert row["kind"] == "brand_needs_review"
+    assert row["payload"] == {"reason": "Couldn't read the call terms."}
+
+
+async def test_duplicate_post_call_queues_one_notification(
+    client, m2_settings, api_db, launched_batch, fake_gemini
+):
+    thread_id = await in_call_arjun(api_db, launched_batch)
+    fake_gemini.queue_structured(counter())
+    request = signed(hook_body())
+
+    await client.post(HOOK, **request)
+    await client.post(HOOK, **request)
+
+    assert len(await outbox_rows(api_db, thread_id)) == 1
+
+
+async def test_unanswered_call_queues_no_notification(
+    client, m2_settings, api_db, launched_batch, fake_gemini
+):
+    thread_id = await in_call_arjun(api_db, launched_batch)
+    agent_only = [{"role": "agent", "message": "Hello?", "time_in_call_secs": 0}]
+
+    await client.post(HOOK, **signed(hook_body(transcript=agent_only)))
+
+    assert await outbox_rows(api_db, thread_id) == []
+
+
+async def test_the_watcher_door_notifies_the_brand_too(api_db, launched_batch, fake_gemini):
+    thread_id = await in_call_arjun(api_db, launched_batch)
+    fake_gemini.queue_structured(call_with("accept"))
+    snapshot = snapshot_from_payload(hook_body()["data"])
+
+    assert await complete_call(api_db, fake_gemini, conv_id(1), snapshot) is True
+
+    [row] = await outbox_rows(api_db, thread_id)
+    assert row["kind"] == "brand_creator_accepted"

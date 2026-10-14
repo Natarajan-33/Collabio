@@ -53,6 +53,7 @@ class NotifyContext:
     frontend_url: str
     backend_url: str
     inbound_domain: str
+    creator_opted_out: bool = False  # the creator unsubscribed; only creator_awarded still goes
 
 
 class NotifyContent(BaseModel):
