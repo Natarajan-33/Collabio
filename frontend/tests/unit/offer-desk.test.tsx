@@ -363,6 +363,92 @@ describe("accepting", () => {
   })
 })
 
+describe("binding to the terms that were read", () => {
+  it("accept posts the event id from when the dialog opened, even after a refetch", async () => {
+    const user = userEvent.setup()
+    serveDesk(makeDesk())
+    h.api.POST.mockResolvedValue({ data: makeDesk({ allowed_actions: [] }) })
+    renderDesk()
+
+    await user.click(await screen.findByRole("button", { name: "Accept" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(
+      within(dialog).getByText("3 videos · $950 · live by Nov 14, 2026")
+    ).toBeTruthy()
+
+    // The brand counters while the dialog is open; the doorbell refetches.
+    serveDesk(
+      makeDesk({
+        terms_event_id: 43,
+        status: "countered",
+        latest: column({ price_cents: 80000, per_video_cents: 26667 }),
+        latest_source: "brand",
+      })
+    )
+    const before = h.api.GET.mock.calls.length
+    await act(async () => {
+      h.ring!()
+    })
+    await waitFor(() =>
+      expect(h.api.GET.mock.calls.length).toBeGreaterThan(before)
+    )
+
+    // The dialog still shows what was read, and binds to it.
+    expect(
+      within(dialog).getByText("3 videos · $950 · live by Nov 14, 2026")
+    ).toBeTruthy()
+    await user.click(
+      within(dialog).getByRole("button", { name: "Accept these terms" })
+    )
+
+    await waitFor(() => expect(h.api.POST).toHaveBeenCalledTimes(1))
+    expect(h.api.POST.mock.calls[0][1].body).toEqual({
+      based_on_event_id: 42,
+    })
+  })
+
+  it("counter is based on the event id from when the dialog opened", async () => {
+    const user = userEvent.setup()
+    serveDesk(makeDesk())
+    h.api.POST.mockImplementation(async (path: string) =>
+      path.endsWith("/counter/preview")
+        ? {
+            data: {
+              terms: {
+                stance: "counter",
+                source: "in_app",
+                conditions: [],
+                addons: [],
+                confidence: 1,
+              },
+              delta: { ...makeDesk().delta, latest_headline: "Preview" },
+              below_floor_by_cents: null,
+            },
+          }
+        : { data: makeDesk({ allowed_actions: [] }) }
+    )
+    renderDesk()
+
+    await user.click(await screen.findByRole("button", { name: "Counter" }))
+    const dialog = await screen.findByRole("dialog")
+
+    serveDesk(makeDesk({ terms_event_id: 99 }))
+    const before = h.api.GET.mock.calls.length
+    await act(async () => {
+      h.ring!()
+    })
+    await waitFor(() =>
+      expect(h.api.GET.mock.calls.length).toBeGreaterThan(before)
+    )
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Send counter" })
+    )
+    await waitFor(() => expect(postsTo("/counter").length).toBe(1))
+    expect(postsTo("/counter")[0][1].body.based_on_event_id).toBe(42)
+  })
+})
+
 describe("declining", () => {
   it("posts the optional reason", async () => {
     const user = userEvent.setup()

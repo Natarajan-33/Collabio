@@ -73,6 +73,25 @@ export function OfferActions({
   const allowed = new Set(desk.allowed_actions)
   const [busy, setBusy] = React.useState(false)
 
+  // What the creator is shown when a dialog opens is what they act on. A refetch while
+  // it is open (the doorbell) replaces `desk`, but must not change the terms, or the
+  // event they are bound to, under a confirmation they have already read.
+  const [snapshot, setSnapshot] = React.useState<{
+    dialog: OfferDialog
+    eventId: number | null
+    offer: OfferDesk["my_package"]
+  } | null>(null)
+  if (dialog === null) {
+    if (snapshot !== null) setSnapshot(null)
+  } else if (snapshot?.dialog !== dialog) {
+    setSnapshot({
+      dialog,
+      eventId: desk.terms_event_id,
+      offer: brandOffer(desk),
+    })
+  }
+  const eventId = snapshot ? snapshot.eventId : desk.terms_event_id
+
   // Counter-only state. Previews, the floor confirmation and a floor the server found
   // are all tied to the exact terms they were made for, so editing invalidates them
   // without any resetting.
@@ -167,7 +186,7 @@ export function OfferActions({
       () =>
         api.POST("/api/v1/offers/{thread_id}/accept", {
           params: { path: { thread_id: threadId } },
-          body: { based_on_event_id: desk.terms_event_id },
+          body: { based_on_event_id: eventId },
         }),
       "Offer accepted"
     )
@@ -198,7 +217,7 @@ export function OfferActions({
           params: { path: { thread_id: threadId } },
           body: {
             terms: input,
-            based_on_event_id: desk.terms_event_id,
+            based_on_event_id: eventId,
             confirm_below_floor: confirmingFloor,
             note: draft.note?.trim() ? draft.note : null,
           },
@@ -217,7 +236,7 @@ export function OfferActions({
     }
   }
 
-  const offer = brandOffer(desk)
+  const offer = snapshot?.offer ?? brandOffer(desk)
   const extras = [...offer.conditions]
 
   return (

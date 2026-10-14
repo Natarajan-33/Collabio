@@ -19,11 +19,19 @@ export type ThreadEventsFilter = {
   id: string
 }
 
-/** The batch channel keeps the name it has always had; other columns get their own. */
-function channelName({ column, id }: ThreadEventsFilter): string {
+/**
+ * The batch channel keeps the name it has always had. Creator doorbells are mounted
+ * several at once (the rail badge and the page), and a topic names one channel in the
+ * client, so each hook instance gets its own: otherwise one would reuse (or, on cleanup,
+ * remove) the other's channel.
+ */
+function channelName(
+  { column, id }: ThreadEventsFilter,
+  instance: string
+): string {
   return column === "batch_id"
     ? `thread-events:${id}`
-    : `thread-events:creator:${id}`
+    : `thread-events:creator:${id}:${instance}`
 }
 
 /**
@@ -38,6 +46,7 @@ export function useThreadEventsDoorbell(
   onRing: () => void,
   { live = false, pollMs = 10_000, debounceMs = 250 }: BatchDoorbellOptions = {}
 ): void {
+  const instance = React.useId()
   const latest = React.useRef(onRing)
   React.useEffect(() => {
     latest.current = onRing
@@ -53,7 +62,7 @@ export function useThreadEventsDoorbell(
     let debounce: ReturnType<typeof setTimeout> | undefined
 
     const channel = supabase
-      .channel(channelName({ column, id }))
+      .channel(channelName({ column, id }, instance))
       .on(
         "postgres_changes",
         {
@@ -75,7 +84,7 @@ export function useThreadEventsDoorbell(
       clearTimeout(debounce)
       void supabase.removeChannel(channel)
     }
-  }, [column, id, debounceMs])
+  }, [column, id, debounceMs, instance])
 
   React.useEffect(() => {
     if (!live) return

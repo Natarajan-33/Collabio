@@ -296,4 +296,32 @@ describe("creator offers page", () => {
     await user.click(screen.getByRole("button", { name: "Try again" }))
     expect(await screen.findByText("Lumen")).toBeTruthy()
   })
+
+  it("shows the error state with a retry when a request rejects", async () => {
+    const user = userEvent.setup()
+    h.api.GET.mockRejectedValue(new TypeError("Failed to fetch"))
+    renderPage()
+
+    expect(await screen.findByText("Could not load your offers.")).toBeTruthy()
+    serve(() => [offer("t1", "Lumen")])
+    await user.click(screen.getByRole("button", { name: "Try again" }))
+    expect(await screen.findByText("Lumen")).toBeTruthy()
+  })
+
+  it("does not update after it unmounts mid-request", async () => {
+    let release: (value: unknown) => void = () => {}
+    h.api.GET.mockImplementation(
+      () => new Promise((resolve) => (release = resolve))
+    )
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {})
+    const { unmount } = renderPage()
+    unmount()
+
+    await act(async () => {
+      release({ data: [] })
+    })
+
+    expect(errors).not.toHaveBeenCalled()
+    errors.mockRestore()
+  })
 })

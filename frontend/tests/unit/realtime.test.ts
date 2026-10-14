@@ -183,7 +183,7 @@ describe("useCreatorDoorbell", () => {
     renderHook(() => useCreatorDoorbell("creator-1", vi.fn()))
 
     expect(h.supabase.channel).toHaveBeenCalledWith(
-      "thread-events:creator:creator-1"
+      expect.stringContaining("thread-events:creator:creator-1")
     )
     expect(h.channel.on).toHaveBeenCalledWith(
       "postgres_changes",
@@ -220,7 +220,7 @@ describe("useCreatorDoorbell", () => {
 
     rerender({ id: "creator-9" })
     expect(h.supabase.channel).toHaveBeenCalledWith(
-      "thread-events:creator:creator-9"
+      expect.stringContaining("thread-events:creator:creator-9")
     )
   })
 })
@@ -240,5 +240,35 @@ describe("useThreadEventsDoorbell", () => {
       useThreadEventsDoorbell({ column: "batch_id", id: "b-1" }, vi.fn())
     )
     expect(h.supabase.channel).toHaveBeenCalledWith("thread-events:b-1")
+  })
+})
+
+describe("two creator doorbells at once (rail badge and page)", () => {
+  it("subscribe on distinct topics, and unmounting one leaves the other's channel", () => {
+    const channels: { on: unknown; subscribe: unknown }[] = []
+    h.supabase.channel.mockImplementation(() => {
+      const channel = {
+        on: vi.fn().mockReturnThis(),
+        subscribe: vi.fn().mockReturnThis(),
+      }
+      channels.push(channel)
+      return channel
+    })
+
+    const first = renderHook(() => useCreatorDoorbell("creator-1", vi.fn()))
+    renderHook(() => useCreatorDoorbell("creator-1", vi.fn()))
+
+    const topics = h.supabase.channel.mock.calls.map(([topic]) => topic)
+    expect(topics).toHaveLength(2)
+    expect(new Set(topics).size).toBe(2)
+    for (const topic of topics) {
+      expect(topic).toContain("thread-events:creator:creator-1")
+    }
+
+    first.unmount()
+
+    expect(h.supabase.removeChannel).toHaveBeenCalledTimes(1)
+    expect(h.supabase.removeChannel).toHaveBeenCalledWith(channels[0])
+    expect(h.supabase.removeChannel).not.toHaveBeenCalledWith(channels[1])
   })
 })

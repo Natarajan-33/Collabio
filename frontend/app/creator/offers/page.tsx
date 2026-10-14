@@ -38,18 +38,30 @@ export default function CreatorOffersPage() {
   const [attempt, setAttempt] = React.useState(0)
   /** Only the newest request may write: a slow answer for an old tab must not win. */
   const latest = React.useRef(0)
+  const mounted = React.useRef(false)
+  React.useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   const fetchOffers = React.useCallback(async () => {
-    const [list, tally] = await Promise.all([
-      api.GET("/api/v1/offers", { params: { query: { tab, sort } } }),
-      api.GET("/api/v1/offers/counts"),
-    ])
-    return { list: list.data ?? null, tally: tally.data ?? null }
+    try {
+      const [list, tally] = await Promise.all([
+        api.GET("/api/v1/offers", { params: { query: { tab, sort } } }),
+        api.GET("/api/v1/offers/counts"),
+      ])
+      return { list: list.data ?? null, tally: tally.data ?? null }
+    } catch {
+      // A network failure reads like any other failed load: the error state.
+      return { list: null, tally: null }
+    }
   }, [api, tab, sort])
 
   const apply = React.useCallback(
     (result: Awaited<ReturnType<typeof fetchOffers>>, mine: number) => {
-      if (mine !== latest.current) return
+      if (!mounted.current || mine !== latest.current) return
       if (result.tally) setCounts(result.tally)
       if (result.list) {
         setItems(result.list)
