@@ -117,3 +117,13 @@ def test_m3_secret_hidden_from_repr():
 
     assert "whsec_x" not in repr(settings)
     assert settings.resend_webhook_secret == "whsec_x"
+
+
+def test_env_example_ships_with_demo_mode_off():
+    from pathlib import Path
+
+    lines = (Path(__file__).parents[2] / ".env.example").read_text().splitlines()
+
+    assert "DEMO_MODE=0" in lines
+    assert not any(line.strip() == "DEMO_MODE=1" for line in lines)
+    assert any("development" in line and line.startswith("#") for line in lines)

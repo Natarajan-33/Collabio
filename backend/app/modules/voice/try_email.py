@@ -19,7 +19,6 @@ from app.modules.voice.try_call import (
     INSERT_TRY_BATCH,
     INSERT_TRY_BRIEF,
     SCENARIOS,
-    DemoNotConfigured,
     TryCallRateLimited,
     _load_demo,
 )

@@ -249,7 +249,7 @@ async def place_try_call(
         )
     except CallPlacementFailed as exc:
         await _fail_try(db, thread_id, f"Call couldn't be placed: {_scrub_phone(str(exc), phone)}")
-        raise exc
+        raise
     except ElevenLabsUnavailable:
         await _fail_try(db, thread_id, VOICE_UNAVAILABLE)
         raise
