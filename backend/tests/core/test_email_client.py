@@ -7,11 +7,18 @@ import pytest
 from fastapi import HTTPException
 
 from app.adapters import email as email_module
-from app.adapters.email import EmailRejected, EmailUnavailable, OutboundEmail, ResendClient
+from app.adapters.email import (
+    EmailRejected,
+    EmailUnavailable,
+    OutboundEmail,
+    ReceivedEmail,
+    ResendClient,
+)
 from app.api import deps
 from app.config import Settings
 
 URL = "https://api.resend.com/emails"
+RECEIVED_URL = "https://api.resend.com/emails/receiving/"
 
 
 @pytest.fixture(autouse=True)
@@ -142,6 +149,83 @@ async def test_a_2xx_without_an_email_id_is_unavailable(client, respx_mock, resp
 
     with pytest.raises(EmailUnavailable):
         await client.send(make_email(), idempotency_key="k1")
+
+
+RECEIVED_BODY = {
+    "object": "email",
+    "id": "rcv_1",
+    "from": "Priya R <priya@creators.io>",
+    "to": ["t-abcdefghij012345@in.collabio.app"],
+    "received_for": ["t-abcdefghij012345@in.collabio.app"],
+    "subject": "Re: Collab offer",
+    "text": "3 for $1,200",
+    "html": None,
+    "headers": {"message-id": "<m@x>"},
+    "attachments": [{"id": "a1", "filename": "rate.pdf"}],
+}
+
+
+async def test_get_received_parses_fields(client, respx_mock):
+    route = respx_mock.get(RECEIVED_URL + "rcv_1").mock(
+        return_value=httpx.Response(200, json=RECEIVED_BODY)
+    )
+
+    received = await client.get_received("rcv_1")
+
+    assert isinstance(received, ReceivedEmail)
+    assert received.id == "rcv_1"
+    assert received.from_ == "Priya R <priya@creators.io>"
+    assert received.to == ["t-abcdefghij012345@in.collabio.app"]
+    assert received.received_for == ["t-abcdefghij012345@in.collabio.app"]
+    assert received.subject == "Re: Collab offer"
+    assert received.text == "3 for $1,200"
+    assert received.html is None
+    assert received.attachments == [{"id": "a1", "filename": "rate.pdf"}]
+    [call] = route.calls
+    assert call.request.headers["Authorization"] == "Bearer k"
+
+
+async def test_get_received_retries_5xx(client, respx_mock):
+    route = respx_mock.get(RECEIVED_URL + "rcv_1").mock(
+        side_effect=[
+            httpx.Response(503, json={"message": "later"}),
+            httpx.Response(200, json=RECEIVED_BODY),
+        ]
+    )
+
+    received = await client.get_received("rcv_1")
+
+    assert received.id == "rcv_1"
+    assert route.call_count == 2
+
+
+async def test_get_received_gives_up_after_three_5xx(client, respx_mock):
+    route = respx_mock.get(RECEIVED_URL + "rcv_1").mock(return_value=httpx.Response(500))
+
+    with pytest.raises(EmailUnavailable):
+        await client.get_received("rcv_1")
+
+    assert route.call_count == 3
+
+
+async def test_get_received_404_rejected(client, respx_mock):
+    route = respx_mock.get(RECEIVED_URL + "rcv_1").mock(
+        return_value=httpx.Response(404, json={"message": "Email not found"})
+    )
+
+    with pytest.raises(EmailRejected, match="Email not found"):
+        await client.get_received("rcv_1")
+
+    assert route.call_count == 1
+
+
+async def test_get_received_unreadable_body_is_unavailable(client, respx_mock):
+    respx_mock.get(RECEIVED_URL + "rcv_1").mock(
+        return_value=httpx.Response(200, json={"id": "rcv_1"})
+    )
+
+    with pytest.raises(EmailUnavailable):
+        await client.get_received("rcv_1")
 
 
 def test_requires_api_key():

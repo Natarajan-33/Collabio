@@ -12,7 +12,7 @@ from app.adapters.elevenlabs import (
     ConversationSnapshot,
     ElevenLabsUnavailable,
 )
-from app.adapters.email import OutboundEmail
+from app.adapters.email import EmailRejected, OutboundEmail, ReceivedEmail
 from app.adapters.gemini import (
     EMBED_DIMENSIONS,
     GeminiInvalidOutput,
@@ -165,12 +165,16 @@ class FakeEmail:
     recipient address to the exception its send raises (nothing is recorded).
     With `crash_after_send` the send is recorded, then `RuntimeError("crash")` is raised,
     as when the process dies between Resend accepting the mail and the app noting it.
+    `received` serves inbound bodies by email id (a missing id is `EmailRejected`, like a 404);
+    set `received_failure` to make every `get_received` raise it.
     """
 
     def __init__(self) -> None:
         self.sent: list[tuple[OutboundEmail, str]] = []
         self.failures: dict[str, Exception] = {}
         self.crash_after_send = False
+        self.received: dict[str, ReceivedEmail] = {}
+        self.received_failure: Exception | None = None
         self._ids: dict[str, str] = {}
         self._run = uuid.uuid4().hex[:8]
 
@@ -185,6 +189,14 @@ class FakeEmail:
         if self.crash_after_send:
             raise RuntimeError("crash")
         return sent_id
+
+    async def get_received(self, email_id: str) -> ReceivedEmail:
+        if self.received_failure is not None:
+            raise self.received_failure
+        try:
+            return self.received[email_id]
+        except KeyError:
+            raise EmailRejected(f"no received email {email_id}") from None
 
     def email_id(self, n: int) -> str:
         """The id this fake gives its n-th distinct send (random prefix per fake)."""
