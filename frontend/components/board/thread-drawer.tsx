@@ -2,6 +2,7 @@
 
 import * as React from "react"
 
+import { AwardDialog } from "@/components/board/award-dialog"
 import { CounterDialog } from "@/components/board/counter-dialog"
 import { DeclineDialog } from "@/components/board/decline-dialog"
 import { DeltaTable } from "@/components/board/delta-table"
@@ -204,6 +205,16 @@ export function ThreadDrawer({
               </section>
             ) : null}
 
+            <AwardDialog
+              threadId={card.id}
+              creatorName={card.creator.name}
+              open={dialog === "award"}
+              onOpenChange={(open) => {
+                if (!open) onCloseDialog()
+              }}
+              onAwarded={onChanged}
+              onStale={onChanged}
+            />
             <CounterDialog
               card={card}
               open={dialog === "counter"}

@@ -489,4 +489,64 @@ describe("Brief page", () => {
 
     expect(pulse()?.getAttribute("data-pulse")).toBe("true")
   })
+
+  it("sets how many creators to hire, from 1 to 10", async () => {
+    const user = userEvent.setup()
+    await renderPage()
+    const group = screen.getByRole("group", { name: "Creators to hire" })
+    expect(within(group).getByRole("status").textContent).toBe("1")
+    expect(
+      within(group)
+        .getByRole("button", { name: "Decrease creators to hire" })
+        .hasAttribute("disabled")
+    ).toBe(true)
+
+    h.api.PATCH.mockImplementation(
+      async (_path: string, init: { body: Partial<DealBrief> }) => {
+        current = complete({ ...current, ...init.body })
+        return { data: current, response: { status: 200 } }
+      }
+    )
+    await user.click(
+      within(group).getByRole("button", { name: "Increase creators to hire" })
+    )
+
+    await waitFor(() =>
+      expect(h.api.PATCH).toHaveBeenCalledWith(BRIEF_PATH, {
+        ...PARAMS,
+        body: { hires_target: 2 },
+      })
+    )
+    await waitFor(() =>
+      expect(within(group).getByRole("status").textContent).toBe("2")
+    )
+    // Launching is unchanged by it.
+    expect(screen.getByRole("button", { name: "Launch to 2" })).toBeTruthy()
+  })
+
+  it("keeps the target when it cannot be saved", async () => {
+    const user = userEvent.setup()
+    await renderPage()
+    h.api.PATCH.mockResolvedValue({
+      error: {},
+      response: { status: 500 },
+    })
+    const group = screen.getByRole("group", { name: "Creators to hire" })
+    await user.click(
+      within(group).getByRole("button", { name: "Increase creators to hire" })
+    )
+    await waitFor(() => expect(h.toastError).toHaveBeenCalled())
+    expect(within(group).getByRole("status").textContent).toBe("1")
+  })
+
+  it("stops at ten", async () => {
+    current = complete({ hires_target: 10 })
+    await renderPage()
+    const group = screen.getByRole("group", { name: "Creators to hire" })
+    expect(
+      within(group)
+        .getByRole("button", { name: "Increase creators to hire" })
+        .hasAttribute("disabled")
+    ).toBe(true)
+  })
 })

@@ -11,6 +11,7 @@ import { BriefCard } from "@/components/brief/brief-card"
 import { CreatorsPanel } from "@/components/brief/creators-panel"
 import { LaunchBar } from "@/components/brief/launch-bar"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Stepper } from "@/components/ui/stepper"
 import {
   useVoiceScreen,
   type VoiceIntent,
@@ -196,6 +197,30 @@ export default function BriefPage() {
     [api, path, applySaved, refreshBrief]
   )
 
+  // How many creators the brand wants to hire. Saved at once, like any other field.
+  const [savingHires, setSavingHires] = React.useState(false)
+  const hiresLabelId = React.useId()
+  async function setHiresTarget(next: number | null) {
+    if (next === null) return
+    setSavingHires(true)
+    try {
+      const reply = await api.PATCH("/api/v1/briefs/{brief_id}", {
+        ...path,
+        body: { hires_target: next },
+      })
+      if (reply.data) {
+        commit(reply.data)
+      } else {
+        if (reply.response.status === 409) void refreshBrief()
+        toast.error("Couldn't save how many creators to hire")
+      }
+    } catch {
+      toast.error("Couldn't save how many creators to hire")
+    } finally {
+      setSavingHires(false)
+    }
+  }
+
   // Who the launch reaches: everyone who has not opted out of contact.
   const reachable = creators.filter((c) => c.excluded_reason === null)
 
@@ -360,6 +385,27 @@ export default function BriefPage() {
               setChannels((current) => ({ ...current, [creatorId]: plan }))
             }
           />
+          <fieldset
+            disabled={savingHires}
+            className="m-0 flex min-w-0 items-center justify-between gap-4 rounded-2xl border bg-card p-4"
+          >
+            <div className="flex flex-col">
+              <p id={hiresLabelId} className="text-sm font-medium">
+                Creators to hire
+              </p>
+              <p className="text-xs text-muted-foreground">
+                The board tells you when you have hired enough.
+              </p>
+            </div>
+            <Stepper
+              labelledBy={hiresLabelId}
+              noun="creators to hire"
+              min={1}
+              max={10}
+              value={brief.hires_target}
+              onValueChange={(next) => void setHiresTarget(next)}
+            />
+          </fieldset>
           <LaunchBar
             count={reachable.length}
             missing={brief.missing}

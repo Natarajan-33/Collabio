@@ -655,3 +655,63 @@ describe("decline and withdraw dialogs", () => {
     expect(h.api.POST).not.toHaveBeenCalled()
   })
 })
+
+describe("award dialog", () => {
+  const awardable = {
+    status: "countered",
+    allowed_actions: ["award", "counter", "decline"],
+  }
+  const preview = {
+    agreed: {
+      videos: 3,
+      format: "short_video",
+      price_cents: 120000,
+      go_live_by: "2026-11-14",
+      conditions: [],
+      addons: [],
+    },
+    milestones: [1, 2, 3].map((seq) => ({
+      seq,
+      title: `Video ${seq}`,
+      amount_cents: 40000,
+      due_date: "2026-11-14",
+    })),
+    over_ceiling_cents: null,
+    hired: 0,
+    hires_target: 1,
+    would_reach_target: false,
+    over_target: false,
+    open_others: [],
+    terms_event_id: 7,
+  }
+
+  it("opens from the Award button and reloads the board once booked", async () => {
+    const user = userEvent.setup()
+    serve({ card: awardable })
+    h.api.POST.mockImplementation(async (path: string) =>
+      path.endsWith("/award/preview")
+        ? { data: preview }
+        : { data: { id: "deal-1", batch_id: "b1" } }
+    )
+    wrap(<Drawer />)
+    await user.click(await screen.findByRole("button", { name: "Award" }))
+    const dialog = await screen.findByRole("dialog", { name: /Award Priya/ })
+    await user.click(
+      await within(dialog).findByRole("button", { name: "Confirm award" })
+    )
+    await waitFor(() => expect(h.changed).toHaveBeenCalled())
+    expect(postsTo("/threads/{thread_id}/award")).toHaveLength(1)
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: /Award Priya/ })).toBeNull()
+    )
+  })
+
+  it("opens straight into the dialog the board asked for, sending nothing", async () => {
+    serve({ card: awardable })
+    h.api.POST.mockResolvedValue({ data: preview })
+    wrap(<Drawer initialDialog="award" />)
+    const dialog = await screen.findByRole("dialog", { name: /Award Priya/ })
+    await within(dialog).findByRole("button", { name: "Confirm award" })
+    expect(postsTo("/threads/{thread_id}/award")).toHaveLength(0)
+  })
+})
