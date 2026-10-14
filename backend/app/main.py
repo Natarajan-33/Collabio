@@ -13,6 +13,7 @@ from app.api.routers import (
     discovery,
     health,
     me,
+    offers,
     packages,
     unsubscribe,
     voice,
@@ -78,6 +79,7 @@ def create_app() -> FastAPI:
     api.include_router(voice.router)
     api.include_router(briefs.router)
     api.include_router(board.router)
+    api.include_router(offers.router)
     api.include_router(unsubscribe.router)
     api.include_router(webhooks.router)
     app.include_router(api)
