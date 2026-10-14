@@ -101,6 +101,11 @@ async def test_award_preview_from_counter(brand_client, launched_batch, countere
     assert preview["over_target"] is False
     assert preview["terms_event_id"] == counter_id
     assert {c["handle"] for c in preview["open_others"]} == {"arjuntech", "mayamakestech"}
+    assert set(preview["open_other_thread_ids"]) == {
+        str(launched_batch.threads["arjuntech"]),
+        str(launched_batch.threads["mayamakestech"]),
+    }
+    assert len(preview["open_other_thread_ids"]) == len(preview["open_others"])
     assert (await thread_row(api_db, thread_id))[
         "status"
     ] == "countered"  # a preview writes nothing

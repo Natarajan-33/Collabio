@@ -150,6 +150,7 @@ class DealsService:
                 )
                 for o in others
             ],
+            open_other_thread_ids=[o["id"] for o in others],
             terms_event_id=terms_event_id,
         )
 

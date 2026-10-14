@@ -42,6 +42,9 @@ class AwardPreview(BaseModel):
     would_reach_target: bool
     over_target: bool
     open_others: list[CreatorChip]
+    # The threads behind `open_others`, in the same order: what "decline the rest" is sent, so
+    # it closes the conversations the brand saw and nobody who opened up afterwards.
+    open_other_thread_ids: list[UUID] = []
     terms_event_id: int | None
 
 
