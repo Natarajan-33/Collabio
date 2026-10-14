@@ -25,6 +25,7 @@ function brief(over: Partial<DealBrief> = {}): DealBrief {
     missing: [],
     violations: [],
     flexibility: [],
+    hires_target: 1,
     ...over,
   }
 }

@@ -942,7 +942,7 @@
             "description": "`brief_launched`"
           },
           "422": {
-            "description": "`detail` is `{error: brief_incomplete, missing, violations}`, `{error: channel_not_allowed, creator_id, message}` or `{error: no_creators}`"
+            "description": "`detail` is `{error: brief_incomplete, missing, violations}`, `{error: channel_not_allowed, creator_id, message}`, `{error: no_creators}` or `{code: creator_not_registered, message, creator_ids}`"
           }
         }
       }
@@ -1181,6 +1181,922 @@
           },
           "409": {
             "description": "`thread_not_failed`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{thread_id}/counter/preview": {
+      "post": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Preview Counter",
+        "description": "The counter as it would be recorded, its delta, and whether it is above your ceiling.",
+        "operationId": "preview_counter_api_v1_threads__thread_id__counter_preview_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandCounterPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandCounterPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`above_ceiling` (counter only)"
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{thread_id}/counter": {
+      "post": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Counter Thread",
+        "description": "Counter the creator's position; the creator is notified.",
+        "operationId": "counter_thread_api_v1_threads__thread_id__counter_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandCounterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadCard"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`above_ceiling` (counter only)"
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{thread_id}/resolve": {
+      "post": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Resolve Thread",
+        "description": "Settle a reply that needed review: record a counter, an acceptance or a decline.",
+        "operationId": "resolve_thread_api_v1_threads__thread_id__resolve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadCard"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`above_ceiling` (counter only)"
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{thread_id}/decline": {
+      "post": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Decline Thread",
+        "description": "Withdraw the offer or decline the creator's position; the creator is told politely.",
+        "operationId": "decline_thread_api_v1_threads__thread_id__decline_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandDeclineRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadCard"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`above_ceiling` (counter only)"
+          }
+        }
+      }
+    },
+    "/api/v1/batches/{batch_id}/decline-rest/preview": {
+      "post": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Preview Decline Rest",
+        "description": "The open threads \"decline the rest\" would close, and the ones it would leave alone.",
+        "operationId": "preview_decline_rest_api_v1_batches__batch_id__decline_rest_preview_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Batch Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclineRestPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`batch_not_found`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/batches/{batch_id}/decline-rest": {
+      "post": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Decline Rest",
+        "description": "Politely close every open thread of the batch; a thread that fails is reported.",
+        "operationId": "decline_rest_api_v1_batches__batch_id__decline_rest_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Batch Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclineRestResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`batch_not_found`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{thread_id}/award/preview": {
+      "post": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Preview Award",
+        "description": "The agreed terms, the even milestone split and the confirmations an award would need.",
+        "operationId": "preview_award_api_v1_threads__thread_id__award_preview_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwardPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`terms_incomplete`, `milestones_invalid`, `over_ceiling`, `over_target`"
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{thread_id}/award": {
+      "post": {
+        "tags": [
+          "board"
+        ],
+        "summary": "Award Thread",
+        "description": "Book the deal on the thread's latest terms with the given payment milestones.",
+        "operationId": "award_thread_api_v1_threads__thread_id__award_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AwardRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`thread_not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`terms_incomplete`, `milestones_invalid`, `over_ceiling`, `over_target`"
+          }
+        }
+      }
+    },
+    "/api/v1/offers": {
+      "get": {
+        "tags": [
+          "offers"
+        ],
+        "summary": "List Offers",
+        "description": "The offers that have reached the creator, optionally one tab's, sorted.",
+        "operationId": "list_offers_api_v1_offers_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tab",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "needs_you",
+                    "waiting",
+                    "booked",
+                    "closed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tab"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fit",
+                "revenue",
+                "timeline"
+              ],
+              "type": "string",
+              "default": "fit",
+              "title": "Sort"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OfferListItem"
+                  },
+                  "title": "Response List Offers Api V1 Offers Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/offers/counts": {
+      "get": {
+        "tags": [
+          "offers"
+        ],
+        "summary": "Offer Counts",
+        "description": "How many offers each tab holds.",
+        "operationId": "offer_counts_api_v1_offers_counts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferCounts"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/offers/{thread_id}": {
+      "get": {
+        "tags": [
+          "offers"
+        ],
+        "summary": "Get Offer",
+        "description": "One offer with its columns, log and the actions open to the creator.",
+        "operationId": "get_offer_api_v1_offers__thread_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDesk"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_found`"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/offers/{thread_id}/counter/preview": {
+      "post": {
+        "tags": [
+          "offers"
+        ],
+        "summary": "Preview Counter",
+        "description": "The counter as it would be recorded, its delta, and how far it is below your floor.",
+        "operationId": "preview_counter_api_v1_offers__thread_id__counter_preview_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatorCounterPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatorCounterPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`below_floor` (counter only)"
+          }
+        }
+      }
+    },
+    "/api/v1/offers/{thread_id}/counter": {
+      "post": {
+        "tags": [
+          "offers"
+        ],
+        "summary": "Counter Offer",
+        "description": "Counter the brand's offer, or revise your counter.",
+        "operationId": "counter_offer_api_v1_offers__thread_id__counter_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatorCounterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDesk"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`below_floor` (counter only)"
+          }
+        }
+      }
+    },
+    "/api/v1/offers/{thread_id}/accept": {
+      "post": {
+        "tags": [
+          "offers"
+        ],
+        "summary": "Accept Offer",
+        "description": "Accept the brand's current offer.",
+        "operationId": "accept_offer_api_v1_offers__thread_id__accept_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDesk"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`below_floor` (counter only)"
+          }
+        }
+      }
+    },
+    "/api/v1/offers/{thread_id}/decline": {
+      "post": {
+        "tags": [
+          "offers"
+        ],
+        "summary": "Decline Offer",
+        "description": "Decline the offer, with an optional reason.",
+        "operationId": "decline_offer_api_v1_offers__thread_id__decline_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDesk"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_found`"
+          },
+          "409": {
+            "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
+          },
+          "422": {
+            "description": "`below_floor` (counter only)"
+          }
+        }
+      }
+    },
+    "/api/v1/deals": {
+      "get": {
+        "tags": [
+          "deals"
+        ],
+        "summary": "List Deals",
+        "description": "The signed-in brand's or creator's booked deals, newest first.",
+        "operationId": "list_deals_api_v1_deals_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DealListItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Deals Api V1 Deals Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deals/{deal_id}": {
+      "get": {
+        "tags": [
+          "deals"
+        ],
+        "summary": "Get Deal",
+        "description": "One deal with its milestones and both parties' contact emails (the only place they\ncross sides).",
+        "operationId": "get_deal_api_v1_deals__deal_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_found`"
           },
           "422": {
             "description": "Validation Error",
@@ -1438,10 +2354,62 @@
           }
         }
       }
+    },
+    "/api/v1/webhooks/resend/inbound": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Inbound",
+        "description": "A creator's email reply. Every validly signed event answers 200 with its outcome,\nincluding ones we cannot use, so that Resend stops retrying; only a body we could not fetch\nanswers 503, which Resend retries.",
+        "operationId": "inbound_api_v1_webhooks_resend_inbound_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Inbound Api V1 Webhooks Resend Inbound Post"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_signature`"
+          },
+          "503": {
+            "description": "`inbound_unconfigured`, `email_unavailable`"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AcceptRequest": {
+        "properties": {
+          "based_on_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "based_on_event_id"
+        ],
+        "title": "AcceptRequest"
+      },
       "Addon": {
         "properties": {
           "name": {
@@ -1470,6 +2438,168 @@
         "title": "Addon",
         "description": "A priced add-on. `unit=\"video\"` means one more video at this price."
       },
+      "AgreedTerms": {
+        "properties": {
+          "videos": {
+            "type": "integer",
+            "title": "Videos"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "short_video",
+              "long_video",
+              "story",
+              "live"
+            ],
+            "title": "Format"
+          },
+          "price_cents": {
+            "type": "integer",
+            "title": "Price Cents"
+          },
+          "go_live_by": {
+            "type": "string",
+            "format": "date",
+            "title": "Go Live By"
+          },
+          "conditions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conditions",
+            "default": []
+          },
+          "addons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Addons",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "videos",
+          "format",
+          "price_cents",
+          "go_live_by"
+        ],
+        "title": "AgreedTerms",
+        "description": "Complete terms of an awarded deal: every deal field is filled."
+      },
+      "AwardPreview": {
+        "properties": {
+          "agreed": {
+            "$ref": "#/components/schemas/AgreedTerms"
+          },
+          "milestones": {
+            "items": {
+              "$ref": "#/components/schemas/MilestoneDraft"
+            },
+            "type": "array",
+            "title": "Milestones"
+          },
+          "over_ceiling_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Over Ceiling Cents"
+          },
+          "hired": {
+            "type": "integer",
+            "title": "Hired"
+          },
+          "hires_target": {
+            "type": "integer",
+            "title": "Hires Target"
+          },
+          "would_reach_target": {
+            "type": "boolean",
+            "title": "Would Reach Target"
+          },
+          "over_target": {
+            "type": "boolean",
+            "title": "Over Target"
+          },
+          "open_others": {
+            "items": {
+              "$ref": "#/components/schemas/CreatorChip"
+            },
+            "type": "array",
+            "title": "Open Others"
+          },
+          "terms_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agreed",
+          "milestones",
+          "over_ceiling_cents",
+          "hired",
+          "hires_target",
+          "would_reach_target",
+          "over_target",
+          "open_others",
+          "terms_event_id"
+        ],
+        "title": "AwardPreview",
+        "description": "What awarding a thread would do: the agreed terms, the even milestone split, and the\nbrand-only checks (`over_ceiling_cents`, the hire target) it needs confirmed."
+      },
+      "AwardRequest": {
+        "properties": {
+          "milestones": {
+            "items": {
+              "$ref": "#/components/schemas/MilestoneDraft"
+            },
+            "type": "array",
+            "title": "Milestones"
+          },
+          "based_on_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On Event Id"
+          },
+          "confirm_over_ceiling": {
+            "type": "boolean",
+            "title": "Confirm Over Ceiling",
+            "default": false
+          },
+          "confirm_over_target": {
+            "type": "boolean",
+            "title": "Confirm Over Target",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "milestones"
+        ],
+        "title": "AwardRequest"
+      },
       "BatchKpis": {
         "properties": {
           "contacted": {
@@ -1483,6 +2613,10 @@
           "countered": {
             "type": "integer",
             "title": "Countered"
+          },
+          "hired": {
+            "type": "integer",
+            "title": "Hired"
           },
           "best_per_video_cents": {
             "anyOf": [
@@ -1506,6 +2640,7 @@
           "contacted",
           "replied",
           "countered",
+          "hired",
           "best_per_video_cents",
           "launched_at"
         ],
@@ -1667,6 +2802,121 @@
         ],
         "title": "BestValue",
         "description": "A thread's place in the best-value ranking, with the reasons that earned it."
+      },
+      "BrandChip": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "BrandChip",
+        "description": "Who an offer is from; never their contact details."
+      },
+      "BrandCounterPreview": {
+        "properties": {
+          "terms": {
+            "$ref": "#/components/schemas/NegotiationTerms"
+          },
+          "delta": {
+            "$ref": "#/components/schemas/PackageDelta"
+          },
+          "ceiling_violation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ceiling Violation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "terms",
+          "delta",
+          "ceiling_violation"
+        ],
+        "title": "BrandCounterPreview",
+        "description": "A brand counter as it would be recorded. `ceiling_violation` names the brand's own\nceiling, so it appears only in brand responses."
+      },
+      "BrandCounterPreviewRequest": {
+        "properties": {
+          "terms": {
+            "$ref": "#/components/schemas/TermsInput"
+          }
+        },
+        "type": "object",
+        "required": [
+          "terms"
+        ],
+        "title": "BrandCounterPreviewRequest"
+      },
+      "BrandCounterRequest": {
+        "properties": {
+          "terms": {
+            "$ref": "#/components/schemas/TermsInput"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "based_on_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "terms"
+        ],
+        "title": "BrandCounterRequest"
+      },
+      "BrandDeclineRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "title": "BrandDeclineRequest",
+        "description": "`reason` is the brand's own note; it is accepted but never stored or sent on."
       },
       "BrandOnboarding": {
         "properties": {
@@ -1988,6 +3238,19 @@
             ],
             "title": "Contact Email"
           },
+          "hires_target": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hires Target"
+          },
           "intake_conversation_id": {
             "anyOf": [
               {
@@ -2066,6 +3329,10 @@
               "auto"
             ],
             "title": "Follow Up Policy"
+          },
+          "hires_target": {
+            "type": "integer",
+            "title": "Hires Target"
           }
         },
         "type": "object",
@@ -2077,7 +3344,8 @@
           "ask_price_cents",
           "budget_ceiling_cents",
           "go_live_by",
-          "follow_up_policy"
+          "follow_up_policy",
+          "hires_target"
         ],
         "title": "BriefSummary",
         "description": "The brief behind a batch. `budget_ceiling_cents` is brand-only (the board is too)."
@@ -2272,6 +3540,88 @@
         ],
         "title": "CreatorChip",
         "description": "Who a thread is with; never their contact details."
+      },
+      "CreatorCounterPreview": {
+        "properties": {
+          "terms": {
+            "$ref": "#/components/schemas/NegotiationTerms"
+          },
+          "delta": {
+            "$ref": "#/components/schemas/PackageDelta"
+          },
+          "below_floor_by_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Below Floor By Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "terms",
+          "delta",
+          "below_floor_by_cents"
+        ],
+        "title": "CreatorCounterPreview",
+        "description": "The counter as it would be recorded, against the package, and how far it sits below the\ncreator's own floor (None when it does not)."
+      },
+      "CreatorCounterPreviewRequest": {
+        "properties": {
+          "terms": {
+            "$ref": "#/components/schemas/TermsInput"
+          }
+        },
+        "type": "object",
+        "required": [
+          "terms"
+        ],
+        "title": "CreatorCounterPreviewRequest"
+      },
+      "CreatorCounterRequest": {
+        "properties": {
+          "terms": {
+            "$ref": "#/components/schemas/TermsInput"
+          },
+          "based_on_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On Event Id"
+          },
+          "confirm_below_floor": {
+            "type": "boolean",
+            "title": "Confirm Below Floor",
+            "default": false
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "terms",
+          "based_on_event_id"
+        ],
+        "title": "CreatorCounterRequest"
       },
       "CreatorOnboarding": {
         "properties": {
@@ -2553,6 +3903,10 @@
             ],
             "title": "Contact Email"
           },
+          "hires_target": {
+            "type": "integer",
+            "title": "Hires Target"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -2616,6 +3970,7 @@
         },
         "type": "object",
         "required": [
+          "hires_target",
           "id",
           "status",
           "creator_ids",
@@ -2626,6 +3981,266 @@
         ],
         "title": "DealBrief",
         "description": "A brief as the brand sees it. `missing` and `violations` are computed on every read."
+      },
+      "DealListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "counterpart_name": {
+            "type": "string",
+            "title": "Counterpart Name"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "videos": {
+            "type": "integer",
+            "title": "Videos"
+          },
+          "price_cents": {
+            "type": "integer",
+            "title": "Price Cents"
+          },
+          "go_live_by": {
+            "type": "string",
+            "format": "date",
+            "title": "Go Live By"
+          },
+          "status": {
+            "type": "string",
+            "const": "booked",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "thread_id",
+          "counterpart_name",
+          "product_name",
+          "videos",
+          "price_cents",
+          "go_live_by",
+          "status",
+          "created_at"
+        ],
+        "title": "DealListItem",
+        "description": "A deal in a list; the counterpart is named but never reachable from here."
+      },
+      "DealParty": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "email"
+        ],
+        "title": "DealParty",
+        "description": "One side of a deal. `email` is the contact address revealed by the booking."
+      },
+      "DealView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Batch Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "booked",
+            "title": "Status"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/AgreedTerms"
+          },
+          "milestones": {
+            "items": {
+              "$ref": "#/components/schemas/MilestoneView"
+            },
+            "type": "array",
+            "title": "Milestones"
+          },
+          "brand": {
+            "$ref": "#/components/schemas/DealParty"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/DealParty"
+          },
+          "creator_handle": {
+            "type": "string",
+            "title": "Creator Handle"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "thread_id",
+          "batch_id",
+          "status",
+          "product_name",
+          "terms",
+          "milestones",
+          "brand",
+          "creator",
+          "creator_handle",
+          "created_at"
+        ],
+        "title": "DealView"
+      },
+      "DeclineRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "title": "DeclineRequest"
+      },
+      "DeclineRestItem": {
+        "properties": {
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/CreatorChip"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "drafting",
+              "awaiting_reply",
+              "calling",
+              "in_call",
+              "countered",
+              "accepted",
+              "declined",
+              "needs_review",
+              "failed",
+              "awarded",
+              "closed_lost",
+              "no_response",
+              "follow_up_suggested"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thread_id",
+          "creator",
+          "status"
+        ],
+        "title": "DeclineRestItem"
+      },
+      "DeclineRestPreview": {
+        "properties": {
+          "will_close": {
+            "items": {
+              "$ref": "#/components/schemas/DeclineRestItem"
+            },
+            "type": "array",
+            "title": "Will Close"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/DeclineRestItem"
+            },
+            "type": "array",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "will_close",
+          "skipped"
+        ],
+        "title": "DeclineRestPreview"
+      },
+      "DeclineRestResult": {
+        "properties": {
+          "closed": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Closed"
+          },
+          "failed": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "closed",
+          "failed"
+        ],
+        "title": "DeclineRestResult"
       },
       "DraftFromSpeechRequest": {
         "properties": {
@@ -2999,6 +4614,83 @@
         "title": "MeResponse",
         "description": "The signed-in user; `role` is null until onboarding."
       },
+      "MilestoneDraft": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Seq"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Due Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seq",
+          "title",
+          "amount_cents",
+          "due_date"
+        ],
+        "title": "MilestoneDraft",
+        "description": "One payment milestone as proposed or edited, before it is stored."
+      },
+      "MilestoneView": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Seq"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Due Date"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "pending",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seq",
+          "title",
+          "amount_cents",
+          "due_date",
+          "id",
+          "status"
+        ],
+        "title": "MilestoneView"
+      },
       "MyPackage": {
         "properties": {
           "id": {
@@ -3280,6 +4972,374 @@
         ],
         "title": "NegotiationTerms",
         "description": "Terms as stated by one side in one message or call; every deal field is optional."
+      },
+      "OfferCounts": {
+        "properties": {
+          "needs_you": {
+            "type": "integer",
+            "title": "Needs You"
+          },
+          "waiting": {
+            "type": "integer",
+            "title": "Waiting"
+          },
+          "booked": {
+            "type": "integer",
+            "title": "Booked"
+          },
+          "closed": {
+            "type": "integer",
+            "title": "Closed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "needs_you",
+          "waiting",
+          "booked",
+          "closed"
+        ],
+        "title": "OfferCounts"
+      },
+      "OfferDesk": {
+        "properties": {
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "brand": {
+            "$ref": "#/components/schemas/BrandChip"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "product_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Summary"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "drafting",
+              "awaiting_reply",
+              "calling",
+              "in_call",
+              "countered",
+              "accepted",
+              "declined",
+              "needs_review",
+              "failed",
+              "awarded",
+              "closed_lost",
+              "no_response",
+              "follow_up_suggested"
+            ],
+            "title": "Status"
+          },
+          "waiting_on": {
+            "type": "string",
+            "enum": [
+              "creator",
+              "brand",
+              "none"
+            ],
+            "title": "Waiting On"
+          },
+          "package": {
+            "$ref": "#/components/schemas/PackageSummary"
+          },
+          "delta": {
+            "$ref": "#/components/schemas/PackageDelta"
+          },
+          "my_package": {
+            "$ref": "#/components/schemas/TermsColumn"
+          },
+          "their_ask": {
+            "$ref": "#/components/schemas/TermsColumn"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TermsColumn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "brand",
+                  "creator"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Source"
+          },
+          "changed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changed"
+          },
+          "brand_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand Note"
+          },
+          "terms_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Event Id"
+          },
+          "allowed_actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "counter",
+                "accept",
+                "decline"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Actions"
+          },
+          "floor_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Price Cents"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ThreadEventView"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "transcripts": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptView"
+            },
+            "type": "array",
+            "title": "Transcripts"
+          },
+          "deal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deal Id"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thread_id",
+          "brand",
+          "product_name",
+          "product_summary",
+          "status",
+          "waiting_on",
+          "package",
+          "delta",
+          "my_package",
+          "their_ask",
+          "latest",
+          "latest_source",
+          "changed",
+          "brand_note",
+          "terms_event_id",
+          "allowed_actions",
+          "floor_price_cents",
+          "events",
+          "transcripts",
+          "deal_id",
+          "expires_at"
+        ],
+        "title": "OfferDesk",
+        "description": "One offer in full: three columns (my package, their ask, my latest), the log and the\nactions open to the creator."
+      },
+      "OfferListItem": {
+        "properties": {
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "brand": {
+            "$ref": "#/components/schemas/BrandChip"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "drafting",
+              "awaiting_reply",
+              "calling",
+              "in_call",
+              "countered",
+              "accepted",
+              "declined",
+              "needs_review",
+              "failed",
+              "awarded",
+              "closed_lost",
+              "no_response",
+              "follow_up_suggested"
+            ],
+            "title": "Status"
+          },
+          "waiting_on": {
+            "type": "string",
+            "enum": [
+              "creator",
+              "brand",
+              "none"
+            ],
+            "title": "Waiting On"
+          },
+          "package": {
+            "$ref": "#/components/schemas/PackageSummary"
+          },
+          "delta_headline": {
+            "type": "string",
+            "title": "Delta Headline"
+          },
+          "delta_flags": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "below_base_price",
+                "lead_time_conflict",
+                "estimated"
+              ]
+            },
+            "type": "array",
+            "title": "Delta Flags"
+          },
+          "total_value_cents": {
+            "type": "integer",
+            "title": "Total Value Cents"
+          },
+          "go_live_by": {
+            "type": "string",
+            "format": "date",
+            "title": "Go Live By"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "fit_gap": {
+            "type": "number",
+            "title": "Fit Gap"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thread_id",
+          "brand",
+          "product_name",
+          "status",
+          "waiting_on",
+          "package",
+          "delta_headline",
+          "delta_flags",
+          "total_value_cents",
+          "go_live_by",
+          "expires_at",
+          "updated_at",
+          "fit_gap"
+        ],
+        "title": "OfferListItem"
+      },
+      "OfferRef": {
+        "properties": {
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "brand_name": {
+            "type": "string",
+            "title": "Brand Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thread_id",
+          "brand_name"
+        ],
+        "title": "OfferRef",
+        "description": "An offer on the creator's list, so \"open the Lumen offer\" can be resolved to its thread."
       },
       "OpenThreadArgs": {
         "properties": {
@@ -3705,6 +5765,46 @@
         "title": "PackageSummary",
         "description": "A published package as shown on a creator card. `one_liner` is its card text."
       },
+      "ResolveRequest": {
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "counter",
+              "accept",
+              "decline"
+            ],
+            "title": "Outcome"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TermsInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "based_on_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "outcome"
+        ],
+        "title": "ResolveRequest",
+        "description": "How the brand settles a reply it had to review: record a counter (with the terms it read\nout of the reply), accept the brand's own current offer, or record a decline."
+      },
       "RuleViolation": {
         "properties": {
           "field": {
@@ -4086,6 +6186,179 @@
         "title": "SelectArgs",
         "description": "Which creators to select: those named (`creator_ids`) or the first `top_n` shown."
       },
+      "TermsColumn": {
+        "properties": {
+          "videos": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Videos"
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Cents"
+          },
+          "per_video_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Video Cents"
+          },
+          "go_live_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Go Live By"
+          },
+          "conditions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conditions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "videos",
+          "price_cents",
+          "per_video_cents",
+          "go_live_by",
+          "conditions"
+        ],
+        "title": "TermsColumn",
+        "description": "One column of the desk: a position as videos, price and conditions."
+      },
+      "TermsDraft": {
+        "properties": {
+          "videos": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 50.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Videos"
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 100.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Cents"
+          },
+          "go_live_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Go Live By"
+          },
+          "conditions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conditions",
+            "default": []
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "TermsDraft",
+        "description": "Terms as far as speech has filled them in; every field is optional."
+      },
+      "TermsInput": {
+        "properties": {
+          "videos": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Videos"
+          },
+          "price_cents": {
+            "type": "integer",
+            "minimum": 100.0,
+            "title": "Price Cents"
+          },
+          "go_live_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Go Live By"
+          },
+          "conditions": {
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Conditions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "videos",
+          "price_cents"
+        ],
+        "title": "TermsInput",
+        "description": "Terms a person types into a counter form."
+      },
       "ThreadCard": {
         "properties": {
           "id": {
@@ -4204,6 +6477,56 @@
             ],
             "title": "Last Error"
           },
+          "terms_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Event Id"
+          },
+          "deal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deal Id"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "allowed_actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "counter",
+                "award",
+                "decline",
+                "withdraw",
+                "resolve",
+                "retry"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Actions"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -4230,6 +6553,10 @@
           "live_offers",
           "best_value",
           "last_error",
+          "terms_event_id",
+          "deal_id",
+          "expires_at",
+          "allowed_actions",
           "created_at",
           "updated_at"
         ],
@@ -4292,7 +6619,8 @@
               "closed_lost",
               "needs_review",
               "failed",
-              "retried"
+              "retried",
+              "offer_expired"
             ],
             "title": "Type"
           },
@@ -4573,6 +6901,8 @@
               "packages",
               "brief",
               "board",
+              "offers",
+              "offer_desk",
               "any"
             ],
             "title": "Screen"
@@ -4605,6 +6935,14 @@
             "title": "Visible Creators",
             "default": []
           },
+          "visible_offers": {
+            "items": {
+              "$ref": "#/components/schemas/OfferRef"
+            },
+            "type": "array",
+            "title": "Visible Offers",
+            "default": []
+          },
           "package_draft": {
             "anyOf": [
               {
@@ -4614,11 +6952,33 @@
                 "type": "null"
               }
             ]
+          },
+          "current_terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TermsDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_terms_creator_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Terms Creator Id"
           }
         },
         "type": "object",
         "title": "VoiceContext",
-        "description": "What the screen shows: the creators in view and the package draft being dictated."
+        "description": "What the screen shows: the creators or offers in view, the package draft being\ndictated and the terms on the table (the offer desk's, or the open board drawer's)."
       },
       "VoiceIntent": {
         "properties": {
@@ -4632,6 +6992,11 @@
               "package_draft",
               "open_thread",
               "sort",
+              "open_offer",
+              "counter",
+              "accept",
+              "decline",
+              "award",
               "navigate",
               "unclear"
             ],
@@ -4706,7 +7071,10 @@
                   "/brand/discover",
                   "/brand/discover/review",
                   "/brand/batches",
-                  "/creator/packages"
+                  "/brand/deals",
+                  "/creator/packages",
+                  "/creator/offers",
+                  "/creator/deals"
                 ]
               },
               {
@@ -4714,6 +7082,51 @@
               }
             ],
             "title": "Navigate"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TermsDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creator_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator Id"
+          },
+          "thread_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thread Id"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           },
           "suggestions": {
             "items": {

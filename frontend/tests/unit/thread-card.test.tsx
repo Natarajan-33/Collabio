@@ -50,6 +50,10 @@ function thread(over: Partial<ThreadCard> = {}): ThreadCard {
       open_questions: [],
     },
     latest_terms_source: "creator",
+    terms_event_id: null,
+    deal_id: null,
+    expires_at: null,
+    allowed_actions: [],
     delta: {
       package_id: "pkg",
       package_name: "Trio",

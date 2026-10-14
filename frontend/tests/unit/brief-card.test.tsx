@@ -25,6 +25,7 @@ function brief(over: Partial<DealBrief> = {}): DealBrief {
     budget_ceiling_cents: 200000,
     negotiation_ask: "Three videos, one mention each.",
     flexibility: ["price"],
+    hires_target: 1,
     contact_email: "hello@lumen.test",
     ...over,
   }

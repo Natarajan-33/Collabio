@@ -43,6 +43,10 @@ function card(
     },
     latest_terms: null,
     latest_terms_source: null,
+    terms_event_id: null,
+    deal_id: null,
+    expires_at: null,
+    allowed_actions: [],
     delta: {
       package_id: "pkg",
       package_name: "Pack",
@@ -223,6 +227,7 @@ describe("board state", () => {
         budget_ceiling_cents: 120000,
         go_live_by: "2026-11-14",
         follow_up_policy: "off",
+        hires_target: 1,
       })
     ).toBe("3 short videos · $1,000 · live by Nov 14")
   })

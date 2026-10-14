@@ -5,7 +5,11 @@ import * as React from "react"
 import type { components } from "@/lib/api/schema"
 
 export type VoiceScreen = components["schemas"]["VoiceCommandRequest"]["screen"]
-export type VoiceContext = components["schemas"]["VoiceContext"]
+type VoiceContextSchema = components["schemas"]["VoiceContext"]
+/** What a page reports; the lists a page has nothing to say about can be left out. */
+export type VoiceContext = Omit<VoiceContextSchema, "visible_offers"> & {
+  visible_offers?: VoiceContextSchema["visible_offers"]
+}
 export type VoiceIntent = components["schemas"]["VoiceIntent"]
 
 /** What a page tells the dock about itself while it is on screen. */

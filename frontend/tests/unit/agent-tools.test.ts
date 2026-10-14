@@ -184,6 +184,7 @@ describe("contextualUpdate", () => {
     deliverables_count: 3,
     deliverables_format: "short_video",
     flexibility: [],
+    hires_target: 1,
   } satisfies DealBrief
 
   it("tells the agent what the brand changed on the card", () => {

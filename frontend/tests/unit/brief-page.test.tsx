@@ -83,6 +83,7 @@ function complete(over: Partial<DealBrief> = {}): DealBrief {
     ask_price_cents: 120000,
     negotiation_ask: "Three videos, one mention each.",
     flexibility: ["price"],
+    hires_target: 1,
     contact_email: "hello@lumen.test",
     ...over,
   }

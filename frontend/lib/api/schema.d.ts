@@ -472,6 +472,347 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/threads/{thread_id}/counter/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Counter
+         * @description The counter as it would be recorded, its delta, and whether it is above your ceiling.
+         */
+        post: operations["preview_counter_api_v1_threads__thread_id__counter_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{thread_id}/counter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Counter Thread
+         * @description Counter the creator's position; the creator is notified.
+         */
+        post: operations["counter_thread_api_v1_threads__thread_id__counter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{thread_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Thread
+         * @description Settle a reply that needed review: record a counter, an acceptance or a decline.
+         */
+        post: operations["resolve_thread_api_v1_threads__thread_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{thread_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Thread
+         * @description Withdraw the offer or decline the creator's position; the creator is told politely.
+         */
+        post: operations["decline_thread_api_v1_threads__thread_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/batches/{batch_id}/decline-rest/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Decline Rest
+         * @description The open threads "decline the rest" would close, and the ones it would leave alone.
+         */
+        post: operations["preview_decline_rest_api_v1_batches__batch_id__decline_rest_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/batches/{batch_id}/decline-rest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Rest
+         * @description Politely close every open thread of the batch; a thread that fails is reported.
+         */
+        post: operations["decline_rest_api_v1_batches__batch_id__decline_rest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{thread_id}/award/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Award
+         * @description The agreed terms, the even milestone split and the confirmations an award would need.
+         */
+        post: operations["preview_award_api_v1_threads__thread_id__award_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{thread_id}/award": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Award Thread
+         * @description Book the deal on the thread's latest terms with the given payment milestones.
+         */
+        post: operations["award_thread_api_v1_threads__thread_id__award_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Offers
+         * @description The offers that have reached the creator, optionally one tab's, sorted.
+         */
+        get: operations["list_offers_api_v1_offers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Offer Counts
+         * @description How many offers each tab holds.
+         */
+        get: operations["offer_counts_api_v1_offers_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{thread_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Offer
+         * @description One offer with its columns, log and the actions open to the creator.
+         */
+        get: operations["get_offer_api_v1_offers__thread_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{thread_id}/counter/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Counter
+         * @description The counter as it would be recorded, its delta, and how far it is below your floor.
+         */
+        post: operations["preview_counter_api_v1_offers__thread_id__counter_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{thread_id}/counter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Counter Offer
+         * @description Counter the brand's offer, or revise your counter.
+         */
+        post: operations["counter_offer_api_v1_offers__thread_id__counter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{thread_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Offer
+         * @description Accept the brand's current offer.
+         */
+        post: operations["accept_offer_api_v1_offers__thread_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offers/{thread_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Offer
+         * @description Decline the offer, with an optional reason.
+         */
+        post: operations["decline_offer_api_v1_offers__thread_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Deals
+         * @description The signed-in brand's or creator's booked deals, newest first.
+         */
+        get: operations["list_deals_api_v1_deals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{deal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Deal
+         * @description One deal with its milestones and both parties' contact emails (the only place they
+         *     cross sides).
+         */
+        get: operations["get_deal_api_v1_deals__deal_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/unsubscribe/{reply_token}": {
         parameters: {
             query?: never;
@@ -545,10 +886,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/resend/inbound": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inbound
+         * @description A creator's email reply. Every validly signed event answers 200 with its outcome,
+         *     including ones we cannot use, so that Resend stops retrying; only a body we could not fetch
+         *     answers 503, which Resend retries.
+         */
+        post: operations["inbound_api_v1_webhooks_resend_inbound_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcceptRequest */
+        AcceptRequest: {
+            /** Based On Event Id */
+            based_on_event_id: number | null;
+        };
         /**
          * Addon
          * @description A priced add-on. `unit="video"` means one more video at this price.
@@ -564,6 +932,77 @@ export interface components {
              */
             unit: "video" | "item";
         };
+        /**
+         * AgreedTerms
+         * @description Complete terms of an awarded deal: every deal field is filled.
+         */
+        AgreedTerms: {
+            /** Videos */
+            videos: number;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "short_video" | "long_video" | "story" | "live";
+            /** Price Cents */
+            price_cents: number;
+            /**
+             * Go Live By
+             * Format: date
+             */
+            go_live_by: string;
+            /**
+             * Conditions
+             * @default []
+             */
+            conditions: string[];
+            /**
+             * Addons
+             * @default []
+             */
+            addons: string[];
+        };
+        /**
+         * AwardPreview
+         * @description What awarding a thread would do: the agreed terms, the even milestone split, and the
+         *     brand-only checks (`over_ceiling_cents`, the hire target) it needs confirmed.
+         */
+        AwardPreview: {
+            agreed: components["schemas"]["AgreedTerms"];
+            /** Milestones */
+            milestones: components["schemas"]["MilestoneDraft"][];
+            /** Over Ceiling Cents */
+            over_ceiling_cents: number | null;
+            /** Hired */
+            hired: number;
+            /** Hires Target */
+            hires_target: number;
+            /** Would Reach Target */
+            would_reach_target: boolean;
+            /** Over Target */
+            over_target: boolean;
+            /** Open Others */
+            open_others: components["schemas"]["CreatorChip"][];
+            /** Terms Event Id */
+            terms_event_id: number | null;
+        };
+        /** AwardRequest */
+        AwardRequest: {
+            /** Milestones */
+            milestones: components["schemas"]["MilestoneDraft"][];
+            /** Based On Event Id */
+            based_on_event_id?: number | null;
+            /**
+             * Confirm Over Ceiling
+             * @default false
+             */
+            confirm_over_ceiling: boolean;
+            /**
+             * Confirm Over Target
+             * @default false
+             */
+            confirm_over_target: boolean;
+        };
         /** BatchKpis */
         BatchKpis: {
             /** Contacted */
@@ -572,6 +1011,8 @@ export interface components {
             replied: number;
             /** Countered */
             countered: number;
+            /** Hired */
+            hired: number;
             /** Best Per Video Cents */
             best_per_video_cents: number | null;
             /**
@@ -642,6 +1083,50 @@ export interface components {
             reasons: string[];
             /** Ineligible Reason */
             ineligible_reason: string | null;
+        };
+        /**
+         * BrandChip
+         * @description Who an offer is from; never their contact details.
+         */
+        BrandChip: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * BrandCounterPreview
+         * @description A brand counter as it would be recorded. `ceiling_violation` names the brand's own
+         *     ceiling, so it appears only in brand responses.
+         */
+        BrandCounterPreview: {
+            terms: components["schemas"]["NegotiationTerms"];
+            delta: components["schemas"]["PackageDelta"];
+            /** Ceiling Violation */
+            ceiling_violation: string | null;
+        };
+        /** BrandCounterPreviewRequest */
+        BrandCounterPreviewRequest: {
+            terms: components["schemas"]["TermsInput"];
+        };
+        /** BrandCounterRequest */
+        BrandCounterRequest: {
+            terms: components["schemas"]["TermsInput"];
+            /** Note */
+            note?: string | null;
+            /** Based On Event Id */
+            based_on_event_id?: number | null;
+        };
+        /**
+         * BrandDeclineRequest
+         * @description `reason` is the brand's own note; it is accepted but never stored or sent on.
+         */
+        BrandDeclineRequest: {
+            /** Reason */
+            reason?: string | null;
         };
         /**
          * BrandOnboarding
@@ -739,6 +1224,8 @@ export interface components {
             flexibility_note?: string | null;
             /** Contact Email */
             contact_email?: string | null;
+            /** Hires Target */
+            hires_target?: number | null;
             /** Intake Conversation Id */
             intake_conversation_id?: string | null;
         };
@@ -780,6 +1267,8 @@ export interface components {
              * @enum {string}
              */
             follow_up_policy: "off" | "suggest" | "auto";
+            /** Hires Target */
+            hires_target: number;
         };
         /**
          * CheckCounterRequest
@@ -868,6 +1357,34 @@ export interface components {
             initials: string;
         };
         /**
+         * CreatorCounterPreview
+         * @description The counter as it would be recorded, against the package, and how far it sits below the
+         *     creator's own floor (None when it does not).
+         */
+        CreatorCounterPreview: {
+            terms: components["schemas"]["NegotiationTerms"];
+            delta: components["schemas"]["PackageDelta"];
+            /** Below Floor By Cents */
+            below_floor_by_cents: number | null;
+        };
+        /** CreatorCounterPreviewRequest */
+        CreatorCounterPreviewRequest: {
+            terms: components["schemas"]["TermsInput"];
+        };
+        /** CreatorCounterRequest */
+        CreatorCounterRequest: {
+            terms: components["schemas"]["TermsInput"];
+            /** Based On Event Id */
+            based_on_event_id: number | null;
+            /**
+             * Confirm Below Floor
+             * @default false
+             */
+            confirm_below_floor: boolean;
+            /** Note */
+            note?: string | null;
+        };
+        /**
          * CreatorOnboarding
          * @description Onboarding as a creator ("I create content"): the public creator profile.
          */
@@ -954,6 +1471,8 @@ export interface components {
             flexibility_note?: string | null;
             /** Contact Email */
             contact_email?: string | null;
+            /** Hires Target */
+            hires_target: number;
             /**
              * Id
              * Format: uuid
@@ -974,6 +1493,125 @@ export interface components {
             missing: string[];
             /** Violations */
             violations: components["schemas"]["RuleViolation"][];
+        };
+        /**
+         * DealListItem
+         * @description A deal in a list; the counterpart is named but never reachable from here.
+         */
+        DealListItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            /** Counterpart Name */
+            counterpart_name: string;
+            /** Product Name */
+            product_name: string;
+            /** Videos */
+            videos: number;
+            /** Price Cents */
+            price_cents: number;
+            /**
+             * Go Live By
+             * Format: date
+             */
+            go_live_by: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "booked";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * DealParty
+         * @description One side of a deal. `email` is the contact address revealed by the booking.
+         */
+        DealParty: {
+            /** Name */
+            name: string;
+            /** Email */
+            email: string | null;
+        };
+        /** DealView */
+        DealView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            /**
+             * Batch Id
+             * Format: uuid
+             */
+            batch_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "booked";
+            /** Product Name */
+            product_name: string;
+            terms: components["schemas"]["AgreedTerms"];
+            /** Milestones */
+            milestones: components["schemas"]["MilestoneView"][];
+            brand: components["schemas"]["DealParty"];
+            creator: components["schemas"]["DealParty"];
+            /** Creator Handle */
+            creator_handle: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** DeclineRequest */
+        DeclineRequest: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /** DeclineRestItem */
+        DeclineRestItem: {
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            creator: components["schemas"]["CreatorChip"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "drafting" | "awaiting_reply" | "calling" | "in_call" | "countered" | "accepted" | "declined" | "needs_review" | "failed" | "awarded" | "closed_lost" | "no_response" | "follow_up_suggested";
+        };
+        /** DeclineRestPreview */
+        DeclineRestPreview: {
+            /** Will Close */
+            will_close: components["schemas"]["DeclineRestItem"][];
+            /** Skipped */
+            skipped: components["schemas"]["DeclineRestItem"][];
+        };
+        /** DeclineRestResult */
+        DeclineRestResult: {
+            /** Closed */
+            closed: string[];
+            /** Failed */
+            failed: string[];
         };
         /**
          * DraftFromSpeechRequest
@@ -1140,6 +1778,47 @@ export interface components {
             creator: components["schemas"]["CreatorSummary"] | null;
         };
         /**
+         * MilestoneDraft
+         * @description One payment milestone as proposed or edited, before it is stored.
+         */
+        MilestoneDraft: {
+            /** Seq */
+            seq: number;
+            /** Title */
+            title: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+        };
+        /** MilestoneView */
+        MilestoneView: {
+            /** Seq */
+            seq: number;
+            /** Title */
+            title: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "pending";
+        };
+        /**
          * MyPackage
          * @description A package card plus what only its creator sees or edits: status, private floor and
          *     the terms a card leaves out (`included`, `freebies`, `extras`, `slots_per_month`).
@@ -1245,6 +1924,124 @@ export interface components {
              * @default []
              */
             open_questions: string[];
+        };
+        /** OfferCounts */
+        OfferCounts: {
+            /** Needs You */
+            needs_you: number;
+            /** Waiting */
+            waiting: number;
+            /** Booked */
+            booked: number;
+            /** Closed */
+            closed: number;
+        };
+        /**
+         * OfferDesk
+         * @description One offer in full: three columns (my package, their ask, my latest), the log and the
+         *     actions open to the creator.
+         */
+        OfferDesk: {
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            brand: components["schemas"]["BrandChip"];
+            /** Product Name */
+            product_name: string;
+            /** Product Summary */
+            product_summary: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "drafting" | "awaiting_reply" | "calling" | "in_call" | "countered" | "accepted" | "declined" | "needs_review" | "failed" | "awarded" | "closed_lost" | "no_response" | "follow_up_suggested";
+            /**
+             * Waiting On
+             * @enum {string}
+             */
+            waiting_on: "creator" | "brand" | "none";
+            package: components["schemas"]["PackageSummary"];
+            delta: components["schemas"]["PackageDelta"];
+            my_package: components["schemas"]["TermsColumn"];
+            their_ask: components["schemas"]["TermsColumn"];
+            latest: components["schemas"]["TermsColumn"] | null;
+            /** Latest Source */
+            latest_source: ("brand" | "creator") | null;
+            /** Changed */
+            changed: string[];
+            /** Brand Note */
+            brand_note: string | null;
+            /** Terms Event Id */
+            terms_event_id: number | null;
+            /** Allowed Actions */
+            allowed_actions: ("counter" | "accept" | "decline")[];
+            /** Floor Price Cents */
+            floor_price_cents: number | null;
+            /** Events */
+            events: components["schemas"]["ThreadEventView"][];
+            /** Transcripts */
+            transcripts: components["schemas"]["TranscriptView"][];
+            /** Deal Id */
+            deal_id: string | null;
+            /** Expires At */
+            expires_at: string | null;
+        };
+        /** OfferListItem */
+        OfferListItem: {
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            brand: components["schemas"]["BrandChip"];
+            /** Product Name */
+            product_name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "drafting" | "awaiting_reply" | "calling" | "in_call" | "countered" | "accepted" | "declined" | "needs_review" | "failed" | "awarded" | "closed_lost" | "no_response" | "follow_up_suggested";
+            /**
+             * Waiting On
+             * @enum {string}
+             */
+            waiting_on: "creator" | "brand" | "none";
+            package: components["schemas"]["PackageSummary"];
+            /** Delta Headline */
+            delta_headline: string;
+            /** Delta Flags */
+            delta_flags: ("below_base_price" | "lead_time_conflict" | "estimated")[];
+            /** Total Value Cents */
+            total_value_cents: number;
+            /**
+             * Go Live By
+             * Format: date
+             */
+            go_live_by: string;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Fit Gap */
+            fit_gap: number;
+        };
+        /**
+         * OfferRef
+         * @description An offer on the creator's list, so "open the Lumen offer" can be resolved to its thread.
+         */
+        OfferRef: {
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            /** Brand Name */
+            brand_name: string;
         };
         /**
          * OpenThreadArgs
@@ -1390,6 +2187,21 @@ export interface components {
             preferred_channel: "email_first" | "phone_ok" | "email_only";
             /** Addons */
             addons: components["schemas"]["Addon"][];
+        };
+        /**
+         * ResolveRequest
+         * @description How the brand settles a reply it had to review: record a counter (with the terms it read
+         *     out of the reply), accept the brand's own current offer, or record a decline.
+         */
+        ResolveRequest: {
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "counter" | "accept" | "decline";
+            terms?: components["schemas"]["TermsInput"] | null;
+            /** Based On Event Id */
+            based_on_event_id?: number | null;
         };
         /**
          * RuleViolation
@@ -1544,6 +2356,55 @@ export interface components {
             top_n?: number | null;
         };
         /**
+         * TermsColumn
+         * @description One column of the desk: a position as videos, price and conditions.
+         */
+        TermsColumn: {
+            /** Videos */
+            videos: number | null;
+            /** Price Cents */
+            price_cents: number | null;
+            /** Per Video Cents */
+            per_video_cents: number | null;
+            /** Go Live By */
+            go_live_by: string | null;
+            /** Conditions */
+            conditions: string[];
+        };
+        /**
+         * TermsDraft
+         * @description Terms as far as speech has filled them in; every field is optional.
+         */
+        TermsDraft: {
+            /** Videos */
+            videos?: number | null;
+            /** Price Cents */
+            price_cents?: number | null;
+            /** Go Live By */
+            go_live_by?: string | null;
+            /**
+             * Conditions
+             * @default []
+             */
+            conditions: string[];
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * TermsInput
+         * @description Terms a person types into a counter form.
+         */
+        TermsInput: {
+            /** Videos */
+            videos: number;
+            /** Price Cents */
+            price_cents: number;
+            /** Go Live By */
+            go_live_by?: string | null;
+            /** Conditions */
+            conditions?: string[];
+        };
+        /**
          * ThreadCard
          * @description One creator's negotiation on the board.
          */
@@ -1576,6 +2437,14 @@ export interface components {
             best_value: components["schemas"]["BestValue"] | null;
             /** Last Error */
             last_error: string | null;
+            /** Terms Event Id */
+            terms_event_id: number | null;
+            /** Deal Id */
+            deal_id: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** Allowed Actions */
+            allowed_actions: ("counter" | "award" | "decline" | "withdraw" | "resolve" | "retry")[];
             /**
              * Created At
              * Format: date-time
@@ -1603,7 +2472,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "queued" | "email_drafted" | "email_sent" | "email_bounced" | "call_placed" | "call_started" | "call_offer_logged" | "call_ended" | "email_received" | "counter_submitted" | "brand_counter_sent" | "accepted" | "declined" | "follow_up_suggested" | "follow_up_approved" | "awarded" | "closed_lost" | "needs_review" | "failed" | "retried";
+            type: "queued" | "email_drafted" | "email_sent" | "email_bounced" | "call_placed" | "call_started" | "call_offer_logged" | "call_ended" | "email_received" | "counter_submitted" | "brand_counter_sent" | "accepted" | "declined" | "follow_up_suggested" | "follow_up_approved" | "awarded" | "closed_lost" | "needs_review" | "failed" | "retried" | "offer_expired";
             /**
              * Actor
              * @enum {string}
@@ -1733,14 +2602,15 @@ export interface components {
              * Screen
              * @enum {string}
              */
-            screen: "discover" | "review" | "packages" | "brief" | "board" | "any";
+            screen: "discover" | "review" | "packages" | "brief" | "board" | "offers" | "offer_desk" | "any";
             /** Transcript */
             transcript: string;
             context: components["schemas"]["VoiceContext"];
         };
         /**
          * VoiceContext
-         * @description What the screen shows: the creators in view and the package draft being dictated.
+         * @description What the screen shows: the creators or offers in view, the package draft being
+         *     dictated and the terms on the table (the offer desk's, or the open board drawer's).
          */
         VoiceContext: {
             /**
@@ -1748,7 +2618,15 @@ export interface components {
              * @default []
              */
             visible_creators: components["schemas"]["CreatorRef"][];
+            /**
+             * Visible Offers
+             * @default []
+             */
+            visible_offers: components["schemas"]["OfferRef"][];
             package_draft?: components["schemas"]["PackageDraft"] | null;
+            current_terms?: components["schemas"]["TermsDraft"] | null;
+            /** Current Terms Creator Id */
+            current_terms_creator_id?: string | null;
         };
         /**
          * VoiceIntent
@@ -1760,7 +2638,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "search" | "select" | "clear_selection" | "open_review" | "package_draft" | "open_thread" | "sort" | "navigate" | "unclear";
+            kind: "search" | "select" | "clear_selection" | "open_review" | "package_draft" | "open_thread" | "sort" | "open_offer" | "counter" | "accept" | "decline" | "award" | "navigate" | "unclear";
             /** Heard */
             heard: string;
             search?: components["schemas"]["SearchRequest"] | null;
@@ -1770,7 +2648,14 @@ export interface components {
             /** Sort */
             sort?: ("best_value" | "price" | "status" | "recent") | null;
             /** Navigate */
-            navigate?: ("/brand/discover" | "/brand/discover/review" | "/brand/batches" | "/creator/packages") | null;
+            navigate?: ("/brand/discover" | "/brand/discover/review" | "/brand/batches" | "/brand/deals" | "/creator/packages" | "/creator/offers" | "/creator/deals") | null;
+            terms?: components["schemas"]["TermsDraft"] | null;
+            /** Creator Id */
+            creator_id?: string | null;
+            /** Thread Id */
+            thread_id?: string | null;
+            /** Reason */
+            reason?: string | null;
             /**
              * Suggestions
              * @default []
@@ -2532,7 +3417,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `detail` is `{error: brief_incomplete, missing, violations}`, `{error: channel_not_allowed, creator_id, message}` or `{error: no_creators}` */
+            /** @description `detail` is `{error: brief_incomplete, missing, violations}`, `{error: channel_not_allowed, creator_id, message}`, `{error: no_creators}` or `{code: creator_not_registered, message, creator_ids}` */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2718,6 +3603,696 @@ export interface operations {
             };
             /** @description `thread_not_failed` */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_counter_api_v1_threads__thread_id__counter_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandCounterPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandCounterPreview"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `above_ceiling` (counter only) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    counter_thread_api_v1_threads__thread_id__counter_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandCounterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadCard"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `above_ceiling` (counter only) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resolve_thread_api_v1_threads__thread_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadCard"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `above_ceiling` (counter only) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    decline_thread_api_v1_threads__thread_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandDeclineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadCard"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `above_ceiling` (counter only) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    preview_decline_rest_api_v1_batches__batch_id__decline_rest_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclineRestPreview"];
+                };
+            };
+            /** @description `batch_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_rest_api_v1_batches__batch_id__decline_rest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclineRestResult"];
+                };
+            };
+            /** @description `batch_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_award_api_v1_threads__thread_id__award_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwardPreview"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_incomplete`, `milestones_invalid`, `over_ceiling`, `over_target` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    award_thread_api_v1_threads__thread_id__award_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AwardRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealView"];
+                };
+            };
+            /** @description `thread_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_incomplete`, `milestones_invalid`, `over_ceiling`, `over_target` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_offers_api_v1_offers_get: {
+        parameters: {
+            query?: {
+                tab?: ("needs_you" | "waiting" | "booked" | "closed") | null;
+                sort?: "fit" | "revenue" | "timeline";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferListItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    offer_counts_api_v1_offers_counts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferCounts"];
+                };
+            };
+        };
+    };
+    get_offer_api_v1_offers__thread_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferDesk"];
+                };
+            };
+            /** @description `not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_counter_api_v1_offers__thread_id__counter_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorCounterPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorCounterPreview"];
+                };
+            };
+            /** @description `not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `below_floor` (counter only) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    counter_offer_api_v1_offers__thread_id__counter_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorCounterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferDesk"];
+                };
+            };
+            /** @description `not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `below_floor` (counter only) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    accept_offer_api_v1_offers__thread_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferDesk"];
+                };
+            };
+            /** @description `not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `below_floor` (counter only) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    decline_offer_api_v1_offers__thread_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferDesk"];
+                };
+            };
+            /** @description `not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `terms_changed`, `stale_status`, `action_not_allowed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `below_floor` (counter only) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_deals_api_v1_deals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealListItem"][];
+                };
+            };
+        };
+    };
+    get_deal_api_v1_deals__deal_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealView"];
+                };
+            };
+            /** @description `not_found` */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2927,6 +4502,42 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    inbound_api_v1_webhooks_resend_inbound_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description `invalid_signature` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `inbound_unconfigured`, `email_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

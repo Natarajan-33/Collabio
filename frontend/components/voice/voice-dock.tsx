@@ -18,6 +18,7 @@ import {
 } from "@/components/voice/voice-screen"
 import { useApi } from "@/hooks/use-api"
 import { safeNextPath } from "@/lib/auth/routing"
+import type { components } from "@/lib/api/schema"
 import { cn } from "@/lib/utils"
 import {
   type DockMode,
@@ -59,6 +60,8 @@ const TYPING = [
   "select",
   "[contenteditable]:not([contenteditable='false'])",
 ].join(", ")
+
+type VoiceRequestContext = components["schemas"]["VoiceContext"]
 
 /**
  * Controls that Space presses from the keyboard: buttons, links, checkboxes and their
@@ -202,7 +205,10 @@ export function VoiceDock() {
           body: {
             screen: target?.screen ?? "any",
             transcript: text,
-            context: target?.getContext() ?? { visible_creators: [] },
+            // The API defaults the lists a page leaves out, so they are not sent empty.
+            context: (target?.getContext() ?? {
+              visible_creators: [],
+            }) as VoiceRequestContext,
           },
         })
         intent = data

@@ -109,6 +109,7 @@ function brief(over: Partial<DealBrief> = {}): DealBrief {
     deliverables_count: 3,
     deliverables_format: "short_video",
     flexibility: [],
+    hires_target: 1,
     ...over,
   }
 }
