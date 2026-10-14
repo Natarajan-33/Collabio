@@ -1,0 +1,16 @@
+{{ heading }}
+
+{% for line in lines %}
+{{ line }}
+
+{% endfor %}
+{{ cta_label }}: {{ cta_url }}
+
+{% if ai_written %}
+This email was written with AI assistance on behalf of {{ brand_name }}.
+{% endif %}
+{% if unsubscribe_url %}
+Don't want brand offers? Unsubscribe: {{ unsubscribe_url }}
+{% else %}
+Sent by Collabio.
+{% endif %}
