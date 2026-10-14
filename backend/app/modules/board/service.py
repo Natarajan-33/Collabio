@@ -14,6 +14,7 @@ import asyncpg
 from app.adapters.db import Database
 from app.core.delta import compute_delta
 from app.core.ranking import RankInput, rank_threads
+from app.core.thread_state import brand_actions
 from app.modules.board import repo
 from app.modules.discovery.service import initials, package_summary
 from app.modules.threads import repo as threads_repo
@@ -30,10 +31,11 @@ from app.schemas.board import (
     ThreadEventView,
     TranscriptView,
 )
-from app.schemas.negotiation import NegotiationTerms
+from app.schemas.negotiation import TERMS_EVENT_TYPES, NegotiationTerms
 from app.schemas.packages import PackageTerms
 
 CONTACT_EVENTS = {"email_sent", "call_started"}
+REPLY_EVENTS = set(repo.REPLY_EVENTS)
 
 
 class BatchNotFound(Exception):
@@ -119,6 +121,12 @@ def _card(
         ],
         best_value=best_value,
         last_error=row["last_error"],
+        terms_event_id=next(
+            (e["id"] for e in reversed(events) if e["type"] in TERMS_EVENT_TYPES), None
+        ),
+        deal_id=row["deal_id"],
+        expires_at=row["expires_at"],
+        allowed_actions=brand_actions(row["status"]),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -166,8 +174,9 @@ def _build_view(
     per_video = [v.per_video_cents for v in values.values() if v.eligible and v.per_video_cents]
     kpis = BatchKpis(
         contacted=sum(1 for t in threads if CONTACT_EVENTS & types(t["id"])),
-        replied=sum(1 for t in threads if "call_ended" in types(t["id"])),
+        replied=sum(1 for t in threads if REPLY_EVENTS & types(t["id"])),
         countered=sum(1 for t in threads if t["status"] == "countered"),
+        hired=sum(1 for t in threads if t["status"] == "awarded"),
         best_per_video_cents=min(per_video) if per_video else None,
         launched_at=batch["launched_at"],
     )
@@ -182,10 +191,29 @@ def _build_view(
             budget_ceiling_cents=batch["budget_ceiling_cents"],
             go_live_by=batch["go_live_by"],
             follow_up_policy=batch["follow_up_policy"],
+            hires_target=batch["hires_target"],
         ),
         kpis=kpis,
         threads=cards,
     )
+
+
+async def thread_card(
+    conn: asyncpg.Connection, brand_id: UUID, thread_id: UUID, today: date
+) -> ThreadCard:
+    """The thread's card, ranked among its batch; `ThreadNotFound` for another brand's thread.
+
+    Reads through `conn`, so inside a transaction it shows the caller's own uncommitted writes.
+    """
+    batch_id = await repo.batch_of_thread(conn, brand_id, thread_id)
+    if batch_id is None:
+        raise ThreadNotFound
+    batch = await repo.get_batch(conn, brand_id, batch_id)
+    assert batch is not None
+    threads = await repo.batch_threads(conn, brand_id, batch_id)
+    events = await repo.batch_events(conn, brand_id, batch_id)
+    view = _build_view(batch, threads, events, today)
+    return next(card for card in view.threads if card.id == thread_id)
 
 
 class BoardService:
@@ -214,11 +242,7 @@ class BoardService:
 
     async def _card(self, conn: asyncpg.Connection, thread_id: UUID, today: date) -> ThreadCard:
         """The thread's card, ranked among its batch."""
-        batch_id = await repo.batch_of_thread(conn, self._brand_id, thread_id)
-        if batch_id is None:
-            raise ThreadNotFound
-        view = await self._view(conn, batch_id, today)
-        return next(card for card in view.threads if card.id == thread_id)
+        return await thread_card(conn, self._brand_id, thread_id, today)
 
     async def thread_detail(self, thread_id: UUID, today: date | None = None) -> ThreadDetail:
         """The thread's card with its whole event log (oldest first) and transcripts (newest

@@ -84,7 +84,7 @@ async def test_batch_view_shape_and_kpis(brand_client, launched_batch):
         "mayamakestech",
     }
     kpis = view["kpis"]
-    assert (kpis["contacted"], kpis["replied"], kpis["countered"]) == (0, 0, 0)
+    assert (kpis["contacted"], kpis["replied"], kpis["countered"], kpis["hired"]) == (0, 0, 0, 0)
     assert kpis["best_per_video_cents"] is None
     brief = view["brief"]
     assert brief["brief_id"] == str(launched_batch.brief_id)
@@ -92,7 +92,10 @@ async def test_batch_view_shape_and_kpis(brand_client, launched_batch):
     assert brief["ask_price_cents"] == 100000
     assert brief["deliverables_count"] == 3
     assert brief["follow_up_policy"] == "off"
+    assert brief["hires_target"] == 1
     card = view["threads"][0]
+    assert card["allowed_actions"] == ["withdraw"]
+    assert (card["terms_event_id"], card["deal_id"], card["expires_at"]) == (None, None, None)
     assert card["delta"]["ask_videos"] == 3
     assert card["package"]["name"]
     assert card["creator"]["initials"]

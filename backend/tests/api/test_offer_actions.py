@@ -12,7 +12,13 @@ import pytest
 
 from app.core.money import format_cents
 from app.modules.threads import repo
-from tests.api.helpers import record_brand_counter, send_held
+from tests.api.helpers import (
+    events_of,
+    outbox_of,
+    record_brand_counter,
+    send_held,
+    thread_row,
+)
 
 pytestmark = pytest.mark.db
 
@@ -41,39 +47,6 @@ def counter_body(price_cents, *, based_on, videos=3, **extra):
         "terms": {"videos": videos, "price_cents": price_cents},
         "based_on_event_id": based_on,
     } | extra
-
-
-async def events_of(api_db, thread_id, type_=None):
-    async with api_db.acquire() as conn:
-        rows = await conn.fetch(
-            "select id, type, actor, payload, terms from public.thread_events"
-            " where thread_id = $1 and ($2::text is null or type = $2) order by id",
-            thread_id,
-            type_,
-        )
-    return [
-        dict(r) | {"payload": json.loads(r["payload"]), "terms": json.loads(r["terms"] or "null")}
-        for r in rows
-    ]
-
-
-async def outbox_of(api_db, thread_id):
-    async with api_db.acquire() as conn:
-        rows = await conn.fetch(
-            "select kind, event_id, payload from public.outbox_emails where thread_id = $1"
-            " order by id",
-            thread_id,
-        )
-    return [dict(r) | {"payload": json.loads(r["payload"])} for r in rows]
-
-
-async def thread_row(api_db, thread_id):
-    async with api_db.acquire() as conn:
-        return await conn.fetchrow(
-            "select status, expires_at, latest_terms, latest_terms_source"
-            " from public.threads where id = $1",
-            thread_id,
-        )
 
 
 @pytest.fixture
