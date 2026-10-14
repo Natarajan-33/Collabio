@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
@@ -17,7 +18,9 @@ from app.modules.negotiation.calls import start_call
 from app.modules.negotiation.completion import complete_call, complete_intake
 from app.modules.outreach.service import send_outreach
 from app.workers.call_watcher import CallWatcher, CompleteCall, CompleteIntake
+from app.workers.expiry import expiry_loop
 from app.workers.orchestrator import Handler, Orchestrator
+from app.workers.outbox import outbox_loop
 from app.workers.sweep import sweep_loop, sweep_stuck
 
 logger = logging.getLogger(__name__)
@@ -33,16 +36,25 @@ class Workers:
     elevenlabs: ElevenLabsPort | None
 
 
-def _email_handler(db: Database, gemini: GeminiPort | None, settings: Settings) -> Handler:
+def _lazy_email(settings: Settings) -> Callable[[], EmailPort]:
+    """The Resend client, built on first use, so reserved-address mail works without a key."""
     resend: EmailPort | None = None
 
     def email() -> EmailPort:
-        """Built on first use, so reserved-address threads work without a Resend key."""
         nonlocal resend
         if resend is None:
             resend = ResendClient(settings)  # ValueError without RESEND_API_KEY
         return resend
 
+    return email
+
+
+def _email_handler(
+    db: Database,
+    gemini: GeminiPort | None,
+    settings: Settings,
+    email: Callable[[], EmailPort],
+) -> Handler:
     async def handle(thread_id: UUID) -> None:
         await send_outreach(
             db,
@@ -89,10 +101,11 @@ async def start_workers(app: FastAPI, settings: Settings) -> None:
     db: Database = app.state.db
     gemini = GeminiClient(settings) if settings.gemini_api_key else None
     elevenlabs = ElevenLabsClient(settings) if settings.elevenlabs_api_key else None
+    email = _lazy_email(settings)
     orchestrator = Orchestrator(
         db,
         {
-            "email": _email_handler(db, gemini, settings),
+            "email": _email_handler(db, gemini, settings, email),
             "call": _call_handler(db, elevenlabs, settings),
         },
     )
@@ -103,6 +116,10 @@ async def start_workers(app: FastAPI, settings: Settings) -> None:
     tasks = [
         asyncio.create_task(orchestrator.run(), name="launch-orchestrator"),
         asyncio.create_task(sweep_loop(db, on_requeued=orchestrator.wake), name="launch-sweep"),
+        asyncio.create_task(
+            outbox_loop(db, email=email, gemini=gemini, settings=settings), name="outbox-sender"
+        ),
+        asyncio.create_task(expiry_loop(db), name="expiry-sweep"),
     ]
     if elevenlabs is not None:
         watcher = CallWatcher(

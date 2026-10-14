@@ -102,3 +102,58 @@ async def test_lifespan_starts_and_stops_workers(app, db, monkeypatch, worker_ca
 def test_the_suite_runs_with_workers_off():
     """conftest forces WORKERS_ENABLED=0, so a lifespan in any other test starts no worker."""
     assert get_settings().workers_enabled is False
+
+
+async def test_start_workers_runs_the_m3_workers(monkeypatch):
+    """The real `start_workers` adds the outbox sender and the expiry sweep. Every loop and the
+    orchestrator are replaced by a sleeper, so nothing touches a database."""
+    import asyncio
+
+    from fastapi import FastAPI
+
+    from app.workers import runtime
+
+    started: dict[str, dict] = {}
+
+    def sleeper(name):
+        async def run(*args, **kwargs):
+            started[name] = kwargs
+            await asyncio.sleep(3600)
+
+        return run
+
+    class FakeOrchestrator:
+        def __init__(self, db, handlers):
+            pass
+
+        async def run(self):
+            await asyncio.sleep(3600)
+
+        def wake(self):
+            pass
+
+    async def no_sweep(db):
+        return None
+
+    monkeypatch.setattr(runtime, "Orchestrator", FakeOrchestrator)
+    monkeypatch.setattr(runtime, "sweep_stuck", no_sweep)
+    monkeypatch.setattr(runtime, "sweep_loop", sleeper("sweep"))
+    monkeypatch.setattr(runtime, "outbox_loop", sleeper("outbox"))
+    monkeypatch.setattr(runtime, "expiry_loop", sleeper("expiry"))
+    app = FastAPI()
+    app.state.db = object()
+    settings = Settings(_env_file=None, resend_api_key="")
+
+    await runtime.start_workers(app, settings)
+    try:
+        await asyncio.sleep(0)  # let the tasks start
+        names = {task.get_name() for task in app.state.workers.tasks}
+        assert {"outbox-sender", "expiry-sweep"} <= names
+        assert started["outbox"]["gemini"] is None
+        assert started["outbox"]["settings"] is settings
+        # Built on first use: without a Resend key, starting the worker must not fail.
+        with pytest.raises(ValueError):
+            started["outbox"]["email"]()
+    finally:
+        await runtime.stop_workers(app)
+    assert app.state.workers is None
