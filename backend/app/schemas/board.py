@@ -65,6 +65,9 @@ class TranscriptView(BaseModel):
     created_at: datetime
     subject: str | None
     body_text: str | None
+    # An email reply as it arrived (quoted history and signature included); body_text is the
+    # part we read. None for every other kind and for replies stored before this existed.
+    raw_text: str | None = None
     turns: list[TranscriptTurn]
     summary: str | None
 
@@ -184,6 +187,9 @@ class DeclineRestItem(BaseModel):
     thread_id: UUID
     creator: CreatorChip
     status: ThreadStatus
+    # Drafting, calling or in a call: the creator is being reached right now, so "decline the
+    # rest" leaves the thread alone and the brand can decline it later.
+    in_progress: bool = False
 
 
 class DeclineRestPreview(BaseModel):
@@ -191,6 +197,15 @@ class DeclineRestPreview(BaseModel):
     skipped: list[DeclineRestItem]
 
 
+class DeclineRestRequest(BaseModel):
+    """`thread_ids` are the threads the brand saw in the preview; only those are closed, and only
+    if still open. Without them every open thread of the batch is closed."""
+
+    thread_ids: list[UUID] | None = Field(None, max_length=500)
+
+
 class DeclineRestResult(BaseModel):
     closed: list[UUID]
     failed: list[UUID]
+    # Asked for but left as they were: no longer open (or not in this batch).
+    skipped: list[UUID] = []

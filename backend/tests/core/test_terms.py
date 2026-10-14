@@ -4,10 +4,12 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.terms import (
+    GoLiveInPast,
     TermsIncomplete,
     agreed_terms,
     brand_offer_terms,
     complete_counter,
+    ensure_go_live_not_past,
     terms_changed,
     terms_from_input,
 )
@@ -153,11 +155,32 @@ def test_terms_changed_with_none():
         {"videos": 0, "price_cents": 1000},
         {"videos": 51, "price_cents": 1000},
         {"videos": 1, "price_cents": 99},
+        {"videos": 1, "price_cents": 100_000_001},
     ],
 )
 def test_terms_input_bounds(kw):
     with pytest.raises(ValidationError):
         TermsInput(**kw)
+
+
+def test_terms_input_accepts_the_largest_price():
+    assert TermsInput(videos=1, price_cents=100_000_000).price_cents == 100_000_000
+
+
+def test_terms_draft_price_is_bounded():
+    assert TermsDraft(price_cents=100_000_000).price_cents == 100_000_000
+    with pytest.raises(ValidationError):
+        TermsDraft(price_cents=100_000_001)
+
+
+def test_go_live_must_not_be_before_today():
+    today = date(2026, 10, 14)
+    ensure_go_live_not_past(TermsInput(videos=1, price_cents=1000), today)
+    ensure_go_live_not_past(TermsInput(videos=1, price_cents=1000, go_live_by=today), today)
+    with pytest.raises(GoLiveInPast, match="The go-live date has passed"):
+        ensure_go_live_not_past(
+            TermsInput(videos=1, price_cents=1000, go_live_by=date(2026, 10, 13)), today
+        )
 
 
 def test_terms_input_conditions_limits():

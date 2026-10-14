@@ -13,6 +13,18 @@ class TermsIncomplete(Exception):
     """The latest terms lack a video count or a price, so no deal can be struck on them."""
 
 
+class GoLiveInPast(Exception):
+    """A counter names a go-live date that has already passed."""
+
+    message = "The go-live date has passed"
+
+
+def ensure_go_live_not_past(t: TermsInput, today: date) -> None:
+    """Raise `GoLiveInPast` when the typed terms name a go-live date before `today` (UTC)."""
+    if t.go_live_by is not None and t.go_live_by < today:
+        raise GoLiveInPast(GoLiveInPast.message)
+
+
 def brand_offer_terms(
     *,
     ask_videos: int,

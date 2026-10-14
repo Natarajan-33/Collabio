@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.adapters.db import Database
 from app.api.deps import CurrentUser, get_db, require_role
 from app.core.money import format_cents
-from app.core.terms import TermsIncomplete
+from app.core.terms import GoLiveInPast, TermsIncomplete
 from app.modules.board import actions, service
 from app.modules.board.actions import BoardActions
 from app.modules.board.service import BoardService
@@ -23,6 +23,7 @@ from app.schemas.board import (
     BrandCounterRequest,
     BrandDeclineRequest,
     DeclineRestPreview,
+    DeclineRestRequest,
     DeclineRestResult,
     ResolveRequest,
     ThreadCard,
@@ -108,7 +109,9 @@ ACTION_ERRORS = THREAD_NOT_FOUND | {
     status.HTTP_409_CONFLICT: {
         "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
     },
-    status.HTTP_422_UNPROCESSABLE_CONTENT: {"description": "`above_ceiling` (counter only)"},
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {
+        "description": "`above_ceiling`, `go_live_in_past` (counter, resolve)"
+    },
 }
 AWARD_ERRORS = THREAD_NOT_FOUND | {
     status.HTTP_409_CONFLICT: {
@@ -168,6 +171,10 @@ async def _act[T](call: Awaitable[T]) -> T:
         ) from exc
     except actions.AboveCeiling as exc:
         raise _error(status.HTTP_422_UNPROCESSABLE_CONTENT, "above_ceiling", exc.message) from exc
+    except GoLiveInPast as exc:
+        raise _error(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "go_live_in_past", GoLiveInPast.message
+        ) from exc
     except TermsIncomplete as exc:
         raise _error(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -234,9 +241,12 @@ async def preview_decline_rest(batch_id: UUID, acts: Actions) -> DeclineRestPrev
 
 
 @router.post("/batches/{batch_id}/decline-rest", responses=BATCH_NOT_FOUND)
-async def decline_rest(batch_id: UUID, acts: Actions) -> DeclineRestResult:
-    """Politely close every open thread of the batch; a thread that fails is reported."""
-    return await _act(acts.decline_rest(batch_id))
+async def decline_rest(
+    batch_id: UUID, acts: Actions, req: DeclineRestRequest | None = None
+) -> DeclineRestResult:
+    """Politely close the open threads of the batch (those named in `thread_ids`, if given); a
+    thread that fails is reported, one that is no longer open is skipped."""
+    return await _act(acts.decline_rest(batch_id, req))
 
 
 @router.post("/threads/{thread_id}/award/preview", responses=AWARD_ERRORS)

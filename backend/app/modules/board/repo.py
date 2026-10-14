@@ -83,7 +83,7 @@ where brand_id = $1 and thread_id = $2
 order by id
 """
 SELECT_THREAD_TRANSCRIPTS = """
-select tr.id, tr.kind, tr.created_at, tr.subject, tr.body_text, tr.turns, tr.summary
+select tr.id, tr.kind, tr.created_at, tr.subject, tr.body_text, tr.raw_text, tr.turns, tr.summary
 from public.transcripts tr
 join public.threads t on t.id = tr.thread_id
 where t.brand_id = $1 and tr.thread_id = $2

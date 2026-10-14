@@ -358,3 +358,22 @@ async def test_list_batches_newest_first(brand_client, api_db, launched_batch):
     assert mine["product_name"]
     assert mine["thread_count"] == 3
     assert (mine["contacted"], mine["replied"], mine["countered"]) == (0, 1, 1)
+
+
+async def test_thread_detail_carries_the_raw_text_of_an_email_reply(
+    brand_client, api_db, launched_batch
+):
+    arjun = launched_batch.threads["arjuntech"]
+    async with api_db.acquire() as conn:
+        await conn.execute(
+            "insert into public.transcripts (thread_id, kind, external_id, body_text, raw_text)"
+            " values ($1, 'email_in', $2, 'I need more', 'I need more\n> old quote')",
+            arjun,
+            f"board-raw-{RUN}",
+        )
+
+    r = await brand_client.get(f"{THREADS}/{arjun}")
+
+    [transcript] = r.json()["transcripts"]
+    assert transcript["body_text"] == "I need more"
+    assert transcript["raw_text"] == "I need more\n> old quote"

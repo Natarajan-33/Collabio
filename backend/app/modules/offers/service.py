@@ -15,7 +15,12 @@ import asyncpg
 from app.adapters.db import Database
 from app.core.delta import compute_delta
 from app.core.guardrails import floor_shortfall
-from app.core.terms import brand_offer_terms, terms_changed, terms_from_input
+from app.core.terms import (
+    brand_offer_terms,
+    ensure_go_live_not_past,
+    terms_changed,
+    terms_from_input,
+)
 from app.core.thread_state import CREATOR_VISIBLE, creator_actions, waiting_on
 from app.modules.discovery.service import package_summary
 from app.modules.notify import outbox
@@ -312,6 +317,7 @@ class OffersService:
         """
         async with self._db.transaction() as conn:
             row, ref = await self._lock(conn, thread_id, "counter", req.based_on_event_id)
+            ensure_go_live_not_past(req.terms, today)
             terms = terms_from_input(
                 req.terms, stance="counter", source="in_app", format=row["deliverables_format"]
             )

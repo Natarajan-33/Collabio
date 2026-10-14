@@ -7,6 +7,7 @@ outbox row.
 
 import asyncio
 import json
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -344,3 +345,39 @@ async def test_stale_accept_409(creator_client, offer, api_db):
     assert detail["terms_event_id"] == counter_id
     assert await events_of(api_db, thread_id, "accepted") == []
     assert (await thread_row(api_db, thread_id))["status"] == "awaiting_reply"
+
+
+async def test_counter_with_a_past_go_live_is_422(creator_client, offer, api_db):
+    thread_id, sent_id = offer
+    body = counter_body(120000, based_on=sent_id)
+    body["terms"]["go_live_by"] = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+
+    r = await creator_client.post(f"{OFFERS}/{thread_id}/counter", json=body)
+
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"] == {
+        "code": "go_live_in_past",
+        "message": "The go-live date has passed",
+    }
+    assert (await thread_row(api_db, thread_id))["status"] == "awaiting_reply"
+
+
+async def test_counter_going_live_today_is_accepted(creator_client, offer):
+    thread_id, sent_id = offer
+    body = counter_body(120000, based_on=sent_id)
+    body["terms"]["go_live_by"] = datetime.now(UTC).date().isoformat()
+    body["confirm_below_floor"] = True  # Priya's own floor may sit above $1,200
+
+    r = await creator_client.post(f"{OFFERS}/{thread_id}/counter", json=body)
+
+    assert r.status_code == 200, r.text
+
+
+async def test_counter_price_over_the_bound_is_422(creator_client, offer):
+    thread_id, sent_id = offer
+
+    r = await creator_client.post(
+        f"{OFFERS}/{thread_id}/counter", json=counter_body(100_000_001, based_on=sent_id)
+    )
+
+    assert r.status_code == 422, r.text

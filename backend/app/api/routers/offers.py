@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.adapters.db import Database
 from app.api.deps import CurrentUser, get_db, require_role
+from app.core.terms import GoLiveInPast
 from app.modules.offers import service
 from app.modules.offers.service import OffersService
 from app.modules.threads.repo import StaleThread
@@ -30,7 +31,9 @@ ACTION_ERRORS = OFFER_NOT_FOUND | {
     status.HTTP_409_CONFLICT: {
         "description": "`terms_changed`, `stale_status`, `action_not_allowed`"
     },
-    status.HTTP_422_UNPROCESSABLE_CONTENT: {"description": "`below_floor` (counter only)"},
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {
+        "description": "`below_floor`, `go_live_in_past` (counter only)"
+    },
 }
 
 
@@ -104,6 +107,10 @@ async def _act[T](call: Awaitable[T]) -> T:
             status.HTTP_409_CONFLICT,
             "stale_status",
             "The offer moved on while you were acting. Refresh and try again.",
+        ) from exc
+    except GoLiveInPast as exc:
+        raise _error(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "go_live_in_past", GoLiveInPast.message
         ) from exc
     except service.BelowFloor as exc:
         raise _error(

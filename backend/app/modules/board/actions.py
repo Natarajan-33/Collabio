@@ -22,7 +22,7 @@ import asyncpg
 from app.adapters.db import Database
 from app.core.delta import compute_delta
 from app.core.guardrails import brand_counter_violation
-from app.core.terms import brand_offer_terms, terms_from_input
+from app.core.terms import brand_offer_terms, ensure_go_live_not_past, terms_from_input
 from app.core.thread_state import brand_actions
 from app.modules.board import repo
 from app.modules.board.service import BatchNotFound, ThreadNotFound, thread_card
@@ -37,6 +37,7 @@ from app.schemas.board import (
     CreatorChip,
     DeclineRestItem,
     DeclineRestPreview,
+    DeclineRestRequest,
     DeclineRestResult,
     ResolveRequest,
     ThreadCard,
@@ -66,6 +67,8 @@ OPEN_STATUSES = frozenset(
         "failed",
     }
 )
+# Threads being worked on right now; "decline the rest" skips them and says why.
+IN_PROGRESS_STATUSES = frozenset({"drafting", "calling", "in_call"})
 
 
 class ActionNotAllowed(Exception):
@@ -102,6 +105,7 @@ def _item(row: dict[str, Any]) -> DeclineRestItem:
             initials=initials(row["creator_name"]),
         ),
         status=row["status"],
+        in_progress=row["status"] in IN_PROGRESS_STATUSES,
     )
 
 
@@ -194,6 +198,7 @@ class BoardActions:
         """
         async with self._db.transaction() as conn:
             ctx, ref = await self._lock(conn, thread_id, ["counter"], req.based_on_event_id)
+            ensure_go_live_not_past(req.terms, today or _utc_today())
             terms = terms_from_input(
                 req.terms, stance="offer", source="in_app", format=ctx["deliverables_format"]
             )
@@ -237,6 +242,7 @@ class BoardActions:
             match req.outcome:
                 case "counter":
                     assert req.terms is not None  # the schema guarantees it
+                    ensure_go_live_not_past(req.terms, today or _utc_today())
                     terms = terms_from_input(
                         req.terms,
                         stance="counter",
@@ -324,20 +330,34 @@ class BoardActions:
                 raise StaleThread(f"Thread {thread_id} is {status}")
             await self._close(conn, ref, status, "not_selected")
 
-    async def decline_rest(self, batch_id: UUID) -> DeclineRestResult:
-        """Politely close every open thread of the batch, each in its own transaction: one that
-        fails (or moved on meanwhile) is reported in `failed` and never stops the others."""
+    async def decline_rest(
+        self, batch_id: UUID, req: DeclineRestRequest | None = None
+    ) -> DeclineRestResult:
+        """Politely close the open threads of the batch, each in its own transaction: one that
+        fails is reported in `failed` and never stops the others.
+
+        With `req.thread_ids` (the threads the brand saw in the preview) only those are closed,
+        and only if they are still open: one that moved on meanwhile, or that is not in the
+        batch, is `skipped`. Without them, every open thread is closed."""
         async with self._db.acquire() as conn:
             if await repo.get_batch(conn, self._brand_id, batch_id) is None:
                 raise BatchNotFound
             rows = await repo.batch_thread_statuses(conn, self._brand_id, batch_id)
+        wanted = None if req is None or req.thread_ids is None else set(req.thread_ids)
         closed: list[UUID] = []
         failed: list[UUID] = []
+        skipped: list[UUID] = []
         for row in rows:
+            if wanted is not None and row["id"] not in wanted:
+                continue
             if row["status"] not in OPEN_STATUSES:
+                if wanted is not None:
+                    skipped.append(row["id"])
                 continue
             try:
                 await self._close_not_selected(row["id"])
+            except StaleThread:  # it moved on between the read and the lock
+                skipped.append(row["id"])
             except Exception as exc:  # noqa: BLE001  (per-thread isolation: report it, go on)
                 logger.warning(
                     "decline-rest failed for thread %s: %s", row["id"], type(exc).__name__
@@ -345,4 +365,6 @@ class BoardActions:
                 failed.append(row["id"])
             else:
                 closed.append(row["id"])
-        return DeclineRestResult(closed=closed, failed=failed)
+        if wanted is not None:  # asked for, but not a thread of this batch
+            skipped.extend(sorted(wanted - {row["id"] for row in rows}, key=str))
+        return DeclineRestResult(closed=closed, failed=failed, skipped=skipped)

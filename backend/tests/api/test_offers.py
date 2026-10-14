@@ -165,3 +165,23 @@ async def test_unconfirmed_brand_latest_terms_do_not_drive_value_or_delta(
     assert desk["their_ask"]["price_cents"] == 100000
     assert desk["delta"]["latest_price_cents"] is None
     assert desk["latest"] is None
+
+
+async def test_offer_desk_carries_the_raw_text_of_the_creators_email(
+    creator_client, launched_batch, api_db
+):
+    thread_id = launched_batch.threads["priyareviews"]
+    await send_held(api_db, thread_id)
+    async with api_db.acquire() as conn:
+        await conn.execute(
+            "insert into public.transcripts (thread_id, kind, external_id, body_text, raw_text)"
+            " values ($1, 'email_in', $2, 'Sounds good', 'Sounds good\n> old quote')",
+            thread_id,
+            f"offers-raw-{thread_id}",
+        )
+
+    r = await creator_client.get(f"{OFFERS}/{thread_id}")
+
+    assert r.status_code == 200, r.text
+    [transcript] = [t for t in r.json()["transcripts"] if t["kind"] == "email_in"]
+    assert transcript["raw_text"] == "Sounds good\n> old quote"
