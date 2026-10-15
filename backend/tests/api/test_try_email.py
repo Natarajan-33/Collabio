@@ -16,7 +16,7 @@ async def clear_call_conversation_ids(api_db):
 
 
 async def test_try_email_sends_and_does_not_store_address(
-    brand_client, api_db, fake_gemini, fake_email, m2_settings
+    new_brand_client, try_runs, api_db, fake_gemini, fake_email, m2_settings
 ):
     fake_gemini.queue_structured(
         EmailDraft(
@@ -28,9 +28,7 @@ async def test_try_email_sends_and_does_not_store_address(
     )
     # Use a real-looking domain; not @example.com (reserved).
     inbox = "demo.tryer@tenvexalabs.in"
-    r = await brand_client.post(
-        TRY, json={"email": inbox, "scenario": "standard"}
-    )
+    r = await new_brand_client.post(TRY, json={"email": inbox, "scenario": "standard"})
     assert r.status_code == 200, r.text
     assert inbox in r.json()["message"]
 
@@ -40,7 +38,5 @@ async def test_try_email_sends_and_does_not_store_address(
     assert outbound.subject.startswith("[Collabio sample]")
 
     async with api_db.acquire() as conn:
-        stored = await conn.fetchval(
-            "select count(*) from public.creators where email = $1", inbox
-        )
+        stored = await conn.fetchval("select count(*) from public.creators where email = $1", inbox)
         assert stored == 0

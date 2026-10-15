@@ -129,3 +129,31 @@ async def force_status(
         )
     assert event_id is not None
     return event_id
+
+
+# "Try it" demos commit a brief, batch, thread and events under the demo brand, and their
+# per-day quota counts those rows by initiator. Tests run them as a throwaway user and delete
+# exactly that user's runs afterwards, so the quota and the shared database stay clean.
+TRY_RUN_EVENTS = """
+select count(*)::int from public.thread_events
+where payload->>'voice_try' = 'true' and payload->>'initiator_id' = $1
+"""
+DELETE_TRY_RUNS = """
+delete from public.briefs where id in (
+  select ba.brief_id from public.batches ba
+  join public.threads t on t.batch_id = ba.id
+  join public.thread_events e on e.thread_id = t.id
+  where e.payload->>'voice_try' = 'true' and e.payload->>'initiator_id' = $1)
+"""
+
+
+async def try_run_events(api_db: Database, initiator_id) -> int:
+    """How many "Try it" events this user's demo runs left behind."""
+    async with api_db.acquire() as conn:
+        return await conn.fetchval(TRY_RUN_EVENTS, str(initiator_id))
+
+
+async def delete_try_runs(api_db: Database, initiator_id) -> None:
+    """Delete the briefs (cascading to batches, threads and events) of this user's demo runs."""
+    async with api_db.acquire() as conn:
+        await conn.execute(DELETE_TRY_RUNS, str(initiator_id))

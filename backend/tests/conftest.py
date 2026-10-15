@@ -33,6 +33,7 @@ from app.config import Settings, get_settings
 from app.main import create_app
 from app.modules.briefs.service import BriefService
 from app.schemas.briefs import LaunchRequest
+from tests.api.helpers import delete_try_runs, try_run_events
 from tests.fakes import FakeElevenLabs, FakeEmail, FakeGemini
 from tests.tokens import TEST_JWKS, StaticJWKSClient, auth_header
 
@@ -144,6 +145,15 @@ async def auth_user(api_db: Database) -> AsyncIterator[uuid.UUID]:
     finally:
         async with api_db.acquire() as conn:
             await conn.execute(DELETE_AUTH_USER, user_id)
+
+
+@pytest.fixture
+async def try_runs(api_db: Database, auth_user: uuid.UUID) -> AsyncIterator[uuid.UUID]:
+    """The throwaway user a "Try it" demo runs as. Its runs are deleted afterwards, so they
+    neither fill the shared database nor count against the demo accounts' daily quota."""
+    yield auth_user
+    await delete_try_runs(api_db, auth_user)
+    assert await try_run_events(api_db, auth_user) == 0
 
 
 # Seeded demo marketplace ------------------------------------------------------
