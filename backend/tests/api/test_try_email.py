@@ -9,12 +9,6 @@ pytestmark = pytest.mark.db
 TRY = "/api/v1/voice/try-email"
 
 
-@pytest.fixture(autouse=True)
-async def clear_call_conversation_ids(api_db):
-    async with api_db.acquire() as conn:
-        await conn.execute("update public.threads set call_conversation_id = null")
-
-
 async def test_try_email_sends_and_does_not_store_address(
     new_brand_client, try_runs, api_db, fake_gemini, fake_email, m2_settings
 ):
