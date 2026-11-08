@@ -131,10 +131,12 @@ Prompt rules added to `ROUTER_SYSTEM`:
 
 ### 4.2 Briefs
 - **`creator_ids` on `BriefPatch`:** 1–10 ids, duplicates dropped, order kept, each a listed creator (the same check as create; `UnknownCreators` → 422). A launched brief returns 409 as today. The preview follows the new list.
-- **`campaign_name`:** new nullable column on `deal_briefs` (`text`, 1–80 characters after trimming). It is in `BriefFields`, the PATCH and the board's batch header. It is **not** a required field. It is brand-only: never in outreach emails, call variables or the brief agent's creator-facing text.
-- **`hires_target` becomes required:**
-  - `deal_briefs.hires_target` becomes nullable with no default. Existing rows keep their values. `batches.hires_target` stays `not null`, and launch copies the value as today.
-  - `hires_target` is added to `REQUIRED_BRIEF_FIELDS` (after `flexibility`). A PATCH with `null` clears it (today it resets to 1).
+- **The database is shared.** Tests, the dev backend and the deployed app use one hosted Supabase project, so every schema change must keep working for the code on `main` and `release/next`. Only additive changes are allowed.
+- **`campaign_name`:** new nullable column on `public.briefs` (`text`, 1–80 characters after trimming). It is in `BriefFields`, the PATCH and the board's batch header. It is **not** a required field. It is brand-only: never in outreach emails, call variables or the brief agent's creator-facing text.
+- **`hires_target` becomes a required answer, additively:**
+  - New column `public.briefs.hires_target_confirmed boolean not null default false`. The migration backfills `true` on every existing row, so briefs made before this change behave as they do today. `hires_target` keeps `not null default 1`, so the older code keeps working on new rows too.
+  - The API reports `DealBrief.hires_target` as `null` while it is unconfirmed. A PATCH that sets `hires_target` stores it and sets `hires_target_confirmed = true`. A PATCH with `null` stores 1 and sets it back to `false`.
+  - `hires_target` is added to `REQUIRED_BRIEF_FIELDS` (after `flexibility`), so an unconfirmed brief lists it as missing and cannot launch. `batches.hires_target` stays `not null`, and launch copies the value as today.
   - New cross-field rule: `hires_target` greater than the brief's creator count is a violation ("You picked fewer creators than you want to hire").
   - `DealBrief.hires_target: int | None`. The brief page's stepper shows "—" until it is set.
   - The ElevenLabs brief agent's `missing_fields` variable leaves `hires_target` out (the stepper handles it; the agent's tool cannot set it).
@@ -190,7 +192,7 @@ Privacy: the budget cap and "most you'd spend" appear only on the brand's sheet.
 
 ## 7. Testing
 
-- **Backend (pytest, fake Gemini):** sort orders, including price by cheapest matching package (`tests/api/test_discovery.py`); `creator_ids` PATCH on draft and launched briefs, plus unknown ids (`test_briefs.py`); `campaign_name` bounds; `hires_target` required, the null clear and the more-hires-than-creators rule (`tests/core/test_brief_rules.py`, `test_launch.py`); the migration (`test_apply_migration.py`); session routing: name resolution, refine vs new, rejected fields, wrong-screen kinds → `unclear`, discover no longer returning `search`/`select` (`test_voice.py`); privacy sweep for `campaign_name` and the cap (`test_m3_privacy.py`).
+- **Backend (pytest, fake Gemini):** sort orders, including price by cheapest matching package (`tests/api/test_discovery.py`); `creator_ids` PATCH on draft and launched briefs, plus unknown ids (`test_briefs.py`); `campaign_name` bounds; `hires_target` required, the confirmed flag and its backfill, the null clear and the more-hires-than-creators rule (`tests/core/test_brief_rules.py`, `test_launch.py`); the migration (`test_apply_migration.py`); session routing: name resolution, refine vs new, rejected fields, wrong-screen kinds → `unclear`, discover no longer returning `search`/`select` (`test_voice.py`); privacy sweep for `campaign_name` and the cap (`test_m3_privacy.py`).
 - **Live router evals (`tests/live/test_intent_live.py`, real Gemini):** the success-criteria sentence (no `go_live_by`, hint "March"); the swap; "make it under 1,500"; "drop the price limit"; several brief fields in one sentence; "three more" → `add`; "hire all three".
 - **Frontend (vitest):** `lib/session/*` reducers, summary and sheet; `use-session-brief` sync and `?brief=` loading; the Discover page wired to fake intents; Review's "Back to your request"; the brief page's "—" stepper.
 - **E2E (Playwright, `tests/e2e/session.spec.ts`):** the sample run typed into the dock: request → 3 rows → swap → answer the questions → Approve → board.
@@ -202,4 +204,4 @@ Privacy: the budget cap and "most you'd spend" appear only on the brand's sheet.
 - All work lands on `feat/voice-session`, cut from `release/next`. `release/next` and `main` are not touched.
 - The branch is pushed only when the user asks (a pushed branch may create a Vercel preview, which is not production).
 - When the user approves the result, `feat/voice-session` merges into `release/next`. If it is not good enough, the branch is dropped and `release/next` remains as it is.
-- The migration is additive except for `deal_briefs.hires_target` losing its `not null` and default. Existing rows keep their values, but drafts saved by the new code may hold `null`, which the old code cannot read. The branch therefore ships a reverse script (`backend/supabase/rollback/…_voice_session_down.sql`) that sets `null` targets to 1, restores `not null default 1`, and drops `campaign_name` and the `sort_by` overload. Run it on any database the migration reached before falling back to `release/next`.
+- The migration is purely additive: two new columns with defaults, and `match_creators` replaced by a version whose new `sort_by` parameter defaults to `null`, so the older code's named-argument call still resolves and orders as before. Falling back to `release/next` needs no database change; the old code ignores the new columns.
