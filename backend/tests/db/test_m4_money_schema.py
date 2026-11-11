@@ -140,3 +140,15 @@ async def test_brand_cannot_read_other_brands_payouts(db_conn, as_user, factory)
     assert await visible(creator.profile_id) == (1, 1, 0)
     assert await visible(other_brand.profile_id) == (0, 0, 0)
     await db_conn.execute("reset role")
+
+
+async def test_deleting_a_deal_cascades_its_money_events(db_conn, factory):
+    _, _, thread_id, deal_id = await make_deal(factory)
+    await db_conn.execute(
+        "insert into public.money_events (deal_id, kind, amount_cents) values ($1, 'funded', 100)",
+        deal_id,
+    )
+    await db_conn.execute("delete from public.threads where id = $1", thread_id)
+    assert await db_conn.fetchval(
+        "select count(*) from public.money_events where deal_id = $1", deal_id
+    ) == 0
