@@ -814,6 +814,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deals/{deal_id}/bonus-terms/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Bonus Terms
+         * @description Claude reads the plain-English bonus; the engine prices it and the funding total.
+         */
+        post: operations["preview_bonus_terms_api_v1_deals__deal_id__bonus_terms_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{deal_id}/bonus-terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Bonus Terms
+         * @description Save the bonus terms (until the deal is funded).
+         */
+        put: operations["put_bonus_terms_api_v1_deals__deal_id__bonus_terms_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/brand/auto-approve-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Auto Approve Limit
+         * @description Payouts at or below this amount are sent without asking the brand.
+         */
+        put: operations["put_auto_approve_limit_api_v1_me_brand_auto_approve_limit_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{deal_id}/funding/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Funding Order
+         * @description A PayPal order for the deal's full budget: milestones plus the maximum bonus.
+         */
+        post: operations["create_funding_order_api_v1_deals__deal_id__funding_order_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{deal_id}/funding/capture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Capture Funding
+         * @description Capture the approved order; repeated or concurrent calls return the first result.
+         */
+        post: operations["capture_funding_api_v1_deals__deal_id__funding_capture_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{deal_id}/money": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Money
+         * @description Funding, milestones with proof and payouts, the ledger and what is still held.
+         */
+        get: operations["get_money_api_v1_deals__deal_id__money_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/unsubscribe/{reply_token}": {
         parameters: {
             query?: never;
@@ -963,6 +1083,11 @@ export interface components {
              */
             addons: string[];
         };
+        /** AutoApproveLimit */
+        AutoApproveLimit: {
+            /** Cents */
+            cents: number;
+        };
         /**
          * AwardPreview
          * @description What awarding a thread would do: the agreed terms, the even milestone split, and the
@@ -1089,6 +1214,43 @@ export interface components {
             reasons: string[];
             /** Ineligible Reason */
             ineligible_reason: string | null;
+        };
+        /** BonusExample */
+        BonusExample: {
+            /** Views */
+            views: number;
+            /** Bonus Cents */
+            bonus_cents: number;
+        };
+        /** BonusPreview */
+        BonusPreview: {
+            terms: components["schemas"]["BonusTermsIn"];
+            /** Examples */
+            examples: components["schemas"]["BonusExample"][];
+            /** Max Bonus Per Video Cents */
+            max_bonus_per_video_cents: number;
+            /** Funding Total Cents */
+            funding_total_cents: number;
+        };
+        /** BonusPreviewRequest */
+        BonusPreviewRequest: {
+            /** Text */
+            text: string;
+        };
+        /** BonusTermsIn */
+        BonusTermsIn: {
+            cpm?: components["schemas"]["CpmIn"] | null;
+            /** Tiers */
+            tiers?: components["schemas"]["TierIn"][];
+        };
+        /** BonusTermsPut */
+        BonusTermsPut: {
+            /**
+             * Source Text
+             * @default
+             */
+            source_text: string;
+            terms: components["schemas"]["BonusTermsIn"];
         };
         /**
          * BrandChip
@@ -1307,6 +1469,15 @@ export interface components {
             suggested_counter_price_usd: number | null;
             /** Talking Point */
             talking_point: string;
+        };
+        /** CpmIn */
+        CpmIn: {
+            /** Rate Cents Per 1K */
+            rate_cents_per_1k: number;
+            /** Starts After Views */
+            starts_after_views: number;
+            /** Cap Cents */
+            cap_cents: number;
         };
         /**
          * CreateBriefRequest
@@ -1693,6 +1864,34 @@ export interface components {
             /** Floor Price Cents */
             floor_price_cents: number;
         };
+        /** FundingCapture */
+        FundingCapture: {
+            /** Order Id */
+            order_id: string;
+        };
+        /** FundingOrder */
+        FundingOrder: {
+            /** Order Id */
+            order_id: string;
+            /** Approve Url */
+            approve_url: string | null;
+        };
+        /** FundingView */
+        FundingView: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "created" | "captured" | "failed";
+            /** Amount Cents */
+            amount_cents: number;
+            /** Refunded Cents */
+            refunded_cents: number;
+            /** Capture Id */
+            capture_id: string | null;
+            /** Captured At */
+            captured_at: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1742,6 +1941,23 @@ export interface components {
             thread_count: number;
             /** Excluded */
             excluded: components["schemas"]["LaunchExclusion"][];
+        };
+        /** LedgerEntry */
+        LedgerEntry: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Paypal Ref */
+            paypal_ref: string | null;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Created At */
+            created_at: string;
         };
         /**
          * LogOfferRequest
@@ -1819,6 +2035,27 @@ export interface components {
              */
             due_date: string;
         };
+        /** MilestoneMoney */
+        MilestoneMoney: {
+            /** Id */
+            id: string;
+            /** Seq */
+            seq: number;
+            /** Title */
+            title: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Status */
+            status: string;
+            /** Owed Cents */
+            owed_cents: number;
+            /** Committed Cents */
+            committed_cents: number;
+            /** Submissions */
+            submissions: components["schemas"]["SubmissionView"][];
+            /** Payouts */
+            payouts: components["schemas"]["PayoutView"][];
+        };
         /** MilestoneView */
         MilestoneView: {
             /** Seq */
@@ -1842,6 +2079,31 @@ export interface components {
              * @constant
              */
             status: "pending";
+        };
+        /** MoneyView */
+        MoneyView: {
+            /** Deal Id */
+            deal_id: string;
+            /** Deal Status */
+            deal_status: string;
+            /** Videos */
+            videos: number;
+            funding: components["schemas"]["FundingView"] | null;
+            bonus_terms: components["schemas"]["BonusTermsIn"] | null;
+            /** Bonus Source Text */
+            bonus_source_text: string | null;
+            /** Funding Total Cents */
+            funding_total_cents: number;
+            /** Auto Approve Limit Cents */
+            auto_approve_limit_cents: number | null;
+            /** Milestones */
+            milestones: components["schemas"]["MilestoneMoney"][];
+            /** Ledger */
+            ledger: components["schemas"]["LedgerEntry"][];
+            /** Available Cents */
+            available_cents: number;
+            /** Can Close */
+            can_close: boolean;
         };
         /**
          * MyPackage
@@ -2213,6 +2475,31 @@ export interface components {
             /** Addons */
             addons: components["schemas"]["Addon"][];
         };
+        /** PayoutView */
+        PayoutView: {
+            /** Id */
+            id: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Status */
+            status: string;
+            /** Breakdown */
+            breakdown: {
+                [key: string]: unknown;
+            };
+            /** Paypal Batch Id */
+            paypal_batch_id: string | null;
+            /** Paypal Item Id */
+            paypal_item_id: string | null;
+            /** Reject Reason */
+            reject_reason: string | null;
+            /** Last Error */
+            last_error: {
+                [key: string]: unknown;
+            } | null;
+            /** Created At */
+            created_at: string;
+        };
         /**
          * ResolveRequest
          * @description How the brand settles a reply it had to review: record a counter (with the terms it read
@@ -2380,6 +2667,37 @@ export interface components {
             /** Top N */
             top_n?: number | null;
         };
+        /** SubmissionView */
+        SubmissionView: {
+            /** Id */
+            id: string;
+            /** Post Url */
+            post_url: string;
+            /** Caption */
+            caption: string;
+            /** Claimed Views */
+            claimed_views: number;
+            /** Status */
+            status: string;
+            /** Brief Ok */
+            brief_ok: boolean | null;
+            /** Disclosure Ok */
+            disclosure_ok: boolean | null;
+            /** Missing Points */
+            missing_points: string[];
+            /** Views */
+            views: number | null;
+            /** View Confidence */
+            view_confidence: string | null;
+            /** Agent Summary */
+            agent_summary: string | null;
+            /** Screenshot Url */
+            screenshot_url: string | null;
+            /** Run Status */
+            run_status: string | null;
+            /** Created At */
+            created_at: string;
+        };
         /**
          * TermsColumn
          * @description One column of the desk: a position as videos, price and conditions.
@@ -2513,6 +2831,13 @@ export interface components {
                 [key: string]: unknown;
             };
             terms: components["schemas"]["NegotiationTerms"] | null;
+        };
+        /** TierIn */
+        TierIn: {
+            /** Views */
+            views: number;
+            /** Bonus Cents */
+            bonus_cents: number;
         };
         /**
          * TranscriptTurn
@@ -4328,6 +4653,206 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_bonus_terms_api_v1_deals__deal_id__bonus_terms_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BonusPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BonusPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_bonus_terms_api_v1_deals__deal_id__bonus_terms_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BonusTermsPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BonusPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_auto_approve_limit_api_v1_me_brand_auto_approve_limit_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutoApproveLimit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoApproveLimit"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_funding_order_api_v1_deals__deal_id__funding_order_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FundingOrder"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    capture_funding_api_v1_deals__deal_id__funding_capture_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FundingCapture"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_money_api_v1_deals__deal_id__money_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyView"];
+                };
             };
             /** @description Validation Error */
             422: {

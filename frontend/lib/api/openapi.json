@@ -2128,6 +2128,328 @@
         }
       }
     },
+    "/api/v1/deals/{deal_id}/bonus-terms/preview": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Preview Bonus Terms",
+        "description": "Claude reads the plain-English bonus; the engine prices it and the funding total.",
+        "operationId": "preview_bonus_terms_api_v1_deals__deal_id__bonus_terms_preview_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BonusPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BonusPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deals/{deal_id}/bonus-terms": {
+      "put": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Put Bonus Terms",
+        "description": "Save the bonus terms (until the deal is funded).",
+        "operationId": "put_bonus_terms_api_v1_deals__deal_id__bonus_terms_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BonusTermsPut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BonusPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/brand/auto-approve-limit": {
+      "put": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Put Auto Approve Limit",
+        "description": "Payouts at or below this amount are sent without asking the brand.",
+        "operationId": "put_auto_approve_limit_api_v1_me_brand_auto_approve_limit_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoApproveLimit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoApproveLimit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deals/{deal_id}/funding/order": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Create Funding Order",
+        "description": "A PayPal order for the deal's full budget: milestones plus the maximum bonus.",
+        "operationId": "create_funding_order_api_v1_deals__deal_id__funding_order_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FundingOrder"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deals/{deal_id}/funding/capture": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Capture Funding",
+        "description": "Capture the approved order; repeated or concurrent calls return the first result.",
+        "operationId": "capture_funding_api_v1_deals__deal_id__funding_capture_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FundingCapture"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deals/{deal_id}/money": {
+      "get": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Get Money",
+        "description": "Funding, milestones with proof and payouts, the ledger and what is still held.",
+        "operationId": "get_money_api_v1_deals__deal_id__money_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/unsubscribe/{reply_token}": {
       "get": {
         "tags": [
@@ -2507,6 +2829,21 @@
         "title": "AgreedTerms",
         "description": "Complete terms of an awarded deal: every deal field is filled."
       },
+      "AutoApproveLimit": {
+        "properties": {
+          "cents": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cents"
+        ],
+        "title": "AutoApproveLimit"
+      },
       "AwardPreview": {
         "properties": {
           "agreed": {
@@ -2828,6 +3165,111 @@
         ],
         "title": "BestValue",
         "description": "A thread's place in the best-value ranking, with the reasons that earned it."
+      },
+      "BonusExample": {
+        "properties": {
+          "views": {
+            "type": "integer",
+            "title": "Views"
+          },
+          "bonus_cents": {
+            "type": "integer",
+            "title": "Bonus Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "views",
+          "bonus_cents"
+        ],
+        "title": "BonusExample"
+      },
+      "BonusPreview": {
+        "properties": {
+          "terms": {
+            "$ref": "#/components/schemas/BonusTermsIn"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/BonusExample"
+            },
+            "type": "array",
+            "title": "Examples"
+          },
+          "max_bonus_per_video_cents": {
+            "type": "integer",
+            "title": "Max Bonus Per Video Cents"
+          },
+          "funding_total_cents": {
+            "type": "integer",
+            "title": "Funding Total Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "terms",
+          "examples",
+          "max_bonus_per_video_cents",
+          "funding_total_cents"
+        ],
+        "title": "BonusPreview"
+      },
+      "BonusPreviewRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "BonusPreviewRequest"
+      },
+      "BonusTermsIn": {
+        "properties": {
+          "cpm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CpmIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tiers": {
+            "items": {
+              "$ref": "#/components/schemas/TierIn"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Tiers"
+          }
+        },
+        "type": "object",
+        "title": "BonusTermsIn"
+      },
+      "BonusTermsPut": {
+        "properties": {
+          "source_text": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Source Text",
+            "default": ""
+          },
+          "terms": {
+            "$ref": "#/components/schemas/BonusTermsIn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "terms"
+        ],
+        "title": "BonusTermsPut"
       },
       "BrandChip": {
         "properties": {
@@ -3441,6 +3883,32 @@
           "talking_point"
         ],
         "title": "CheckCounterResponse"
+      },
+      "CpmIn": {
+        "properties": {
+          "rate_cents_per_1k": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rate Cents Per 1K"
+          },
+          "starts_after_views": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Starts After Views"
+          },
+          "cap_cents": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Cap Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rate_cents_per_1k",
+          "starts_after_views",
+          "cap_cents"
+        ],
+        "title": "CpmIn"
       },
       "CreateBriefRequest": {
         "properties": {
@@ -4423,6 +4891,98 @@
         "title": "FloorRequest",
         "description": "The lowest price (cents) the creator will accept for a package; never shown to brands."
       },
+      "FundingCapture": {
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Order Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order_id"
+        ],
+        "title": "FundingCapture"
+      },
+      "FundingOrder": {
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "title": "Order Id"
+          },
+          "approve_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approve Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order_id",
+          "approve_url"
+        ],
+        "title": "FundingOrder"
+      },
+      "FundingView": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "captured",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          },
+          "refunded_cents": {
+            "type": "integer",
+            "title": "Refunded Cents"
+          },
+          "capture_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture Id"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "amount_cents",
+          "refunded_cents",
+          "capture_id",
+          "captured_at"
+        ],
+        "title": "FundingView"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4515,6 +5075,52 @@
           "excluded"
         ],
         "title": "LaunchResponse"
+      },
+      "LedgerEntry": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          },
+          "paypal_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paypal Ref"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "amount_cents",
+          "paypal_ref",
+          "payload",
+          "created_at"
+        ],
+        "title": "LedgerEntry"
       },
       "LogOfferRequest": {
         "properties": {
@@ -4710,6 +5316,65 @@
         "title": "MilestoneDraft",
         "description": "One payment milestone as proposed or edited, before it is stored."
       },
+      "MilestoneMoney": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "seq": {
+            "type": "integer",
+            "title": "Seq"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "owed_cents": {
+            "type": "integer",
+            "title": "Owed Cents"
+          },
+          "committed_cents": {
+            "type": "integer",
+            "title": "Committed Cents"
+          },
+          "submissions": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionView"
+            },
+            "type": "array",
+            "title": "Submissions"
+          },
+          "payouts": {
+            "items": {
+              "$ref": "#/components/schemas/PayoutView"
+            },
+            "type": "array",
+            "title": "Payouts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "seq",
+          "title",
+          "amount_cents",
+          "status",
+          "owed_cents",
+          "committed_cents",
+          "submissions",
+          "payouts"
+        ],
+        "title": "MilestoneMoney"
+      },
       "MilestoneView": {
         "properties": {
           "seq": {
@@ -4753,6 +5418,106 @@
           "status"
         ],
         "title": "MilestoneView"
+      },
+      "MoneyView": {
+        "properties": {
+          "deal_id": {
+            "type": "string",
+            "title": "Deal Id"
+          },
+          "deal_status": {
+            "type": "string",
+            "title": "Deal Status"
+          },
+          "videos": {
+            "type": "integer",
+            "title": "Videos"
+          },
+          "funding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FundingView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bonus_terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BonusTermsIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bonus_source_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bonus Source Text"
+          },
+          "funding_total_cents": {
+            "type": "integer",
+            "title": "Funding Total Cents"
+          },
+          "auto_approve_limit_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Approve Limit Cents"
+          },
+          "milestones": {
+            "items": {
+              "$ref": "#/components/schemas/MilestoneMoney"
+            },
+            "type": "array",
+            "title": "Milestones"
+          },
+          "ledger": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntry"
+            },
+            "type": "array",
+            "title": "Ledger"
+          },
+          "available_cents": {
+            "type": "integer",
+            "title": "Available Cents"
+          },
+          "can_close": {
+            "type": "boolean",
+            "title": "Can Close"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deal_id",
+          "deal_status",
+          "videos",
+          "funding",
+          "bonus_terms",
+          "bonus_source_text",
+          "funding_total_cents",
+          "auto_approve_limit_cents",
+          "milestones",
+          "ledger",
+          "available_cents",
+          "can_close"
+        ],
+        "title": "MoneyView"
       },
       "MyPackage": {
         "properties": {
@@ -5828,6 +6593,89 @@
         "title": "PackageSummary",
         "description": "A published package as shown on a creator card. `one_liner` is its card text."
       },
+      "PayoutView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "breakdown": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Breakdown"
+          },
+          "paypal_batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paypal Batch Id"
+          },
+          "paypal_item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paypal Item Id"
+          },
+          "reject_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reject Reason"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "amount_cents",
+          "status",
+          "breakdown",
+          "paypal_batch_id",
+          "paypal_item_id",
+          "reject_reason",
+          "last_error",
+          "created_at"
+        ],
+        "title": "PayoutView"
+      },
       "ResolveRequest": {
         "properties": {
           "outcome": {
@@ -6248,6 +7096,136 @@
         "type": "object",
         "title": "SelectArgs",
         "description": "Which creators to select: those named (`creator_ids`) or the first `top_n` shown."
+      },
+      "SubmissionView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "post_url": {
+            "type": "string",
+            "title": "Post Url"
+          },
+          "caption": {
+            "type": "string",
+            "title": "Caption"
+          },
+          "claimed_views": {
+            "type": "integer",
+            "title": "Claimed Views"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "brief_ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Ok"
+          },
+          "disclosure_ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disclosure Ok"
+          },
+          "missing_points": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Points"
+          },
+          "views": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Views"
+          },
+          "view_confidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View Confidence"
+          },
+          "agent_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Summary"
+          },
+          "screenshot_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenshot Url"
+          },
+          "run_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Status"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "post_url",
+          "caption",
+          "claimed_views",
+          "status",
+          "brief_ok",
+          "disclosure_ok",
+          "missing_points",
+          "views",
+          "view_confidence",
+          "agent_summary",
+          "screenshot_url",
+          "run_status",
+          "created_at"
+        ],
+        "title": "SubmissionView"
       },
       "TermsColumn": {
         "properties": {
@@ -6730,6 +7708,26 @@
           "terms"
         ],
         "title": "ThreadEventView"
+      },
+      "TierIn": {
+        "properties": {
+          "views": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Views"
+          },
+          "bonus_cents": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Bonus Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "views",
+          "bonus_cents"
+        ],
+        "title": "TierIn"
       },
       "TranscriptTurn": {
         "properties": {

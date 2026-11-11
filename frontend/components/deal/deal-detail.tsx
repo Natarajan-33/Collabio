@@ -6,6 +6,7 @@ import * as React from "react"
 
 import { StatusPill } from "@/components/board/status-pill"
 import { DealSummary } from "@/components/deal/deal-summary"
+import { MoneyPanel } from "@/components/money/money-panel"
 import { useApi } from "@/hooks/use-api"
 import type { components } from "@/lib/api/schema"
 
@@ -99,6 +100,10 @@ export function DealDetail({
       </div>
 
       <DealSummary deal={deal} viewer={viewer} />
+
+      <React.Suspense fallback={null}>
+        <MoneyPanel viewer={viewer} dealId={dealId} />
+      </React.Suspense>
     </div>
   )
 }
