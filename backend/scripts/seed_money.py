@@ -214,6 +214,10 @@ async def seed_money(conn: asyncpg.Connection) -> dict[str, UUID]:
             brand_id,
             MARKER,
         )
+        # $500 auto-approve: a $400 base pays itself; bonus-heavy payouts wait for the brand.
+        await conn.execute(
+            "update public.brands set auto_approve_limit_cents = 50000 where id = $1", brand_id
+        )
         if settings.paypal_receiver_email:
             await conn.execute(
                 "update public.creators set payout_email = $2 where id = $1",
