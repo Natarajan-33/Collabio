@@ -73,8 +73,11 @@ async def parse_bonus_terms(claude: ClaudePort, model: str, text: str) -> BonusT
     )
     if message.get("stop_reason") == "refusal":
         return "I couldn't read those terms. Could you describe the bonus differently?"
-    raw = next(b["text"] for b in message["content"] if b.get("type") == "text")
-    data = json.loads(raw)
+    try:
+        raw = next(b["text"] for b in message["content"] if b.get("type") == "text")
+        data = json.loads(raw)
+    except (StopIteration, ValueError, KeyError, TypeError):
+        return "I couldn't read those terms. Could you describe the bonus differently?"
     if data.get("question"):
         return str(data["question"])
     cpm = (

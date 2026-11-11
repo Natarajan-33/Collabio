@@ -63,6 +63,8 @@ def http_errors() -> Iterator[None]:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "bad_screenshot") from exc
     except service.NotSubmittable as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "not_submittable") from exc
+    except service.FundingOutdated as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "funding_outdated") from exc
     except service.FundingMismatch as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "funding_mismatch") from exc
     except service.FundingTooLarge as exc:

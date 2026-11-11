@@ -237,12 +237,13 @@ class FakePayPal:
         order = self.orders[order_id]
         return {
             "status": "COMPLETED",
+            "capture_status": "COMPLETED",
             "capture_id": f"CAP-{order_id}",
             "amount_cents": order["amount_cents"],
             "custom_id": order["custom_id"],
         }
 
-    async def refund_capture(self, capture_id, amount_cents, note):
+    async def refund_capture(self, capture_id, amount_cents, note, *, request_id=None):
         self.refunds.append({"capture_id": capture_id, "amount_cents": amount_cents})
         return {"id": f"REF{len(self.refunds)}", "status": "COMPLETED"}
 

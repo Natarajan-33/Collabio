@@ -104,3 +104,37 @@ async def test_other_brand_cannot_fund_or_read(new_brand_client, booked, fake_pa
         await new_brand_client.post(f"/api/v1/deals/{deal_id}/funding/order")
     ).status_code == 404
     assert (await new_brand_client.get(f"/api/v1/deals/{deal_id}/money")).status_code == 404
+
+
+async def test_capture_rejects_order_made_before_bonus_change(brand_client, booked, fake_paypal):
+    _, deal_id = booked
+    r = await brand_client.post(f"/api/v1/deals/{deal_id}/funding/order")
+    order_id = r.json()["order_id"]
+    await brand_client.put(
+        f"/api/v1/deals/{deal_id}/bonus-terms", json={"source_text": "", "terms": TERMS_JSON}
+    )
+    r = await brand_client.post(
+        f"/api/v1/deals/{deal_id}/funding/capture", json={"order_id": order_id}
+    )
+    assert r.status_code == 409
+    assert r.json()["detail"] == "funding_outdated"
+    assert fake_paypal.captures == 0
+
+
+async def test_new_order_never_resets_a_captured_funding(brand_client, booked, fake_paypal, api_db):
+    from app.modules.money import repo
+
+    _, deal_id = booked
+    await order_and_capture(brand_client, deal_id)
+    async with api_db.acquire() as conn:
+        changed = await repo.upsert_created_order(conn, deal_id, "ORDER-NEW", 1)
+        row = await repo.funding(conn, deal_id)
+    assert changed is False
+    assert row["status"] == "captured"
+
+
+async def test_funded_view_reports_captured_total(brand_client, booked, fake_paypal):
+    _, deal_id = booked
+    await order_and_capture(brand_client, deal_id)
+    view = (await brand_client.get(f"/api/v1/deals/{deal_id}/money")).json()
+    assert view["funding_total_cents"] == view["funding"]["amount_cents"] == 120000

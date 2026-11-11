@@ -185,6 +185,7 @@ async def test_capture_parses_capture_id_and_custom_id():
     result = await make_client().capture_order("O1")
     assert result == {
         "status": "COMPLETED",
+        "capture_status": "COMPLETED",
         "capture_id": "CAP1",
         "amount_cents": 24_000,
         "custom_id": "deal-1",
@@ -231,3 +232,96 @@ async def test_verify_webhook():
         "paypal-transmission-time": "2026-11-11T00:00:00Z",
     }
     assert await make_client().verify_webhook(headers, b'{"id":"WH-1"}', "WHID") is True
+
+
+@respx.mock
+async def test_retry_reuses_paypal_request_id():
+    token_route(respx)
+    route = respx.post(f"{BASE}/v2/payments/captures/CAP1/refund").mock(
+        side_effect=[
+            httpx.Response(503, json={"name": "SERVICE_UNAVAILABLE"}),
+            httpx.Response(201, json={"id": "R1", "status": "COMPLETED"}),
+        ]
+    )
+    await make_client().refund_capture("CAP1", 100, "note", request_id="refund-deal-1")
+    ids = [call.request.headers["PayPal-Request-Id"] for call in route.calls]
+    assert ids == ["refund-deal-1", "refund-deal-1"]
+
+
+@respx.mock
+async def test_capture_sends_prefer_representation_and_reads_unit_custom_id():
+    token_route(respx)
+    route = respx.post(f"{BASE}/v2/checkout/orders/O1/capture").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "id": "O1",
+                "status": "COMPLETED",
+                "purchase_units": [
+                    {
+                        "custom_id": "deal-1",
+                        "payments": {
+                            "captures": [
+                                {
+                                    "id": "CAP1",
+                                    "status": "COMPLETED",
+                                    "amount": {"currency_code": "USD", "value": "10.00"},
+                                }
+                            ]
+                        },
+                    }
+                ],
+            },
+        )
+    )
+    result = await make_client().capture_order("O1")
+    assert route.calls[0].request.headers["Prefer"] == "return=representation"
+    assert route.calls[0].request.headers["PayPal-Request-Id"] == "capture-O1"
+    assert result["custom_id"] == "deal-1"
+    assert result["capture_status"] == "COMPLETED"
+
+
+@respx.mock
+async def test_capture_recovers_when_already_captured():
+    token_route(respx)
+    respx.post(f"{BASE}/v2/checkout/orders/O1/capture").mock(
+        return_value=httpx.Response(
+            422,
+            json={"name": "UNPROCESSABLE_ENTITY", "details": [{"issue": "ORDER_ALREADY_CAPTURED"}]},
+        )
+    )
+    respx.get(f"{BASE}/v2/checkout/orders/O1").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "O1",
+                "status": "COMPLETED",
+                "purchase_units": [
+                    {
+                        "custom_id": "deal-1",
+                        "payments": {
+                            "captures": [
+                                {
+                                    "id": "CAP1",
+                                    "status": "COMPLETED",
+                                    "amount": {"currency_code": "USD", "value": "10.00"},
+                                }
+                            ]
+                        },
+                    }
+                ],
+            },
+        )
+    )
+    result = await make_client().capture_order("O1")
+    assert result["capture_id"] == "CAP1"
+    assert result["amount_cents"] == 1000
+
+
+@respx.mock
+async def test_network_error_maps_to_paypalerror():
+    token_route(respx)
+    respx.get(f"{BASE}/v2/checkout/orders/O1").mock(side_effect=httpx.ConnectTimeout("slow"))
+    with pytest.raises(PayPalError) as exc:
+        await make_client().get_order("O1")
+    assert exc.value.code == "PAYPAL_UNREACHABLE"

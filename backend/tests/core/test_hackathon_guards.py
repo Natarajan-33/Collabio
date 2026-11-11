@@ -50,3 +50,16 @@ def test_handler_key_email_only_never_calls():
     assert handler_key("call") == "call"
     assert handler_key("call", email_only=True) == "email"
     assert handler_key("email_then_call", email_only=True) == "email"
+
+
+def test_email_only_launch_ignores_call_permission():
+    no_phone = LaunchCandidate(
+        creator_id=uuid4(),
+        package_id=uuid4(),
+        preferred_channel="email_first",
+        phone=None,
+        phone_opt_in=False,
+        contact_opt_out=False,
+    )
+    planned, _ = plan_launch([no_phone], {no_phone.creator_id: "call"}, email_only=True)
+    assert [p.channel_plan for p in planned] == ["email"]

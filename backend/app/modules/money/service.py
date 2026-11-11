@@ -5,7 +5,6 @@ Amounts always come from `app.core.settlement`; auto-pay is decided only by
 """
 
 import base64
-import time
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -51,6 +50,10 @@ class FundingTooLarge(Exception):
 
 class FundingMismatch(Exception):
     """PayPal captured something other than this deal's order and amount."""
+
+
+class FundingOutdated(Exception):
+    """The deal's budget changed after this order was made; start a new checkout."""
 
 
 def terms_dict(t: BonusTerms) -> dict[str, Any]:
@@ -147,13 +150,14 @@ class MoneyService:
         order = await self._paypal.create_order(
             amount_cents=total,
             custom_id=str(deal_id),
-            invoice_id=f"collabio-{deal_id}-{int(time.time())}",
+            invoice_id=f"collabio-{uuid.uuid4().hex[:20]}",
             description=f"Collabio deal budget ({deal['videos']} videos + performance bonus)",
             return_url=f"{base}/brand/deals/{deal_id}?funding=return",
             cancel_url=f"{base}/brand/deals/{deal_id}?funding=cancel",
         )
         async with self._db.acquire() as conn:
-            await repo.upsert_created_order(conn, deal_id, order["id"], total)
+            if not await repo.upsert_created_order(conn, deal_id, order["id"], total):
+                raise AlreadyFunded
         return {"order_id": order["id"], "approve_url": order["approve_url"]}
 
     async def capture(self, deal_id: UUID, brand_id: UUID, order_id: str) -> dict[str, Any]:
@@ -168,9 +172,12 @@ class MoneyService:
             if row is None or row["paypal_order_id"] != order_id:
                 raise FundingMismatch
             if row["status"] != "captured":
+                if await self._funding_total(conn, deal) != row["amount_cents"]:
+                    raise FundingOutdated
                 result = await self._paypal.capture_order(order_id)
                 if (
                     result["status"] != "COMPLETED"
+                    or result.get("capture_status", "COMPLETED") != "COMPLETED"
                     or result["custom_id"] != str(deal_id)
                     or result["amount_cents"] != row["amount_cents"]
                 ):
@@ -203,11 +210,11 @@ class MoneyService:
             limit = await repo.auto_approve_limit(conn, deal["brand_id"]) if brand_id else None
         terms = engine.terms_from_json(bonus["terms"]) if bonus else None
         amounts = [m["amount_cents"] for m in milestones]
+        captured = fund["amount_cents"] if fund and fund["status"] == "captured" else 0
         try:
-            total = engine.funding_total(amounts, deal["videos"], terms)
+            total = captured or engine.funding_total(amounts, deal["videos"], terms)
         except ValueError:
             total = sum(amounts)
-        captured = fund["amount_cents"] if fund and fund["status"] == "captured" else 0
         refunded = fund["refunded_cents"] if fund else 0
         committed_all = sum(p["amount_cents"] for p in payouts if p["status"] in repo.LIVE_PAYOUT)
         out_milestones = []

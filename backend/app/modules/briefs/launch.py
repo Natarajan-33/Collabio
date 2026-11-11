@@ -61,10 +61,12 @@ def plan_launch(
         plan = channels.get(c.creator_id) or default_channel(
             c.preferred_channel, c.phone, c.phone_opt_in
         )
+        if email_only:
+            plan = "email"
         reason = channel_violation(
             plan, phone=c.phone, phone_opt_in=c.phone_opt_in, contact_opt_out=False
         )
         if reason:
             raise ChannelNotAllowed(c.creator_id, reason)
-        planned.append(PlannedThread(c.creator_id, c.package_id, "email" if email_only else plan))
+        planned.append(PlannedThread(c.creator_id, c.package_id, plan))
     return planned, excluded

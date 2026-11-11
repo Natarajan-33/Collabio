@@ -43,3 +43,8 @@ async def test_parser_returns_question_on_invalid_terms():
     }
     out = await parse_bonus_terms(FakeClaude([claude_text(payload)]), "m", "x")
     assert isinstance(out, str) and out
+
+
+async def test_parser_unreadable_reply_becomes_question():
+    out = await parse_bonus_terms(FakeClaude([claude_text("not json")]), "m", "x")
+    assert isinstance(out, str) and out

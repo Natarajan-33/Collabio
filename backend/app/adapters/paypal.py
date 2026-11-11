@@ -62,7 +62,7 @@ class PayPalPort(Protocol):
     async def get_order(self, order_id: str) -> dict[str, Any]: ...
     async def capture_order(self, order_id: str) -> dict[str, Any]: ...
     async def refund_capture(
-        self, capture_id: str, amount_cents: int, note: str
+        self, capture_id: str, amount_cents: int, note: str, *, request_id: str | None = None
     ) -> dict[str, Any]: ...
     async def create_payout(
         self, sender_batch_id: str, receiver_email: str, amount_cents: int, note: str
@@ -104,10 +104,9 @@ class PayPalClient:
         self._token_expires_at = time.monotonic() + int(body["expires_in"]) - TOKEN_MARGIN_S
         return self._token
 
-    async def _send(self, method: str, path: str, json: Any | None) -> httpx.Response:
-        headers = {"Content-Type": "application/json"}
-        if method == "POST":
-            headers["PayPal-Request-Id"] = str(uuid.uuid4())
+    async def _send(
+        self, method: str, path: str, json: Any | None, headers: dict[str, str]
+    ) -> httpx.Response:
         for attempt in range(2):
             token = await self._access_token(force=attempt == 1)
             r = await self._http.request(
@@ -122,18 +121,37 @@ class PayPalClient:
             raise _Retryable(r)
         return r
 
-    async def _request(self, method: str, path: str, json: Any | None = None) -> dict[str, Any]:
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        json: Any | None = None,
+        *,
+        request_id: str | None = None,
+        prefer_representation: bool = False,
+    ) -> dict[str, Any]:
+        """One logical call. A POST keeps the same `PayPal-Request-Id` across retries, so
+        PayPal replays the original result instead of acting twice."""
+        headers = {"Content-Type": "application/json"}
+        if method == "POST":
+            headers["PayPal-Request-Id"] = request_id or str(uuid.uuid4())
+        if prefer_representation:
+            headers["Prefer"] = "return=representation"
         try:
             async for attempt in AsyncRetrying(
-                retry=retry_if_exception(lambda e: isinstance(e, _Retryable)),
+                retry=retry_if_exception(
+                    lambda e: isinstance(e, (_Retryable, httpx.TransportError))
+                ),
                 stop=stop_after_attempt(3),
                 wait=wait_exponential(multiplier=0.2, max=2),
                 reraise=True,
             ):
                 with attempt:
-                    r = await self._send(method, path, json)
+                    r = await self._send(method, path, json, headers)
         except _Retryable as exc:
             raise _error(exc.response) from None
+        except httpx.HTTPError as exc:
+            raise PayPalError("PAYPAL_UNREACHABLE", str(exc) or "network error", http_status=0)
         if r.status_code >= 300:
             raise _error(r)
         return r.json() if r.content else {}
@@ -171,7 +189,9 @@ class PayPalClient:
                 }
             },
         }
-        data = await self._request("POST", "/v2/checkout/orders", body)
+        data = await self._request(
+            "POST", "/v2/checkout/orders", body, request_id=f"order-{invoice_id}"
+        )
         approve = next(
             (link["href"] for link in data.get("links", []) if link.get("rel") == "payer-action"),
             None,
@@ -182,16 +202,25 @@ class PayPalClient:
         return await self._request("GET", f"/v2/checkout/orders/{order_id}")
 
     async def capture_order(self, order_id: str) -> dict[str, Any]:
-        data = await self._request("POST", f"/v2/checkout/orders/{order_id}/capture", None)
-        capture = data["purchase_units"][0]["payments"]["captures"][0]
-        return {
-            "status": data["status"],
-            "capture_id": capture["id"],
-            "amount_cents": value_to_cents(capture["amount"]["value"]),
-            "custom_id": capture.get("custom_id"),
-        }
+        """Capture an approved order. Safe to repeat: a retry replays the same request, and
+        an order captured earlier is read back instead of failing."""
+        try:
+            data = await self._request(
+                "POST",
+                f"/v2/checkout/orders/{order_id}/capture",
+                None,
+                request_id=f"capture-{order_id}",
+                prefer_representation=True,
+            )
+        except PayPalError as exc:
+            if exc.code != "ORDER_ALREADY_CAPTURED":
+                raise
+            data = await self.get_order(order_id)
+        return _capture_result(data)
 
-    async def refund_capture(self, capture_id: str, amount_cents: int, note: str) -> dict[str, Any]:
+    async def refund_capture(
+        self, capture_id: str, amount_cents: int, note: str, *, request_id: str | None = None
+    ) -> dict[str, Any]:
         data = await self._request(
             "POST",
             f"/v2/payments/captures/{capture_id}/refund",
@@ -199,6 +228,8 @@ class PayPalClient:
                 "amount": {"currency_code": "USD", "value": cents_to_value(amount_cents)},
                 "note_to_payer": note[:255],
             },
+            request_id=request_id,
+            prefer_representation=True,
         )
         return {"id": data["id"], "status": data["status"]}
 
@@ -224,6 +255,7 @@ class PayPalClient:
                     }
                 ],
             },
+            request_id=sender_batch_id,
         )
         header = data["batch_header"]
         items = data.get("items") or []
@@ -263,6 +295,18 @@ class PayPalClient:
             },
         )
         return data.get("verification_status") == "SUCCESS"
+
+
+def _capture_result(order: dict[str, Any]) -> dict[str, Any]:
+    unit = order["purchase_units"][0]
+    capture = unit["payments"]["captures"][0]
+    return {
+        "status": order["status"],
+        "capture_status": capture.get("status"),
+        "capture_id": capture["id"],
+        "amount_cents": value_to_cents(capture["amount"]["value"]),
+        "custom_id": capture.get("custom_id") or unit.get("custom_id"),
+    }
 
 
 def _error(r: httpx.Response) -> PayPalError:

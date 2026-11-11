@@ -94,16 +94,20 @@ async def funding(conn: asyncpg.Connection, deal_id: UUID, *, lock: bool = False
 
 async def upsert_created_order(
     conn: asyncpg.Connection, deal_id: UUID, order_id: str, amount_cents: int
-) -> None:
-    await conn.execute(
+) -> bool:
+    """Record a new order; False (and no change) once the deal's funding is captured."""
+    changed = await conn.fetchval(
         "insert into public.deal_funding (deal_id, paypal_order_id, amount_cents, status)"
         " values ($1, $2, $3, 'created')"
         " on conflict (deal_id) do update set paypal_order_id = excluded.paypal_order_id,"
-        " amount_cents = excluded.amount_cents, status = 'created'",
+        " amount_cents = excluded.amount_cents, status = 'created'"
+        " where public.deal_funding.status <> 'captured'"
+        " returning deal_id",
         deal_id,
         order_id,
         amount_cents,
     )
+    return changed is not None
 
 
 async def mark_captured(conn: asyncpg.Connection, deal_id: UUID, capture_id: str) -> None:

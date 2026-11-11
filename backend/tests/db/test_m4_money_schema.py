@@ -87,9 +87,12 @@ async def test_money_events_delete_allowed_during_demo_reset(db_conn, factory):
     async with db_conn.transaction():
         await db_conn.execute("set local collabio.demo_reset = 'on'")
         await db_conn.execute("delete from public.money_events where deal_id = $1", deal_id)
-    assert await db_conn.fetchval(
-        "select count(*) from public.money_events where deal_id = $1", deal_id
-    ) == 0
+    assert (
+        await db_conn.fetchval(
+            "select count(*) from public.money_events where deal_id = $1", deal_id
+        )
+        == 0
+    )
 
 
 async def test_payout_sender_batch_id_unique(db_conn, factory):
@@ -112,9 +115,7 @@ async def test_deal_status_accepts_funded_completed(db_conn, factory):
         )
     with pytest.raises(asyncpg.CheckViolationError):
         async with db_conn.transaction():
-            await db_conn.execute(
-                "update public.deals set status = 'bogus' where id = $1", deal_id
-            )
+            await db_conn.execute("update public.deals set status = 'bogus' where id = $1", deal_id)
 
 
 async def test_brand_cannot_read_other_brands_payouts(db_conn, as_user, factory):
@@ -149,6 +150,9 @@ async def test_deleting_a_deal_cascades_its_money_events(db_conn, factory):
         deal_id,
     )
     await db_conn.execute("delete from public.threads where id = $1", thread_id)
-    assert await db_conn.fetchval(
-        "select count(*) from public.money_events where deal_id = $1", deal_id
-    ) == 0
+    assert (
+        await db_conn.fetchval(
+            "select count(*) from public.money_events where deal_id = $1", deal_id
+        )
+        == 0
+    )
