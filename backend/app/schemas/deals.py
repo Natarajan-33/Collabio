@@ -55,9 +55,14 @@ class AwardRequest(BaseModel):
     confirm_over_target: bool = False
 
 
+# M4 adds funding, delivery and payment states.
+DealStatus = Literal["booked", "funded", "completed"]
+MilestoneStatus = Literal["pending", "funded", "submitted", "needs_changes", "verified", "paid"]
+
+
 class MilestoneView(MilestoneDraft):
     id: UUID
-    status: Literal["pending"]
+    status: MilestoneStatus
 
 
 class DealParty(BaseModel):
@@ -71,7 +76,7 @@ class DealView(BaseModel):
     id: UUID
     thread_id: UUID
     batch_id: UUID
-    status: Literal["booked"]
+    status: DealStatus
     product_name: str
     terms: AgreedTerms
     milestones: list[MilestoneView]
@@ -91,5 +96,5 @@ class DealListItem(BaseModel):
     videos: int
     price_cents: int
     go_live_by: date
-    status: Literal["booked"]
+    status: DealStatus
     created_at: datetime

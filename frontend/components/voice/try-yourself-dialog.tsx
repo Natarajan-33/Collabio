@@ -24,6 +24,9 @@ import type { ShellRole } from "@/components/shell/app-shell"
 import { cn } from "@/lib/utils"
 
 type Mode = "call" | "email"
+
+// Hackathon mode starts on email: calls are off in the public demo.
+const INITIAL_MODE: Mode = isHackathon ? "email" : "call"
 type Step = "channel" | "contact" | "scenario" | "done"
 
 /** Shown wherever we explain the Twilio MVP trial — sets expectation + roadmap. */
@@ -99,7 +102,7 @@ export function TryYourselfDialog({
 }: TryYourselfDialogProps) {
   const api = useApi()
   const [step, setStep] = React.useState<Step>("channel")
-  const [mode, setMode] = React.useState<Mode>(isHackathon ? "email" : "call")
+  const [mode, setMode] = React.useState<Mode>(INITIAL_MODE)
   const [phone, setPhone] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [scenario, setScenario] = React.useState<TryScenarioId>("standard")
@@ -110,7 +113,7 @@ export function TryYourselfDialog({
   // rendering (guarded, so it settles at once) rather than in an effect.
   const dirty =
     step !== "channel" ||
-    mode !== "call" ||
+    mode !== INITIAL_MODE ||
     phone !== "" ||
     email !== "" ||
     scenario !== "standard" ||
@@ -118,7 +121,7 @@ export function TryYourselfDialog({
     busy
   if (!open && dirty) {
     setStep("channel")
-    setMode(isHackathon ? "email" : "call")
+    setMode(INITIAL_MODE)
     setPhone("")
     setEmail("")
     setScenario("standard")

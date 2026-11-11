@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
   ChartColumn,
+  CircleDollarSign,
   Compass,
   FileSignature,
   Handshake,
@@ -65,7 +66,12 @@ const NAV: Record<ShellRole, NavItem[]> = {
       icon: FileSignature,
       href: "/brand/deals",
     },
-    { label: "Analytics", hint: "How your deals perform", icon: ChartColumn },
+    {
+      label: "Money",
+      hint: "Funding, payouts and refunds",
+      icon: CircleDollarSign,
+      href: "/brand/money",
+    },
   ],
   creator: [
     {

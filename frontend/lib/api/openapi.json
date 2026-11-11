@@ -2803,6 +2803,92 @@
         }
       }
     },
+    "/api/v1/money/dashboard": {
+      "get": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Money Dashboard",
+        "description": "The brand's deals, milestones, payouts, ledger and creators as flat tables.",
+        "operationId": "money_dashboard_api_v1_money_dashboard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object",
+                  "title": "Response Money Dashboard Api V1 Money Dashboard Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/money/agent-usage": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Agent Usage",
+        "description": "Counts one dashboard-agent message against the demo cap (429 `demo_cap`).",
+        "operationId": "agent_usage_api_v1_money_agent_usage_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/demo/reset": {
+      "post": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Reset Demo",
+        "description": "Recreate the three demo deals (hackathon mode only, at most once a minute).",
+        "operationId": "reset_demo_api_v1_demo_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Reset Demo Api V1 Demo Reset Post"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/unsubscribe/{reply_token}": {
       "get": {
         "tags": [

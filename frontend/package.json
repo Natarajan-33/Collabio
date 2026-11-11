@@ -16,6 +16,7 @@
     "api:gen": "cd ../backend && uv run python -m scripts.export_openapi ../frontend/lib/api/openapi.json && cd ../frontend && openapi-typescript lib/api/openapi.json -o lib/api/schema.d.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@base-ui/react": "1.8.0",
     "@elevenlabs/react": "1.17.0",
     "@gsap/react": "2.1.2",
@@ -23,6 +24,10 @@
     "@react-three/fiber": "9.8.1",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.3",
+    "ag-grid-community": "^36.2.0",
+    "ag-grid-react": "^36.2.0",
+    "ag-studio": "^3.0.0",
+    "ag-studio-react": "^3.0.0",
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
     "gsap": "3.15.0",

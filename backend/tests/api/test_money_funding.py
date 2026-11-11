@@ -138,3 +138,14 @@ async def test_funded_view_reports_captured_total(brand_client, booked, fake_pay
     await order_and_capture(brand_client, deal_id)
     view = (await brand_client.get(f"/api/v1/deals/{deal_id}/money")).json()
     assert view["funding_total_cents"] == view["funding"]["amount_cents"] == 120000
+
+
+async def test_deal_views_accept_funded_status(brand_client, booked, fake_paypal):
+    _, deal_id = booked
+    await order_and_capture(brand_client, deal_id)
+    listing = await brand_client.get("/api/v1/deals")
+    assert listing.status_code == 200, listing.text
+    assert next(d for d in listing.json() if d["id"] == deal_id)["status"] == "funded"
+    detail = await brand_client.get(f"/api/v1/deals/{deal_id}")
+    assert detail.status_code == 200, detail.text
+    assert {m["status"] for m in detail.json()["milestones"]} == {"funded"}

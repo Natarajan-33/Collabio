@@ -458,3 +458,65 @@ async def stale_approved_payout_ids(conn: asyncpg.Connection, min_age_seconds: i
         float(min_age_seconds),
     )
     return [r["id"] for r in rows]
+
+
+async def dashboard_rows(conn: asyncpg.Connection, brand_id: UUID) -> dict[str, list[dict]]:
+    """Flat tables of the brand's money for AG Studio: dollars as numbers, ISO dates."""
+    deals = await conn.fetch(
+        "select d.id::text, coalesce(br.product_name, 'Deal') as title, d.creator_id::text,"
+        " d.status, d.videos, d.price_cents / 100.0 as agreed,"
+        " coalesce(f.amount_cents, 0) / 100.0 as funded,"
+        " coalesce(f.refunded_cents, 0) / 100.0 as refunded,"
+        " d.go_live_by::text, d.created_at::date::text as created_at"
+        " from public.deals d join public.batches b on b.id = d.batch_id"
+        " join public.briefs br on br.id = b.brief_id"
+        " left join public.deal_funding f on f.deal_id = d.id and f.status = 'captured'"
+        " where d.brand_id = $1",
+        brand_id,
+    )
+    milestones = await conn.fetch(
+        "select m.id::text, m.deal_id::text, m.seq, m.title, m.status,"
+        " m.amount_cents / 100.0 as agreed,"
+        " (select max(s.views) from public.milestone_submissions s"
+        "  where s.milestone_id = m.id and s.status = 'verified') as views"
+        " from public.deal_milestones m join public.deals d on d.id = m.deal_id"
+        " where d.brand_id = $1",
+        brand_id,
+    )
+    payouts = await conn.fetch(
+        "select p.id::text, m.deal_id::text, p.milestone_id::text, d.creator_id::text,"
+        " p.status, p.amount_cents / 100.0 as amount,"
+        " coalesce((p.breakdown->>'base')::int, 0) / 100.0 as base,"
+        " (coalesce((p.breakdown->>'cpm')::int, 0)"
+        "  + coalesce((p.breakdown->>'tiers')::int, 0)) / 100.0 as bonus,"
+        " p.created_at::date::text as date"
+        " from public.payouts p join public.deal_milestones m on m.id = p.milestone_id"
+        " join public.deals d on d.id = m.deal_id where d.brand_id = $1",
+        brand_id,
+    )
+    events = await conn.fetch(
+        "select e.id::text, e.deal_id::text, e.kind, e.amount_cents / 100.0 as amount,"
+        " e.created_at::date::text as date"
+        " from public.money_events e join public.deals d on d.id = e.deal_id"
+        " where d.brand_id = $1",
+        brand_id,
+    )
+    creators = await conn.fetch(
+        "select distinct c.id::text, c.name, c.handle from public.creators c"
+        " join public.deals d on d.creator_id = c.id where d.brand_id = $1",
+        brand_id,
+    )
+
+    def rows(records):
+        return [
+            {k: (float(v) if hasattr(v, "is_finite") else v) for k, v in dict(r).items()}
+            for r in records
+        ]
+
+    return {
+        "deals": rows(deals),
+        "milestones": rows(milestones),
+        "payouts": rows(payouts),
+        "money_events": rows(events),
+        "creators": rows(creators),
+    }

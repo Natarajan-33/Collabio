@@ -25,6 +25,7 @@ from app.api.deps import (
 )
 from app.config import Settings, get_settings
 from app.modules.briefs import service as briefs_service
+from app.modules.money import repo as money_repo
 from app.modules.money import runner, service, usage
 from app.modules.money.service import MoneyService
 from app.modules.offers import service as offers_service
@@ -362,3 +363,24 @@ async def paypal_webhook(
     except PayPalError:
         ok = False
     return {"processed": ok}
+
+
+@router.get("/money/dashboard")
+async def money_dashboard(
+    user: BrandUser,
+    db: Annotated[Database, Depends(get_db)],
+) -> dict[str, list[dict]]:
+    """The brand's deals, milestones, payouts, ledger and creators as flat tables."""
+    brand_id = await brand_id_of(user, db)
+    async with db.acquire() as conn:
+        return await money_repo.dashboard_rows(conn, brand_id)
+
+
+@router.post("/money/agent-usage", status_code=status.HTTP_204_NO_CONTENT)
+async def agent_usage(
+    user: BrandUser,
+    db: Annotated[Database, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> None:
+    """Counts one dashboard-agent message against the demo cap (429 `demo_cap`)."""
+    await usage.consume(db, user.id, "agent_message", settings)
