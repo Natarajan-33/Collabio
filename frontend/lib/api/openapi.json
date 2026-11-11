@@ -2450,6 +2450,359 @@
         }
       }
     },
+    "/api/v1/milestones/{milestone_id}/submissions": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Submit Proof",
+        "description": "Proof for one milestone: post link, caption, claimed views and an analytics\nscreenshot. Starts the Claude settlement run.",
+        "operationId": "submit_proof_api_v1_milestones__milestone_id__submissions_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "milestone_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Milestone Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_submit_proof_api_v1_milestones__milestone_id__submissions_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Submit Proof Api V1 Milestones  Milestone Id  Submissions Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/{submission_id}/retry": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Retry Settlement",
+        "description": "Run verification again after a failed run (model down, unreadable reply).",
+        "operationId": "retry_settlement_api_v1_submissions__submission_id__retry_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Retry Settlement Api V1 Submissions  Submission Id  Retry Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payouts/{payout_id}/approve": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Approve Payout",
+        "description": "Send a payout that was waiting for the brand through PayPal Payouts.",
+        "operationId": "approve_payout_api_v1_payouts__payout_id__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Payout Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payouts/{payout_id}/reject": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Reject Payout",
+        "description": "Refuse a payout; the creator is asked to fix the post (the reason is shown to them).",
+        "operationId": "reject_payout_api_v1_payouts__payout_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Payout Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deals/{deal_id}/close": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Close Deal",
+        "description": "Refund the unspent budget through PayPal and complete the deal.",
+        "operationId": "close_deal_api_v1_deals__deal_id__close_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/internal/nightly": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Nightly",
+        "description": "Scheduler entry point: sync payouts, retry stuck runs, keep the database awake.",
+        "operationId": "nightly_api_v1_internal_nightly_post",
+        "parameters": [
+          {
+            "name": "x-internal-secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Secret"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Nightly Api V1 Internal Nightly Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/paypal": {
+      "post": {
+        "tags": [
+          "money"
+        ],
+        "summary": "Paypal Webhook",
+        "description": "PayPal payout and refund events. Ignored (202) until PAYPAL_WEBHOOK_ID is set.",
+        "operationId": "paypal_webhook_api_v1_webhooks_paypal_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object",
+                  "title": "Response Paypal Webhook Api V1 Webhooks Paypal Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/unsubscribe/{reply_token}": {
       "get": {
         "tags": [
@@ -3165,6 +3518,40 @@
         ],
         "title": "BestValue",
         "description": "A thread's place in the best-value ranking, with the reasons that earned it."
+      },
+      "Body_submit_proof_api_v1_milestones__milestone_id__submissions_post": {
+        "properties": {
+          "post_url": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Post Url"
+          },
+          "claimed_views": {
+            "type": "integer",
+            "maximum": 2000000000.0,
+            "minimum": 0.0,
+            "title": "Claimed Views"
+          },
+          "screenshot": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Screenshot"
+          },
+          "caption": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Caption",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "post_url",
+          "claimed_views",
+          "screenshot"
+        ],
+        "title": "Body_submit_proof_api_v1_milestones__milestone_id__submissions_post"
       },
       "BonusExample": {
         "properties": {
@@ -6675,6 +7062,21 @@
           "created_at"
         ],
         "title": "PayoutView"
+      },
+      "RejectRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "RejectRequest"
       },
       "ResolveRequest": {
         "properties": {

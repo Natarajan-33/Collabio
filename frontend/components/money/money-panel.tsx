@@ -7,10 +7,12 @@ import { toast } from "sonner"
 import { BonusTermsEditor } from "@/components/money/bonus-terms-editor"
 import { FundWithPayPal } from "@/components/money/fund-with-paypal"
 import { Ledger } from "@/components/money/ledger"
+import { CloseDeal, MilestoneMoney } from "@/components/money/milestone-money"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { MoneyInput } from "@/components/ui/money-input"
 import { useApi } from "@/hooks/use-api"
+import { useMoneyDoorbell } from "@/hooks/use-money-doorbell"
 import type { components } from "@/lib/api/schema"
 import { formatCents } from "@/lib/money"
 
@@ -98,19 +100,14 @@ function AutoApproveLimit({ initial }: { initial: number }) {
 
 /**
  * The deal's money: funding through PayPal (brand), what each milestone has earned, every
- * PayPal movement and what is still held. `children` renders per-milestone actions.
+ * PayPal movement and what is still held. Updates live while money moves.
  */
 export function MoneyPanel({
   viewer,
   dealId,
-  renderMilestones,
 }: {
   viewer: Viewer
   dealId: string
-  renderMilestones?: (
-    money: MoneyView,
-    reload: () => Promise<void>
-  ) => React.ReactNode
 }) {
   const api = useApi()
   const router = useRouter()
@@ -126,6 +123,15 @@ export function MoneyPanel({
     if (data) setMoney(data)
     else setFailed(true)
   }, [api, dealId])
+
+  // Poll while Claude is checking a post or a payout is in flight; ring on ledger inserts.
+  const inFlight =
+    money?.milestones.some(
+      (m) =>
+        m.submissions[0]?.status === "submitted" ||
+        m.payouts.some((p) => p.status === "sent" || p.status === "approved")
+    ) ?? false
+  useMoneyDoorbell(dealId, () => void reload(), { live: inFlight })
 
   React.useEffect(() => {
     let gone = false
@@ -249,7 +255,18 @@ export function MoneyPanel({
         </div>
       )}
 
-      {!unfunded && renderMilestones?.(money, reload)}
+      {!unfunded && (
+        <MilestoneMoney
+          money={money}
+          viewer={viewer}
+          onChange={() => void reload()}
+          onView={setMoney}
+        />
+      )}
+
+      {!unfunded && viewer === "brand" && (
+        <CloseDeal dealId={dealId} money={money} onView={setMoney} />
+      )}
 
       {!unfunded && (
         <div className="space-y-2">

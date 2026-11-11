@@ -32,3 +32,41 @@ const LEDGER: Record<string, string> = {
 export function ledgerLabel(kind: string): string {
   return LEDGER[kind] ?? kind
 }
+
+type Breakdown = {
+  base?: number
+  cpm?: number
+  tiers?: number
+  already_committed?: number
+  delta?: number
+}
+
+/** The payout engine's breakdown as display lines; zero parts are left out. */
+export function breakdownLines(
+  b: Breakdown
+): { label: string; cents: number }[] {
+  const lines: { label: string; cents: number }[] = []
+  if (b.base) lines.push({ label: "Agreed price for the video", cents: b.base })
+  if (b.cpm) lines.push({ label: "CPM bonus", cents: b.cpm })
+  if (b.tiers) lines.push({ label: "Tier bonus", cents: b.tiers })
+  if (b.already_committed)
+    lines.push({
+      label: "Already paid or pending",
+      cents: -b.already_committed,
+    })
+  lines.push({ label: "Owed now", cents: b.delta ?? 0 })
+  return lines
+}
+
+const PAYOUT_STATUS: Record<string, string> = {
+  awaiting_approval: "Waiting for brand approval",
+  approved: "Approved · sending",
+  sent: "Sent via PayPal · pending",
+  success: "Paid",
+  failed: "Failed",
+  rejected: "Rejected",
+}
+
+export function payoutStatusLabel(status: string): string {
+  return PAYOUT_STATUS[status] ?? status
+}
