@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { components } from "@/lib/api/schema"
+import { CALLS_OFF, isHackathon } from "@/lib/hackathon"
 import { formatCents } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { contentTypeLabel } from "@/lib/vocab"
@@ -39,7 +40,7 @@ function ChannelChoice({
   onChannel: (plan: ChannelPlan) => void
 }) {
   // Until M4 an email-then-call plan is sent as email, so that is how it reads.
-  const current = plan === "call" ? "call" : "email"
+  const current = plan === "call" && !isHackathon ? "call" : "email"
 
   function choice(value: "email" | "call", disabled: boolean) {
     return (
@@ -65,7 +66,7 @@ function ChannelChoice({
       className="flex items-center gap-2"
     >
       {choice("email", false)}
-      {creator.call_allowed ? (
+      {creator.call_allowed && !isHackathon ? (
         choice("call", false)
       ) : (
         <Tooltip>
@@ -74,7 +75,7 @@ function ChannelChoice({
           >
             {choice("call", true)}
           </TooltipTrigger>
-          <TooltipContent>{NO_PHONE}</TooltipContent>
+          <TooltipContent>{isHackathon ? CALLS_OFF : NO_PHONE}</TooltipContent>
         </Tooltip>
       )}
     </div>

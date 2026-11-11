@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { CALLS_OFF, isHackathon } from "@/lib/hackathon"
 import { useApi } from "@/hooks/use-api"
 import {
   TRY_SCENARIOS,
@@ -98,7 +99,7 @@ export function TryYourselfDialog({
 }: TryYourselfDialogProps) {
   const api = useApi()
   const [step, setStep] = React.useState<Step>("channel")
-  const [mode, setMode] = React.useState<Mode>("call")
+  const [mode, setMode] = React.useState<Mode>(isHackathon ? "email" : "call")
   const [phone, setPhone] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [scenario, setScenario] = React.useState<TryScenarioId>("standard")
@@ -117,7 +118,7 @@ export function TryYourselfDialog({
     busy
   if (!open && dirty) {
     setStep("channel")
-    setMode("call")
+    setMode(isHackathon ? "email" : "call")
     setPhone("")
     setEmail("")
     setScenario("standard")
@@ -220,13 +221,16 @@ export function TryYourselfDialog({
             <div className="grid gap-2 py-2">
               <button
                 type="button"
+                disabled={isHackathon}
                 onClick={() => pickMode("call")}
-                className="flex items-start gap-3 rounded-lg border border-border px-3 py-3 text-left hover:bg-muted/50"
+                className="flex items-start gap-3 rounded-lg border border-border px-3 py-3 text-left hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
               >
                 <PhoneCall className="mt-0.5 size-5 shrink-0 text-voice" aria-hidden />
                 <span>
                   <span className="block font-medium">Call me</span>
-                  <span className="text-sm text-muted-foreground">{intro.call}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {isHackathon ? CALLS_OFF : intro.call}
+                  </span>
                 </span>
               </button>
               <button

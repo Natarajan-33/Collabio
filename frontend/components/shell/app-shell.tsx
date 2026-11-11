@@ -20,12 +20,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { CreatorIdProvider } from "@/components/shell/creator-context"
+import { PersonaSwitcher } from "@/components/shell/persona-switcher"
 import { WelcomeNoteToast } from "@/components/auth/welcome-note-toast"
 import { TryYourselfTrigger } from "@/components/voice/try-yourself-dialog"
 import { VoiceDock } from "@/components/voice/voice-dock"
 import { VoiceScreenProvider } from "@/components/voice/voice-screen"
 import { useApi } from "@/hooks/use-api"
 import { clearDiscoverSession } from "@/lib/discover/state"
+import { isHackathon } from "@/lib/hackathon"
 import { getSupabaseBrowser } from "@/lib/supabase/browser"
 import { useCreatorDoorbell } from "@/lib/supabase/realtime"
 import { cn } from "@/lib/utils"
@@ -353,7 +355,11 @@ export function AppShell({ role, creatorId = null, children }: AppShellProps) {
 
             <TryYourselfTrigger role={role} />
 
-            <SignOut />
+            {isHackathon ? (
+              <PersonaSwitcher current={role} className={itemBase} />
+            ) : (
+              <SignOut />
+            )}
 
             <p className="mt-3 text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase [writing-mode:vertical-rl]">
               {ROLE_LABEL[role]}

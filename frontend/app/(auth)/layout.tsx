@@ -1,4 +1,7 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
+
+import { isHackathon } from "@/lib/hackathon"
 
 /**
  * Chrome shared by sign-in, sign-up and onboarding: the wordmark, and an ember glow on
@@ -7,6 +10,8 @@ import Link from "next/link"
 export default function AuthLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Hackathon mode has no sign-up or sign-in: judges enter through the demo personas.
+  if (isHackathon) redirect("/")
   return (
     <div className="relative min-h-svh overflow-hidden bg-background text-foreground">
       <div

@@ -1,11 +1,23 @@
 import { redirect } from "next/navigation"
 
 import { SessionError } from "@/components/auth/session-error"
+import { HackathonLanding } from "@/components/landing/hackathon-landing"
 import { getMe } from "@/lib/auth/me"
 import { roleHome } from "@/lib/auth/routing"
+import { isHackathon } from "@/lib/hackathon"
 
-/** No landing page yet: send everyone to where they belong. */
-export default async function Page() {
+/** Hackathon mode: the public landing with demo personas. Otherwise send everyone to
+ * where they belong. */
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<{ demo?: string }>
+} = {}) {
+  if (isHackathon) {
+    const { demo } = (await searchParams) ?? {}
+    return <HackathonLanding unavailable={demo === "unavailable"} />
+  }
+
   const result = await getMe()
 
   if (result.kind === "unavailable")
