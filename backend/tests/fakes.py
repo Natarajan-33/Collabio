@@ -271,3 +271,36 @@ class FakePayPal:
 
     async def verify_webhook(self, headers, body, webhook_id):
         return self.webhook_ok
+
+
+class FakeClaude:
+    """Scripted Claude: each `create` returns the next message dict from `script` and
+    records the request. A script entry that is an Exception is raised instead."""
+
+    def __init__(self, script: list | None = None) -> None:
+        self.script = list(script or [])
+        self.requests: list[dict] = []
+
+    async def create(self, **kwargs):
+        self.requests.append(kwargs)
+        if not self.script:
+            raise AssertionError("FakeClaude script exhausted")
+        item = self.script.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+def claude_text(payload: dict | str) -> dict:
+    """A Claude message whose only block is JSON text (structured output)."""
+    import json
+
+    text = payload if isinstance(payload, str) else json.dumps(payload)
+    return {"content": [{"type": "text", "text": text}], "stop_reason": "end_turn"}
+
+
+def claude_tool_use(name: str, tool_input: dict, tool_id: str = "toolu_1") -> dict:
+    return {
+        "content": [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}],
+        "stop_reason": "tool_use",
+    }

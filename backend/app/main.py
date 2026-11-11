@@ -15,6 +15,7 @@ from app.api.routers import (
     health,
     inbound,
     me,
+    money,
     offers,
     packages,
     unsubscribe,
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     api.include_router(board.router)
     api.include_router(offers.router)
     api.include_router(deals.router)
+    api.include_router(money.router)
     api.include_router(unsubscribe.router)
     api.include_router(webhooks.router)
     api.include_router(inbound.router)

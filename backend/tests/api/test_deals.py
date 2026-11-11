@@ -17,19 +17,6 @@ DEALS = "/api/v1/deals"
 
 
 @pytest.fixture
-async def booked(brand_client, countered):
-    """Priya's awarded offer: (thread id, deal id)."""
-    thread_id, counter_id = countered
-    preview = (await brand_client.post(f"{THREADS}/{thread_id}/award/preview")).json()
-    r = await brand_client.post(
-        f"{THREADS}/{thread_id}/award",
-        json={"milestones": preview["milestones"], "based_on_event_id": counter_id},
-    )
-    assert r.status_code == 200, r.text
-    return thread_id, r.json()["id"]
-
-
-@pytest.fixture
 async def contacts(booked, launched_batch, api_db):
     """(Priya's email, the brief's contact email)."""
     thread_id, _ = booked

@@ -12,6 +12,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.concurrency import run_in_threadpool
 
+from app.adapters.claude import ClaudeClient, ClaudePort
 from app.adapters.db import Database
 from app.adapters.elevenlabs import ElevenLabsClient, ElevenLabsPort
 from app.adapters.email import EmailPort, ResendClient
@@ -102,6 +103,15 @@ def get_paypal() -> PayPalPort:
         )
     except ValueError as exc:  # no PayPal credentials
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "paypal_unavailable") from exc
+
+
+@lru_cache
+def get_claude() -> ClaudePort:
+    """The process-wide Claude client, built on first use."""
+    try:
+        return ClaudeClient(get_settings().anthropic_api_key)
+    except ValueError as exc:  # no ANTHROPIC_API_KEY
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "claude_unavailable") from exc
 
 
 @lru_cache
