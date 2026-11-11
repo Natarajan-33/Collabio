@@ -18,6 +18,7 @@ from app.adapters.elevenlabs import ElevenLabsClient, ElevenLabsPort
 from app.adapters.email import EmailPort, ResendClient
 from app.adapters.gemini import GeminiClient, GeminiPort
 from app.adapters.paypal import PayPalClient, PayPalPort
+from app.adapters.storage import Storage, StoragePort
 from app.config import Settings, get_settings
 from app.modules.me import service as me_service
 from app.schemas.me import Role
@@ -112,6 +113,16 @@ def get_claude() -> ClaudePort:
         return ClaudeClient(get_settings().anthropic_api_key)
     except ValueError as exc:  # no ANTHROPIC_API_KEY
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "claude_unavailable") from exc
+
+
+@lru_cache
+def get_storage() -> StoragePort:
+    """Supabase Storage for proof screenshots."""
+    settings = get_settings()
+    try:
+        return Storage(settings.supabase_url, settings.supabase_secret_key)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "storage_unavailable") from exc
 
 
 @lru_cache

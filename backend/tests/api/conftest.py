@@ -42,3 +42,52 @@ async def booked(brand_client, countered):
     )
     assert r.status_code == 200, r.text
     return thread_id, r.json()["id"]
+
+
+@pytest.fixture
+def fake_paypal(app):
+    from app.api.deps import get_paypal
+    from tests.fakes import FakePayPal
+
+    paypal = FakePayPal()
+    app.dependency_overrides[get_paypal] = lambda: paypal
+    return paypal
+
+
+@pytest.fixture
+def fake_claude(app):
+    from app.api.deps import get_claude
+    from tests.fakes import FakeClaude
+
+    claude = FakeClaude()
+    app.dependency_overrides[get_claude] = lambda: claude
+    return claude
+
+
+@pytest.fixture
+def fake_storage(app):
+    from app.api.deps import get_storage
+    from tests.fakes import FakeStorage
+
+    storage = FakeStorage()
+    app.dependency_overrides[get_storage] = lambda: storage
+    return storage
+
+
+@pytest.fixture
+async def funded(brand_client, booked, fake_paypal, api_db):
+    """Priya's booked deal funded through (fake) PayPal: (deal id, [milestone ids])."""
+    _, deal_id = booked
+    r = await brand_client.post(f"/api/v1/deals/{deal_id}/funding/order")
+    order_id = r.json()["order_id"]
+    r = await brand_client.post(
+        f"/api/v1/deals/{deal_id}/funding/capture", json={"order_id": order_id}
+    )
+    assert r.status_code == 200, r.text
+    async with api_db.acquire() as conn:
+        await conn.execute(
+            "update public.creators set payout_email = 'priya-sandbox@example.com'"
+            " where id = (select creator_id from public.deals where id = $1)",
+            deal_id,
+        )
+    return deal_id, [m["id"] for m in r.json()["milestones"]]

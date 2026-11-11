@@ -2,8 +2,7 @@
 
 import pytest
 
-from app.api.deps import get_claude
-from tests.fakes import FakeClaude, claude_text
+from tests.fakes import claude_text
 
 pytestmark = pytest.mark.db
 
@@ -19,13 +18,6 @@ TERMS_JSON = {
     "cpm": {"rate_cents_per_1k": 200, "starts_after_views": 200000, "cap_cents": 50000},
     "tiers": [{"views": 1000000, "bonus_cents": 30000}],
 }
-
-
-@pytest.fixture
-def fake_claude(app):
-    claude = FakeClaude()
-    app.dependency_overrides[get_claude] = lambda: claude
-    return claude
 
 
 async def test_preview_examples_and_funding_total(brand_client, booked, fake_claude):

@@ -4,17 +4,21 @@ Amounts always come from `app.core.settlement`; auto-pay is decided only by
 `app.core.payout_policy`. PayPal and Claude are injected ports.
 """
 
+import base64
 import time
+import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 from app.adapters.claude import ClaudePort
 from app.adapters.db import Database
-from app.adapters.paypal import PayPalPort
+from app.adapters.paypal import PayPalError, PayPalPort
+from app.agents.settlement_agent import run_agent
 from app.agents.terms_parser import parse_bonus_terms
 from app.config import Settings
 from app.core import settlement as engine
+from app.core.payout_policy import decide
 from app.core.settlement import BonusTerms
 from app.modules.money import repo
 
@@ -238,6 +242,273 @@ class MoneyService:
             "available_cents": engine.available(captured, committed_all, refunded),
             "can_close": can_close(deal, milestones),
         }
+
+    # ---- proof and settlement -------------------------------------------------------------
+
+    async def submit_proof(
+        self,
+        milestone_id: UUID,
+        creator_id: UUID,
+        *,
+        post_url: str,
+        caption: str,
+        claimed_views: int,
+        screenshot: bytes,
+    ) -> UUID:
+        kind = image_kind(screenshot)
+        if kind is None or len(screenshot) > MAX_SCREENSHOT_BYTES:
+            raise BadScreenshot
+        async with self._db.acquire() as conn:
+            m = await repo.creator_milestone(conn, milestone_id, creator_id)
+            if m is None:
+                raise NotFound
+            if m["deal_status"] != "funded" or m["status"] not in SUBMITTABLE:
+                raise NotSubmittable
+        path = f"{m['deal_id']}/{milestone_id}/{uuid.uuid4()}.{kind}"
+        await self._storage.upload(path, screenshot, f"image/{'jpeg' if kind == 'jpg' else kind}")
+        async with self._db.acquire() as conn, conn.transaction():
+            submission_id = await repo.insert_submission(
+                conn, milestone_id, post_url, caption, claimed_views, path
+            )
+            await repo.set_milestone_status(conn, milestone_id, "submitted")
+        return submission_id
+
+    async def retry(self, submission_id: UUID, creator_id: UUID) -> None:
+        async with self._db.acquire() as conn:
+            ctx = await repo.submission_context(conn, submission_id)
+        if ctx is None or ctx["creator_id"] != creator_id:
+            raise NotFound
+
+    async def settle(self, submission_id: UUID) -> str:
+        """One settlement run for a submission; returns the run status."""
+        async with self._db.acquire() as conn:
+            if not await repo.claim_run(conn, submission_id):
+                return "skipped"
+            ctx = await repo.submission_context(conn, submission_id)
+        assert ctx is not None and self._claude is not None
+        try:
+            image = await self._storage.download(ctx["screenshot_path"])
+            content = settlement_prompt(ctx, image)
+            transcript = await run_agent(
+                self._claude,
+                self._settings.claude_settlement_model,
+                content,
+                self._handlers(submission_id, ctx),
+            )
+        except Exception as exc:  # noqa: BLE001 - model down, refusal, storage: retryable
+            async with self._db.acquire() as conn:
+                await repo.finish_run(conn, submission_id, "error", [], str(exc)[:500])
+            return "error"
+        async with self._db.acquire() as conn:
+            await repo.finish_run(conn, submission_id, "done", transcript)
+        return "done"
+
+    def _handlers(self, submission_id: UUID, ctx: dict) -> dict:
+        async def get_deal_context(_: dict) -> dict:
+            async with self._db.acquire() as conn:
+                bonus = await repo.bonus_terms(conn, ctx["deal_id"])
+            return {
+                "product": ctx["product_name"],
+                "product_summary": ctx["product_summary"],
+                "brand": ctx["brand_name"],
+                "agreed_conditions": list(ctx["conditions"] or []),
+                "format": ctx["format"],
+                "disclosure_rule": DISCLOSURE_RULE,
+                "video": {"title": ctx["title"], "agreed_price_cents": ctx["amount_cents"]},
+                "bonus_terms": bonus["terms"] if bonus else None,
+                "submission": {
+                    "post_url": ctx["post_url"],
+                    "caption": ctx["caption"],
+                    "views_claimed_by_creator": ctx["claimed_views"],
+                },
+            }
+
+        async def record_verification(args: dict) -> dict:
+            async with self._db.acquire() as conn:
+                await repo.record_verification(
+                    conn,
+                    submission_id,
+                    brief_ok=bool(args.get("brief_ok")),
+                    disclosure_ok=bool(args.get("disclosure_ok")),
+                    missing_points=[str(p) for p in args.get("missing_points") or []][:10],
+                    views=int(args.get("views") or 0),
+                    view_confidence=args.get("view_confidence")
+                    if args.get("view_confidence") in ("high", "medium", "low")
+                    else "low",
+                    summary=str(args.get("summary") or ""),
+                )
+            return {"recorded": True}
+
+        async def quote_payout(_: dict) -> dict:
+            async with self._db.acquire() as conn:
+                return await self._quote(conn, submission_id)
+
+        async def pay_creator(args: dict) -> dict:
+            return await self.pay_milestone(submission_id, str(args.get("reason") or ""))
+
+        async def request_changes(args: dict) -> dict:
+            async with self._db.acquire() as conn, conn.transaction():
+                await repo.request_changes(conn, submission_id, str(args.get("message") or ""))
+                await repo.set_milestone_status(conn, ctx["milestone_id"], "needs_changes")
+            return {"requested": True}
+
+        return {
+            "get_deal_context": get_deal_context,
+            "record_verification": record_verification,
+            "quote_payout": quote_payout,
+            "pay_creator": pay_creator,
+            "request_changes": request_changes,
+        }
+
+    async def _quote(self, conn, submission_id: UUID) -> dict[str, Any]:
+        """The engine's view of what this submission's milestone is owed right now."""
+        ctx = await repo.submission_context(conn, submission_id)
+        assert ctx is not None
+        subs = await repo.milestone_submissions(conn, ctx["milestone_id"])
+        pays = await repo.milestone_payouts(conn, ctx["milestone_id"])
+        bonus = await repo.bonus_terms(conn, ctx["deal_id"])
+        fund = await repo.funding(conn, ctx["deal_id"])
+        terms = engine.terms_from_json(bonus["terms"]) if bonus else None
+        state = milestone_state({"amount_cents": ctx["amount_cents"]}, subs, pays)
+        captured = fund["amount_cents"] if fund and fund["status"] == "captured" else 0
+        avail = engine.available(
+            captured,
+            await repo.deal_committed(conn, ctx["deal_id"]),
+            fund["refunded_cents"] if fund else 0,
+        )
+        sub = next(s for s in subs if s["id"] == submission_id)
+        payable = engine.payable(state, terms, avail)
+        decision = decide(
+            payable,
+            ctx["auto_approve_limit_cents"],
+            sub["view_confidence"] or "low",
+            sub["views"] or 0,
+            sub["claimed_views"],
+            bool(sub["brief_ok"]),
+            bool(sub["disclosure_ok"]),
+        )
+        return {
+            "payable_cents": payable,
+            "breakdown": engine.breakdown(state, terms),
+            "decision": decision,
+            "auto_approve_limit_cents": ctx["auto_approve_limit_cents"],
+            "deal_status": ctx["deal_status"],
+        }
+
+    async def pay_milestone(self, submission_id: UUID, reason: str) -> dict[str, Any]:
+        """Re-quote under a lock on the milestone, then pay (auto) or queue (approval)."""
+        async with self._db.acquire() as conn, conn.transaction():
+            ctx = await repo.submission_context(conn, submission_id)
+            assert ctx is not None
+            if ctx["deal_status"] != "funded":
+                return {"outcome": "none", "reason": "deal_closed"}
+            await repo.lock_milestone(conn, ctx["milestone_id"])
+            quote = await self._quote(conn, submission_id)
+            decision = quote["decision"]
+            if decision == "none":
+                return {"outcome": "none", "payable_cents": 0}
+            status_ = "approved" if decision == "auto" else "awaiting_approval"
+            breakdown = {**quote["breakdown"], "reason": reason[:300]}
+            payout_id = await repo.insert_payout(
+                conn,
+                ctx["milestone_id"],
+                submission_id,
+                quote["payable_cents"],
+                breakdown,
+                status_,
+            )
+            await repo.add_event(
+                conn,
+                ctx["deal_id"],
+                "payout_queued",
+                quote["payable_cents"],
+                payload={"payout_id": str(payout_id), "decision": decision},
+            )
+            await repo.set_milestone_status(conn, ctx["milestone_id"], "verified")
+        if decision == "auto":
+            sent = await self.send_payout(payout_id)
+            return {"outcome": sent, "amount_cents": quote["payable_cents"]}
+        return {"outcome": "awaiting_approval", "amount_cents": quote["payable_cents"]}
+
+    async def send_payout(self, payout_id: UUID) -> str:
+        """Send an approved payout through PayPal Payouts: `sent` or `failed`."""
+        assert self._paypal is not None
+        async with self._db.acquire() as conn:
+            p = await repo.payout(conn, payout_id)
+            ctx = await repo.submission_context(conn, p["submission_id"])
+        receiver = ctx["payout_email"] or self._settings.paypal_receiver_email
+        note = f"Collabio: {ctx['title']} for {ctx['product_name'] or 'your sponsor'}"
+        try:
+            if not receiver:
+                raise PayPalError("NO_PAYOUT_EMAIL", "creator has no PayPal email", http_status=0)
+            res = await self._paypal.create_payout(
+                p["sender_batch_id"], receiver, p["amount_cents"], note
+            )
+        except PayPalError as exc:
+            error = {"code": exc.code, "message": exc.message, "debug_id": exc.debug_id}
+            async with self._db.acquire() as conn, conn.transaction():
+                await repo.update_payout(conn, payout_id, status="failed", last_error=error)
+                await repo.add_event(
+                    conn, ctx["deal_id"], "payout_failed", p["amount_cents"], payload=error
+                )
+            return "failed"
+        async with self._db.acquire() as conn, conn.transaction():
+            await repo.update_payout(
+                conn,
+                payout_id,
+                status="sent",
+                paypal_batch_id=res["batch_id"],
+                paypal_item_id=res["item_id"],
+            )
+            await repo.add_event(
+                conn, ctx["deal_id"], "payout_sent", p["amount_cents"], res["batch_id"]
+            )
+        return "sent"
+
+
+DISCLOSURE_RULE = (
+    "The post must disclose the sponsorship clearly, e.g. #ad, #sponsored or 'paid partnership'."
+)
+MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024
+SUBMITTABLE = ("funded", "needs_changes", "verified", "paid", "submitted")
+
+
+class BadScreenshot(Exception):
+    """Not a PNG/JPG, or larger than 5 MB."""
+
+
+class NotSubmittable(Exception):
+    """The deal is not funded, or the milestone cannot take proof now."""
+
+
+def image_kind(data: bytes) -> str | None:
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    return None
+
+
+def settlement_prompt(ctx: dict, image: bytes) -> list[dict[str, Any]]:
+    kind = image_kind(image) or "png"
+    return [
+        {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": "image/jpeg" if kind == "jpg" else "image/png",
+                "data": base64.b64encode(image).decode(),
+            },
+        },
+        {
+            "type": "text",
+            "text": (
+                f"Settle this submission for {ctx['title']} of the deal for "
+                f"{ctx['product_name'] or 'the product'}. The image above is the creator's "
+                f"analytics screenshot. Use the tools."
+            ),
+        },
+    ]
 
 
 def milestone_state(m: dict, subs: list[dict], pays: list[dict]) -> engine.MilestoneState:

@@ -4,22 +4,12 @@ import asyncio
 
 import pytest
 
-from app.api.deps import get_paypal
-from tests.fakes import FakePayPal
-
 pytestmark = pytest.mark.db
 
 TERMS_JSON = {
     "cpm": {"rate_cents_per_1k": 200, "starts_after_views": 200000, "cap_cents": 50000},
     "tiers": [{"views": 1000000, "bonus_cents": 30000}],
 }
-
-
-@pytest.fixture
-def fake_paypal(app):
-    paypal = FakePayPal()
-    app.dependency_overrides[get_paypal] = lambda: paypal
-    return paypal
 
 
 async def order_and_capture(client, deal_id):

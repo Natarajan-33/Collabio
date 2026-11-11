@@ -5,22 +5,24 @@ from contextlib import contextmanager
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.adapters.claude import ClaudePort, ClaudeUnavailable
 from app.adapters.db import Database
 from app.adapters.paypal import PayPalError, PayPalPort
+from app.adapters.storage import StoragePort
 from app.api.deps import (
     CurrentUser,
     get_claude,
     get_db,
     get_paypal,
+    get_storage,
     onboarded_user,
     require_role,
 )
 from app.config import Settings, get_settings
 from app.modules.briefs import service as briefs_service
-from app.modules.money import service, usage
+from app.modules.money import runner, service, usage
 from app.modules.money.service import MoneyService
 from app.modules.offers import service as offers_service
 from app.schemas.money import (
@@ -36,6 +38,7 @@ from app.schemas.money import (
 router = APIRouter(tags=["money"])
 
 BrandUser = Annotated[CurrentUser, Depends(require_role("brand"))]
+CreatorUser = Annotated[CurrentUser, Depends(require_role("creator"))]
 
 
 @contextmanager
@@ -56,6 +59,10 @@ def http_errors() -> Iterator[None]:
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             {"code": "terms_question", "question": exc.question},
         ) from exc
+    except service.BadScreenshot as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "bad_screenshot") from exc
+    except service.NotSubmittable as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "not_submittable") from exc
     except service.FundingMismatch as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "funding_mismatch") from exc
     except service.FundingTooLarge as exc:
@@ -187,3 +194,63 @@ async def get_money(
                 deal_id, brand_id=brand_id, creator_id=creator_id
             )
         )
+
+
+async def creator_id_of(user: CurrentUser, db: Database) -> UUID:
+    creator_id = await offers_service.find_creator_id(db, user.id)
+    if creator_id is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "onboarding_required")
+    return creator_id
+
+
+@router.post("/milestones/{milestone_id}/submissions")
+async def submit_proof(
+    milestone_id: UUID,
+    user: CreatorUser,
+    db: Annotated[Database, Depends(get_db)],
+    paypal: Annotated[PayPalPort, Depends(get_paypal)],
+    claude: Annotated[ClaudePort, Depends(get_claude)],
+    storage: Annotated[StoragePort, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    post_url: Annotated[str, Form(min_length=1, max_length=500)],
+    claimed_views: Annotated[int, Form(ge=0, le=2_000_000_000)],
+    screenshot: Annotated[UploadFile, File()],
+    caption: Annotated[str, Form(max_length=4000)] = "",
+) -> dict[str, str]:
+    """Proof for one milestone: post link, caption, claimed views and an analytics
+    screenshot. Starts the Claude settlement run."""
+    creator_id = await creator_id_of(user, db)
+    data = await screenshot.read(service.MAX_SCREENSHOT_BYTES + 1)
+    money = MoneyService(db, paypal, claude, settings, storage)
+    with http_errors():
+        submission_id = await money.submit_proof(
+            milestone_id,
+            creator_id,
+            post_url=post_url,
+            caption=caption,
+            claimed_views=claimed_views,
+            screenshot=data,
+        )
+    await usage.consume(db, user.id, "settlement", settings)
+    runner.start(money.settle, submission_id)
+    return {"submission_id": str(submission_id)}
+
+
+@router.post("/submissions/{submission_id}/retry")
+async def retry_settlement(
+    submission_id: UUID,
+    user: CreatorUser,
+    db: Annotated[Database, Depends(get_db)],
+    paypal: Annotated[PayPalPort, Depends(get_paypal)],
+    claude: Annotated[ClaudePort, Depends(get_claude)],
+    storage: Annotated[StoragePort, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, str]:
+    """Run verification again after a failed run (model down, unreadable reply)."""
+    creator_id = await creator_id_of(user, db)
+    money = MoneyService(db, paypal, claude, settings, storage)
+    with http_errors():
+        await money.retry(submission_id, creator_id)
+    await usage.consume(db, user.id, "settlement", settings)
+    runner.start(money.settle, submission_id)
+    return {"submission_id": str(submission_id)}

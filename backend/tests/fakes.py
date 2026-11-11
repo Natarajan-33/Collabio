@@ -304,3 +304,19 @@ def claude_tool_use(name: str, tool_input: dict, tool_id: str = "toolu_1") -> di
         "content": [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}],
         "stop_reason": "tool_use",
     }
+
+
+class FakeStorage:
+    """In-memory Supabase Storage for proof screenshots."""
+
+    def __init__(self) -> None:
+        self.objects: dict[str, tuple[bytes, str]] = {}
+
+    async def upload(self, path: str, data: bytes, content_type: str) -> None:
+        self.objects[path] = (data, content_type)
+
+    async def download(self, path: str) -> bytes:
+        return self.objects[path][0]
+
+    async def signed_url(self, path: str, ttl_s: int = 3600) -> str:
+        return f"https://storage.test/{path}?ttl={ttl_s}"

@@ -164,6 +164,212 @@ async def submissions_for_deal(conn: asyncpg.Connection, deal_id: UUID) -> list[
     return [_row(r) for r in rows]
 
 
+async def creator_milestone(
+    conn: asyncpg.Connection, milestone_id: UUID, creator_id: UUID
+) -> dict | None:
+    row = await conn.fetchrow(
+        "select m.*, d.status as deal_status, d.id as deal_id from public.deal_milestones m"
+        " join public.deals d on d.id = m.deal_id where m.id = $1 and d.creator_id = $2",
+        milestone_id,
+        creator_id,
+    )
+    return None if row is None else dict(row)
+
+
+async def insert_submission(
+    conn: asyncpg.Connection,
+    milestone_id: UUID,
+    post_url: str,
+    caption: str,
+    claimed_views: int,
+    screenshot_path: str,
+) -> UUID:
+    return await conn.fetchval(
+        "insert into public.milestone_submissions (milestone_id, post_url, caption,"
+        " claimed_views, screenshot_path) values ($1, $2, $3, $4, $5) returning id",
+        milestone_id,
+        post_url,
+        caption,
+        claimed_views,
+        screenshot_path,
+    )
+
+
+async def set_milestone_status(conn: asyncpg.Connection, milestone_id: UUID, status: str) -> None:
+    await conn.execute(
+        "update public.deal_milestones set status = $2 where id = $1", milestone_id, status
+    )
+
+
+async def submission_context(conn: asyncpg.Connection, submission_id: UUID) -> dict | None:
+    """The submission with its milestone, deal, brief, creator and brand settings."""
+    row = await conn.fetchrow(
+        "select s.id as submission_id, s.post_url, s.caption, s.claimed_views,"
+        " s.screenshot_path, s.status as submission_status,"
+        " m.id as milestone_id, m.seq, m.title, m.amount_cents, m.status as milestone_status,"
+        " d.id as deal_id, d.status as deal_status, d.videos, d.format, d.conditions,"
+        " d.go_live_by, d.brand_id, d.creator_id,"
+        " br.product_name, br.product_summary, br.brand_name, br.deliverable_length_s,"
+        " c.payout_email, c.name as creator_name,"
+        " b.auto_approve_limit_cents"
+        " from public.milestone_submissions s"
+        " join public.deal_milestones m on m.id = s.milestone_id"
+        " join public.deals d on d.id = m.deal_id"
+        " join public.batches ba on ba.id = d.batch_id"
+        " join public.briefs br on br.id = ba.brief_id"
+        " join public.creators c on c.id = d.creator_id"
+        " join public.brands b on b.id = d.brand_id"
+        " where s.id = $1",
+        submission_id,
+    )
+    return None if row is None else dict(row)
+
+
+async def claim_run(conn: asyncpg.Connection, submission_id: UUID) -> bool:
+    """Start (or restart after an error) the one settlement run of a submission. False when
+    a run is already going or finished."""
+    inserted = await conn.fetchval(
+        "insert into public.settlement_runs (submission_id) values ($1)"
+        " on conflict (submission_id) do nothing returning id",
+        submission_id,
+    )
+    if inserted is not None:
+        return True
+    restarted = await conn.fetchval(
+        "update public.settlement_runs set status = 'running', error = null,"
+        " started_at = now(), finished_at = null"
+        " where submission_id = $1 and status = 'error' returning id",
+        submission_id,
+    )
+    return restarted is not None
+
+
+async def finish_run(
+    conn: asyncpg.Connection,
+    submission_id: UUID,
+    status: str,
+    transcript: list,
+    error: str | None = None,
+) -> None:
+    await conn.execute(
+        "update public.settlement_runs set status = $2, transcript = $3::jsonb, error = $4,"
+        " finished_at = now() where submission_id = $1",
+        submission_id,
+        status,
+        json.dumps(transcript, default=str),
+        error,
+    )
+
+
+async def record_verification(
+    conn: asyncpg.Connection,
+    submission_id: UUID,
+    *,
+    brief_ok: bool,
+    disclosure_ok: bool,
+    missing_points: list[str],
+    views: int,
+    view_confidence: str,
+    summary: str,
+) -> None:
+    await conn.execute(
+        "update public.milestone_submissions set status = 'verified', brief_ok = $2,"
+        " disclosure_ok = $3, missing_points = $4, views = $5, view_confidence = $6,"
+        " agent_summary = $7 where id = $1",
+        submission_id,
+        brief_ok,
+        disclosure_ok,
+        missing_points,
+        max(0, views),
+        view_confidence,
+        summary[:2000],
+    )
+
+
+async def request_changes(conn: asyncpg.Connection, submission_id: UUID, message: str) -> None:
+    await conn.execute(
+        "update public.milestone_submissions set status = 'needs_changes', agent_summary = $2"
+        " where id = $1",
+        submission_id,
+        message[:2000],
+    )
+
+
+async def lock_milestone(conn: asyncpg.Connection, milestone_id: UUID) -> dict:
+    return dict(
+        await conn.fetchrow(
+            "select * from public.deal_milestones where id = $1 for update", milestone_id
+        )
+    )
+
+
+async def milestone_submissions(conn: asyncpg.Connection, milestone_id: UUID) -> list[dict]:
+    rows = await conn.fetch(
+        "select * from public.milestone_submissions where milestone_id = $1", milestone_id
+    )
+    return [_row(r) for r in rows]
+
+
+async def milestone_payouts(conn: asyncpg.Connection, milestone_id: UUID) -> list[dict]:
+    rows = await conn.fetch("select * from public.payouts where milestone_id = $1", milestone_id)
+    return [_row(r) for r in rows]
+
+
+async def deal_committed(conn: asyncpg.Connection, deal_id: UUID) -> int:
+    return await conn.fetchval(
+        "select coalesce(sum(p.amount_cents), 0) from public.payouts p"
+        " join public.deal_milestones m on m.id = p.milestone_id"
+        " where m.deal_id = $1 and p.status = any($2::text[])",
+        deal_id,
+        list(LIVE_PAYOUT),
+    )
+
+
+async def insert_payout(
+    conn: asyncpg.Connection,
+    milestone_id: UUID,
+    submission_id: UUID | None,
+    amount_cents: int,
+    breakdown: dict,
+    status: str,
+) -> UUID:
+    payout_id = await conn.fetchval(
+        "insert into public.payouts (milestone_id, submission_id, amount_cents, breakdown,"
+        " status, sender_batch_id) values ($1, $2, $3, $4::jsonb, $5,"
+        " 'collabio-' || gen_random_uuid()) returning id",
+        milestone_id,
+        submission_id,
+        amount_cents,
+        json.dumps(breakdown),
+        status,
+    )
+    await conn.execute(
+        "update public.payouts set sender_batch_id = 'collabio-' || id::text where id = $1",
+        payout_id,
+    )
+    return payout_id
+
+
+async def payout(conn: asyncpg.Connection, payout_id: UUID, *, lock: bool = False) -> dict | None:
+    sql = "select * from public.payouts where id = $1" + (" for update" if lock else "")
+    row = await conn.fetchrow(sql, payout_id)
+    return None if row is None else _row(row)
+
+
+async def update_payout(conn: asyncpg.Connection, payout_id: UUID, **fields: Any) -> None:
+    cols = list(fields)
+    sets = ", ".join(
+        f"{c} = ${i + 2}{'::jsonb' if c in ('last_error', 'breakdown') else ''}"
+        for i, c in enumerate(cols)
+    )
+    values = [
+        json.dumps(fields[c]) if c in ("last_error", "breakdown") else fields[c] for c in cols
+    ]
+    await conn.execute(
+        f"update public.payouts set {sets}, updated_at = now() where id = $1", payout_id, *values
+    )
+
+
 async def payouts_for_deal(conn: asyncpg.Connection, deal_id: UUID) -> list[dict]:
     rows = await conn.fetch(
         "select p.* from public.payouts p join public.deal_milestones m on m.id = p.milestone_id"
