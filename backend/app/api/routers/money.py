@@ -381,6 +381,12 @@ async def agent_usage(
     user: BrandUser,
     db: Annotated[Database, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
+    new_turn: bool = True,
 ) -> None:
-    """Counts one dashboard-agent message against the demo cap (429 `demo_cap`)."""
-    await usage.consume(db, user.id, "agent_message", settings)
+    """Charges one dashboard-agent model call to the demo caps (429 `demo_cap`).
+
+    A call that starts a new user turn also counts as a message; the tool-loop calls that
+    follow only count against the (much larger) call cap, so a turn under way can finish."""
+    if new_turn:
+        await usage.consume(db, user.id, "agent_message", settings)
+    await usage.consume(db, user.id, "agent_call", settings)

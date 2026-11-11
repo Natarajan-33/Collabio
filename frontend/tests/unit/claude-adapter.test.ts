@@ -163,3 +163,22 @@ describe("AG Studio ↔ Claude adapter", () => {
     })
   })
 })
+
+describe("isNewUserTurn", () => {
+  it("is true only when the person (not a tool result) spoke last", async () => {
+    const { isNewUserTurn } = await import("@/lib/ai/claude-adapter")
+    const base = { system: "", tools: [] }
+    const user = { role: "user" as const, content: [{ type: "text", text: "hi" }] }
+    const call = {
+      role: "assistant" as const,
+      content: [{ type: "tool_use", id: "t1", name: "x", input: {} }],
+    }
+    const result = {
+      role: "user" as const,
+      content: [{ type: "tool_result", tool_use_id: "t1", content: "ok" }],
+    }
+    expect(isNewUserTurn({ ...base, messages: [user] })).toBe(true)
+    expect(isNewUserTurn({ ...base, messages: [user, call, result] })).toBe(false)
+    expect(isNewUserTurn({ ...base, messages: [] })).toBe(false)
+  })
+})

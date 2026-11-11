@@ -24,14 +24,37 @@ async def test_dashboard_is_brand_only(creator_client):
     assert (await creator_client.get("/api/v1/money/dashboard")).status_code == 403
 
 
+async def _counts(api_db):
+    async with api_db.acquire() as conn:
+        rows = await conn.fetch(
+            "select kind, count from public.usage_counters where kind like 'agent_%'"
+        )
+    return {r["kind"]: r["count"] for r in rows}
+
+
 async def test_agent_usage_cap(brand_client, api_db, app):
     settings = get_settings().model_copy(update={"hackathon_mode": True})
     app.dependency_overrides[get_settings] = lambda: settings
     async with api_db.acquire() as conn:
-        await conn.execute("delete from public.usage_counters where kind = 'agent_message'")
-    assert (await brand_client.post("/api/v1/money/agent-usage")).status_code == 204
-    async with api_db.acquire() as conn:
-        await conn.execute(
-            "update public.usage_counters set count = 40 where kind = 'agent_message'"
-        )
-    assert (await brand_client.post("/api/v1/money/agent-usage")).status_code == 429
+        await conn.execute("delete from public.usage_counters where kind like 'agent_%'")
+    try:
+        # A new user turn charges one message and one call; a tool-loop call only a call.
+        assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=true")).status_code == 204
+        assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=false")).status_code == 204
+        assert await _counts(api_db) == {"agent_message": 1, "agent_call": 2}
+        async with api_db.acquire() as conn:
+            await conn.execute(
+                "update public.usage_counters set count = 40 where kind = 'agent_message'"
+            )
+        assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=true")).status_code == 429
+        # The tool loop of a turn already under way still finishes.
+        assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=false")).status_code == 204
+        async with api_db.acquire() as conn:
+            await conn.execute(
+                "update public.usage_counters set count = 400 where kind = 'agent_call'"
+            )
+        assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=false")).status_code == 429
+    finally:
+        # The demo brand is shared with the live demo: never leave it capped.
+        async with api_db.acquire() as conn:
+            await conn.execute("delete from public.usage_counters where kind like 'agent_%'")

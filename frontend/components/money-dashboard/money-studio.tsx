@@ -8,8 +8,12 @@ import {
   buildMoneyData,
   moneyReport,
   moneyTheme,
+  resolveCssToken,
+  studioLayout,
   type MoneyRows,
 } from "@/components/money-dashboard/studio-config"
+import { useTheme } from "next-themes"
+
 import { Button } from "@/components/ui/button"
 import { useApi } from "@/hooks/use-api"
 import { createClaudeAdapter } from "@/lib/ai/claude-adapter"
@@ -49,6 +53,13 @@ export function MoneyStudio({ licenseKey }: { licenseKey?: string }) {
     }
   }, [api])
 
+  const { resolvedTheme } = useTheme()
+  const layout = React.useMemo(
+    () => studioLayout((token) => resolveCssToken(token)),
+    // Re-resolve the tokens when the app switches light/dark.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resolvedTheme, rows]
+  )
   const studioData = React.useMemo(
     () => (rows ? buildMoneyData(rows) : null),
     [rows]
@@ -98,7 +109,7 @@ export function MoneyStudio({ licenseKey }: { licenseKey?: string }) {
           <AgStudio
             style={{ height: "100%", width: "100%" }}
             theme={moneyTheme}
-            layout={{ widgetBorderEnabled: true }}
+            layout={layout}
             data={studioData}
             ai={ai}
             initialState={moneyReport}

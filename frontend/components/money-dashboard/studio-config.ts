@@ -59,14 +59,34 @@ const onCalendar = (
 
 const num = (v: unknown) => (typeof v === "number" ? v : Number(v ?? 0))
 
+const paidWhere = (rows: MoneyRows, key: string, id: unknown) =>
+  rows.payouts
+    .filter((p) => p[key] === id && p.status === "success")
+    .reduce((sum, p) => sum + num(p.amount), 0)
+
 /** Adds what each video has been paid and its effective cost per 1,000 views. */
 function enrichMilestones(rows: MoneyRows): Row[] {
   return rows.milestones.map((m) => {
-    const paid = rows.payouts
-      .filter((p) => p.milestone_id === m.id && p.status === "success")
-      .reduce((sum, p) => sum + num(p.amount), 0)
+    const paid = paidWhere(rows, "milestone_id", m.id)
     const views = num(m.views)
     return { ...m, paid, costPer1k: views > 0 ? (paid / views) * 1000 : null }
+  })
+}
+
+/** Adds what each deal has paid out, so deal-level grids never join to milestones (fan-out). */
+function enrichDeals(rows: MoneyRows): Row[] {
+  return rows.deals.map((d) => ({ ...d, paid: paidWhere(rows, "deal_id", d.id) }))
+}
+
+/** Adds each creator's paid total, verified views and effective cost per 1,000 views. */
+function enrichCreators(rows: MoneyRows): Row[] {
+  return rows.creators.map((c) => {
+    const dealIds = new Set(rows.deals.filter((d) => d.creator_id === c.id).map((d) => d.id))
+    const views = rows.milestones
+      .filter((m) => dealIds.has(m.deal_id))
+      .reduce((sum, m) => sum + num(m.views), 0)
+    const paid = paidWhere(rows, "creator_id", c.id)
+    return { ...c, paid, views, costPer1k: views > 0 ? (paid / views) * 1000 : null }
   })
 }
 
@@ -88,7 +108,7 @@ export function buildMoneyData(rows: MoneyRows): AgDataSourcesDefinition {
       {
         id: "deals",
         description: "One row per sponsorship deal.",
-        data: rows.deals,
+        data: enrichDeals(rows),
         fields: fields([
           ["id", "Deal ID", "textFormat", true],
           ["title", "Deal", "textFormat"],
@@ -97,6 +117,7 @@ export function buildMoneyData(rows: MoneyRows): AgDataSourcesDefinition {
           ["videos", "Videos", "integerFormat"],
           ["agreed", "Agreed Price", "currencyFormat"],
           ["funded", "Funded", "currencyFormat"],
+          ["paid", "Paid to Creator", "currencyFormat"],
           ["refunded", "Refunded", "currencyFormat"],
           ["go_live_by", "Go Live By", "dateFormat"],
           ["created_at", "Created", "dateFormat"],
@@ -152,11 +173,16 @@ export function buildMoneyData(rows: MoneyRows): AgDataSourcesDefinition {
       },
       {
         id: "creators",
-        data: rows.creators,
+        description:
+          "One row per creator, with what they were paid and their effective cost per 1,000 verified views.",
+        data: enrichCreators(rows),
         fields: fields([
           ["id", "Creator ID", "textFormat", true],
           ["name", "Creator", "textFormat"],
           ["handle", "Handle", "textFormat"],
+          ["paid", "Paid to Creator", "currencyFormat"],
+          ["views", "Creator Verified Views", "integerFormat"],
+          ["costPer1k", "Creator Cost per 1K Views", "currencyFormat"],
         ]),
       },
     ],
@@ -250,7 +276,7 @@ const overview: AgPageState = {
           { id: "deals.status" },
           sum("deals.agreed"),
           sum("deals.funded"),
-          sum("milestones.paid"),
+          sum("deals.paid"),
           sum("deals.refunded"),
         ],
       },
@@ -275,6 +301,35 @@ export const moneyReport: AgReportState = {
 }
 
 // --- Theme ------------------------------------------------------------------------------
+
+/**
+ * AG Studio's layout panel seeds its color pickers from the theme, and a `var(--token)` theme
+ * value reaches the picker as a non-string (it crashes "Edit dashboard"). Give the layout
+ * concrete colors resolved from the app's tokens instead.
+ */
+export function studioLayout(resolve: (token: string) => string) {
+  return {
+    widgetBorderEnabled: true,
+    backgroundColor: resolve("background"),
+    widgetBackgroundColor: resolve("card"),
+    widgetBorderColor: resolve("border"),
+  }
+}
+
+/** A CSS color token from the document as #rrggbb (canvas normalises oklch and friends). */
+export function resolveCssToken(token: string, fallback = "#ffffff"): string {
+  if (typeof document === "undefined") return fallback
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue(`--${token}`)
+    .trim()
+  const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })
+  if (!raw || !ctx) return fallback
+  ctx.fillStyle = fallback
+  ctx.fillStyle = raw
+  ctx.fillRect(0, 0, 1, 1)
+  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+  return `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`
+}
 
 const v = (name: string) => `var(--${name})`
 

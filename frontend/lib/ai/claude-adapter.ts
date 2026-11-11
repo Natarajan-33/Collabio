@@ -38,6 +38,15 @@ export type ClaudeReply = {
   usage?: { input_tokens?: number; output_tokens?: number }
 }
 
+/** Whether this request starts a new turn from the person (not a tool-result follow-up). */
+export function isNewUserTurn(body: ClaudeRequestBody): boolean {
+  const last = body.messages.at(-1)
+  return (
+    last?.role === "user" &&
+    !last.content.some((block) => block.type === "tool_result")
+  )
+}
+
 function textOf(content: { type: string; text?: string }[]): string {
   return content
     .filter((c) => c.type === "text")

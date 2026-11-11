@@ -87,11 +87,20 @@ async def test_order_for_funded_deal_409(brand_client, booked, fake_paypal):
     assert r.json()["detail"] == "already_funded"
 
 
-async def test_creator_money_view_hides_limit(brand_client, creator_client, booked, fake_paypal):
+async def test_creator_money_view_hides_limit(
+    brand_client, creator_client, booked, fake_paypal, api_db
+):
     _, deal_id = booked
     await order_and_capture(brand_client, deal_id)
+    # The demo seed sets its own limit on the shared demo brand: compare with what is stored.
+    async with api_db.acquire() as conn:
+        limit = await conn.fetchval(
+            "select b.auto_approve_limit_cents from public.brands b"
+            " join public.deals d on d.brand_id = b.id where d.id = $1",
+            deal_id,
+        )
     brand_view = (await brand_client.get(f"/api/v1/deals/{deal_id}/money")).json()
-    assert brand_view["auto_approve_limit_cents"] == 30000
+    assert brand_view["auto_approve_limit_cents"] == limit
     r = await creator_client.get(f"/api/v1/deals/{deal_id}/money")
     assert r.status_code == 200, r.text
     assert r.json()["auto_approve_limit_cents"] is None

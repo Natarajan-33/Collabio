@@ -1106,7 +1106,10 @@ export interface paths {
         put?: never;
         /**
          * Agent Usage
-         * @description Counts one dashboard-agent message against the demo cap (429 `demo_cap`).
+         * @description Charges one dashboard-agent model call to the demo caps (429 `demo_cap`).
+         *
+         *     A call that starts a new user turn also counts as a message; the tool-loop calls that
+         *     follow only count against the (much larger) call cap, so a turn under way can finish.
          */
         post: operations["agent_usage_api_v1_money_agent_usage_post"];
         delete?: never;
@@ -1916,9 +1919,9 @@ export interface components {
             go_live_by: string;
             /**
              * Status
-             * @constant
+             * @enum {string}
              */
-            status: "booked";
+            status: "booked" | "funded" | "completed";
             /**
              * Created At
              * Format: date-time
@@ -1954,9 +1957,9 @@ export interface components {
             batch_id: string;
             /**
              * Status
-             * @constant
+             * @enum {string}
              */
-            status: "booked";
+            status: "booked" | "funded" | "completed";
             /** Product Name */
             product_name: string;
             terms: components["schemas"]["AgreedTerms"];
@@ -2291,9 +2294,9 @@ export interface components {
             id: string;
             /**
              * Status
-             * @constant
+             * @enum {string}
              */
-            status: "pending";
+            status: "pending" | "funded" | "submitted" | "needs_changes" | "verified" | "paid";
         };
         /** MoneyView */
         MoneyView: {
@@ -5333,7 +5336,9 @@ export interface operations {
     };
     agent_usage_api_v1_money_agent_usage_post: {
         parameters: {
-            query?: never;
+            query?: {
+                new_turn?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5346,6 +5351,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

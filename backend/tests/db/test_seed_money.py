@@ -44,3 +44,14 @@ async def test_seed_money_idempotent(db_conn):
         second["Desk Speaker"],
     )
     assert refs and all(r["paypal_ref"].startswith("SEED-") for r in refs)
+
+
+async def test_seeded_briefs_have_an_asking_price(db_conn):
+    """Offers list computes a delta from the brief's ask; a null ask 500s the brand's offers."""
+    if not get_settings().demo_brand_email:
+        pytest.skip("demo accounts are not configured")
+    await seed_money(db_conn)
+    rows = await db_conn.fetch(
+        "select ask_price_cents from public.briefs where flexibility_note = 'collabio-demo-money'"
+    )
+    assert rows and all(r["ask_price_cents"] for r in rows)

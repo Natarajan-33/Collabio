@@ -3,6 +3,8 @@
 LIMITS: dict[str, int] = {
     "settlement": 30,
     "agent_message": 40,
+    # Every model call of the dashboard agent's tool loop (one message makes ~5-15 calls).
+    "agent_call": 400,
     "bonus_preview": 30,
     "voice_session": 15,
 }

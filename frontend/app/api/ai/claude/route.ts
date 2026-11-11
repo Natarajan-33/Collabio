@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { type NextRequest, NextResponse } from "next/server"
 
-import type { ClaudeRequestBody } from "@/lib/ai/claude-adapter"
+import { isNewUserTurn, type ClaudeRequestBody } from "@/lib/ai/claude-adapter"
 import { createSupabaseServer } from "@/lib/supabase/server"
 
 /** The dashboard agent's model; pinned here so the browser cannot choose another. */
@@ -29,8 +29,9 @@ export async function POST(request: NextRequest) {
   if (!token)
     return NextResponse.json({ error: "Sign in first." }, { status: 401 })
 
+  const body = (await request.json()) as ClaudeRequestBody
   const usage = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/v1/money/agent-usage`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/v1/money/agent-usage?new_turn=${isNewUserTurn(body)}`,
     {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
@@ -49,7 +50,6 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const body = (await request.json()) as ClaudeRequestBody
   client ??= new Anthropic({ apiKey })
   try {
     const message = await client.messages.create({

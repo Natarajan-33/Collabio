@@ -2844,18 +2844,40 @@
           "money"
         ],
         "summary": "Agent Usage",
-        "description": "Counts one dashboard-agent message against the demo cap (429 `demo_cap`).",
+        "description": "Charges one dashboard-agent model call to the demo caps (429 `demo_cap`).\n\nA call that starts a new user turn also counts as a message; the tool-loop calls that\nfollow only count against the (much larger) call cap, so a turn under way can finish.",
         "operationId": "agent_usage_api_v1_money_agent_usage_post",
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          }
-        },
         "security": [
           {
             "HTTPBearer": []
           }
-        ]
+        ],
+        "parameters": [
+          {
+            "name": "new_turn",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "New Turn"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/demo/reset": {
@@ -4984,7 +5006,11 @@
           },
           "status": {
             "type": "string",
-            "const": "booked",
+            "enum": [
+              "booked",
+              "funded",
+              "completed"
+            ],
             "title": "Status"
           },
           "created_at": {
@@ -5053,7 +5079,11 @@
           },
           "status": {
             "type": "string",
-            "const": "booked",
+            "enum": [
+              "booked",
+              "funded",
+              "completed"
+            ],
             "title": "Status"
           },
           "product_name": {
@@ -5877,7 +5907,14 @@
           },
           "status": {
             "type": "string",
-            "const": "pending",
+            "enum": [
+              "pending",
+              "funded",
+              "submitted",
+              "needs_changes",
+              "verified",
+              "paid"
+            ],
             "title": "Status"
           }
         },
