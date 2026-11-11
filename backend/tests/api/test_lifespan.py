@@ -123,7 +123,7 @@ async def test_start_workers_runs_the_m3_workers(monkeypatch):
         return run
 
     class FakeOrchestrator:
-        def __init__(self, db, handlers):
+        def __init__(self, db, handlers, *, email_only=False):
             pass
 
         async def run(self):

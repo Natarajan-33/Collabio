@@ -15,6 +15,7 @@ def test_cap_for_known_kinds():
     assert LIMITS == {
         "settlement": 30,
         "agent_message": 40,
+        "agent_call": 400,
         "bonus_preview": 30,
         "voice_session": 15,
     }
