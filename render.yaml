@@ -1,0 +1,125 @@
+# Render Blueprint for the Collabio PayPal hackathon build (spec §8, docs/deploy.md).
+# Secrets are `sync: false`: Render asks for them when the Blueprint is created, or
+# `backend/scripts/render_env.py` sets them from the local .env files through the Render API.
+# Region: Singapore, the closest Render region to the Supabase project (ap-south-1).
+
+services:
+  - type: web
+    name: collabio-api
+    runtime: python
+    plan: starter
+    region: singapore
+    branch: hackathon/paypal-money
+    rootDir: backend
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run --no-sync uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: HACKATHON_MODE
+        value: "1"
+      - key: WORKERS_ENABLED
+        value: "1"
+      - key: PAYPAL_BASE_URL
+        value: https://api-m.sandbox.paypal.com
+      - key: INTERNAL_SECRET
+        generateValue: true
+      # Render URLs (the web service's public URL; fix after the first deploy if Render adds a suffix).
+      - key: FRONTEND_ORIGIN
+        value: https://collabio-web.onrender.com
+      - key: PUBLIC_FRONTEND_URL
+        value: https://collabio-web.onrender.com
+      - key: PUBLIC_BACKEND_URL
+        value: https://collabio-api.onrender.com
+      # Secrets and project-specific values.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWKS_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_DB_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DEMO_BRAND_EMAIL
+        sync: false
+      - key: DEMO_HELPER_EMAIL
+        sync: false
+      - key: DEMO_HELPER_PHONE
+        sync: false
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_RECEIVER_EMAIL
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+  - type: web
+    name: collabio-web
+    runtime: node
+    plan: starter
+    region: singapore
+    branch: hackathon/paypal-money
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_HACKATHON_MODE
+        value: "1"
+      - key: NEXT_PUBLIC_DEMO_MODE
+        value: "1"
+      # Baked in at build time: redeploy the web service after changing it.
+      - key: NEXT_PUBLIC_API_URL
+        value: https://collabio-api.onrender.com
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_PAYPAL_CLIENT_ID
+        sync: false
+      - key: NEXT_PUBLIC_JUDGE_BUYER_EMAIL
+        sync: false
+      - key: NEXT_PUBLIC_JUDGE_BUYER_PASSWORD
+        sync: false
+      - key: AG_STUDIO
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DEMO_BRAND_EMAIL
+        sync: false
+      - key: DEMO_HELPER_EMAIL
+        sync: false
+      - key: DEMO_PASSWORD
+        sync: false
+
+  - type: cron
+    name: collabio-nightly
+    runtime: python
+    plan: starter
+    region: singapore
+    branch: hackathon/paypal-money
+    schedule: "0 3 * * *"
+    buildCommand: "true"
+    startCommand: >-
+      curl -fsS -X POST "$API_URL/api/v1/internal/nightly"
+      -H "X-Internal-Secret: $INTERNAL_SECRET"
+    envVars:
+      - key: API_URL
+        value: https://collabio-api.onrender.com
+      - key: INTERNAL_SECRET
+        fromService:
+          type: web
+          name: collabio-api
+          envVarKey: INTERNAL_SECRET
