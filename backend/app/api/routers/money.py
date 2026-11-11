@@ -9,17 +9,28 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.adapters.claude import ClaudePort, ClaudeUnavailable
 from app.adapters.db import Database
-from app.adapters.paypal import PayPalError
-from app.api.deps import CurrentUser, get_claude, get_db, require_role
+from app.adapters.paypal import PayPalError, PayPalPort
+from app.api.deps import (
+    CurrentUser,
+    get_claude,
+    get_db,
+    get_paypal,
+    onboarded_user,
+    require_role,
+)
 from app.config import Settings, get_settings
 from app.modules.briefs import service as briefs_service
 from app.modules.money import service, usage
 from app.modules.money.service import MoneyService
+from app.modules.offers import service as offers_service
 from app.schemas.money import (
     AutoApproveLimit,
     BonusPreview,
     BonusPreviewRequest,
     BonusTermsPut,
+    FundingCapture,
+    FundingOrder,
+    MoneyView,
 )
 
 router = APIRouter(tags=["money"])
@@ -45,6 +56,8 @@ def http_errors() -> Iterator[None]:
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             {"code": "terms_question", "question": exc.question},
         ) from exc
+    except service.FundingMismatch as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "funding_mismatch") from exc
     except service.FundingTooLarge as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "funding_too_large") from exc
     except ClaudeUnavailable as exc:
@@ -112,3 +125,65 @@ async def put_auto_approve_limit(
     brand_id = await brand_id_of(user, db)
     cents = await MoneyService(db, None, None, settings).set_limit(brand_id, req.cents)
     return AutoApproveLimit(cents=cents)
+
+
+async def party_of(user: CurrentUser, db: Database) -> tuple[UUID | None, UUID | None]:
+    """(brand id, creator id) of the signed-in user: exactly one is set."""
+    if user.role == "brand":
+        return await brand_id_of(user, db), None
+    creator_id = await offers_service.find_creator_id(db, user.id)
+    if creator_id is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "onboarding_required")
+    return None, creator_id
+
+
+@router.post("/deals/{deal_id}/funding/order")
+async def create_funding_order(
+    deal_id: UUID,
+    user: BrandUser,
+    db: Annotated[Database, Depends(get_db)],
+    paypal: Annotated[PayPalPort, Depends(get_paypal)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> FundingOrder:
+    """A PayPal order for the deal's full budget: milestones plus the maximum bonus."""
+    brand_id = await brand_id_of(user, db)
+    with http_errors():
+        return FundingOrder(
+            **await MoneyService(db, paypal, None, settings).create_order(deal_id, brand_id)
+        )
+
+
+@router.post("/deals/{deal_id}/funding/capture")
+async def capture_funding(
+    deal_id: UUID,
+    req: FundingCapture,
+    user: BrandUser,
+    db: Annotated[Database, Depends(get_db)],
+    paypal: Annotated[PayPalPort, Depends(get_paypal)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> MoneyView:
+    """Capture the approved order; repeated or concurrent calls return the first result."""
+    brand_id = await brand_id_of(user, db)
+    with http_errors():
+        return MoneyView(
+            **await MoneyService(db, paypal, None, settings).capture(
+                deal_id, brand_id, req.order_id
+            )
+        )
+
+
+@router.get("/deals/{deal_id}/money")
+async def get_money(
+    deal_id: UUID,
+    user: Annotated[CurrentUser, Depends(onboarded_user)],
+    db: Annotated[Database, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> MoneyView:
+    """Funding, milestones with proof and payouts, the ledger and what is still held."""
+    brand_id, creator_id = await party_of(user, db)
+    with http_errors():
+        return MoneyView(
+            **await MoneyService(db, None, None, settings).money_view(
+                deal_id, brand_id=brand_id, creator_id=creator_id
+            )
+        )

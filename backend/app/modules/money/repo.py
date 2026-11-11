@@ -73,3 +73,101 @@ async def auto_approve_limit(conn: asyncpg.Connection, brand_id: UUID) -> int:
     return await conn.fetchval(
         "select auto_approve_limit_cents from public.brands where id = $1", brand_id
     )
+
+
+LIVE_PAYOUT = ("awaiting_approval", "approved", "sent", "success")
+
+
+def _row(r) -> dict:
+    out = dict(r)
+    for key in ("payload", "breakdown", "transcript", "last_error"):
+        if isinstance(out.get(key), str):
+            out[key] = json.loads(out[key])
+    return out
+
+
+async def funding(conn: asyncpg.Connection, deal_id: UUID, *, lock: bool = False) -> dict | None:
+    sql = "select * from public.deal_funding where deal_id = $1" + (" for update" if lock else "")
+    row = await conn.fetchrow(sql, deal_id)
+    return None if row is None else dict(row)
+
+
+async def upsert_created_order(
+    conn: asyncpg.Connection, deal_id: UUID, order_id: str, amount_cents: int
+) -> None:
+    await conn.execute(
+        "insert into public.deal_funding (deal_id, paypal_order_id, amount_cents, status)"
+        " values ($1, $2, $3, 'created')"
+        " on conflict (deal_id) do update set paypal_order_id = excluded.paypal_order_id,"
+        " amount_cents = excluded.amount_cents, status = 'created'",
+        deal_id,
+        order_id,
+        amount_cents,
+    )
+
+
+async def mark_captured(conn: asyncpg.Connection, deal_id: UUID, capture_id: str) -> None:
+    await conn.execute(
+        "update public.deal_funding set status = 'captured', capture_id = $2, captured_at = now()"
+        " where deal_id = $1",
+        deal_id,
+        capture_id,
+    )
+    await conn.execute("update public.deals set status = 'funded' where id = $1", deal_id)
+    await conn.execute(
+        "update public.deal_milestones set status = 'funded' where deal_id = $1"
+        " and status = 'pending'",
+        deal_id,
+    )
+
+
+async def mark_funding_failed(conn: asyncpg.Connection, deal_id: UUID) -> None:
+    await conn.execute(
+        "update public.deal_funding set status = 'failed' where deal_id = $1", deal_id
+    )
+
+
+async def add_event(
+    conn: asyncpg.Connection,
+    deal_id: UUID,
+    kind: str,
+    amount_cents: int,
+    paypal_ref: str | None = None,
+    payload: dict | None = None,
+) -> None:
+    await conn.execute(
+        "insert into public.money_events (deal_id, kind, amount_cents, paypal_ref, payload)"
+        " values ($1, $2, $3, $4, $5::jsonb)",
+        deal_id,
+        kind,
+        amount_cents,
+        paypal_ref,
+        json.dumps(payload or {}),
+    )
+
+
+async def ledger(conn: asyncpg.Connection, deal_id: UUID) -> list[dict]:
+    rows = await conn.fetch(
+        "select * from public.money_events where deal_id = $1 order by id", deal_id
+    )
+    return [_row(r) for r in rows]
+
+
+async def submissions_for_deal(conn: asyncpg.Connection, deal_id: UUID) -> list[dict]:
+    rows = await conn.fetch(
+        "select s.*, r.status as run_status from public.milestone_submissions s"
+        " join public.deal_milestones m on m.id = s.milestone_id"
+        " left join public.settlement_runs r on r.submission_id = s.id"
+        " where m.deal_id = $1 order by s.created_at desc",
+        deal_id,
+    )
+    return [_row(r) for r in rows]
+
+
+async def payouts_for_deal(conn: asyncpg.Connection, deal_id: UUID) -> list[dict]:
+    rows = await conn.fetch(
+        "select p.* from public.payouts p join public.deal_milestones m on m.id = p.milestone_id"
+        " where m.deal_id = $1 order by p.created_at desc",
+        deal_id,
+    )
+    return [_row(r) for r in rows]
