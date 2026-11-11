@@ -12,6 +12,7 @@ from typing import Any
 from uuid import UUID
 
 from app.adapters.db import Database
+from app.config import get_settings
 from app.core import brief_rules
 from app.core.delta import compute_delta, pick_anchor_package
 from app.core.guardrails import call_allowed, channel_violation, default_channel
@@ -295,7 +296,9 @@ class BriefService:
                         contact_opt_out=creator["contact_opt_out"],
                     )
                 )
-            planned, excluded = plan_launch(candidates, req.channels)
+            planned, excluded = plan_launch(
+                candidates, req.channels, email_only=get_settings().hackathon_mode
+            )
             if not planned:
                 raise NoCreators
 

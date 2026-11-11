@@ -20,9 +20,12 @@ Handler = Callable[[UUID], Awaitable[None]]
 PROCESSING_FAILED = "Something went wrong while processing. Retry to try again."
 
 
-def handler_key(channel_plan: str) -> str:
-    """`email_then_call` behaves as `email` in M2: the call step is a follow-up (Ruling 16)."""
-    return "email" if channel_plan == "email_then_call" else channel_plan
+def handler_key(channel_plan: str, *, email_only: bool = False) -> str:
+    """`email_then_call` behaves as `email` in M2: the call step is a follow-up (Ruling 16).
+    `email_only` (hackathon mode) routes every plan to email so no phone call is ever placed."""
+    if email_only or channel_plan == "email_then_call":
+        return "email"
+    return channel_plan
 
 
 class Orchestrator:
@@ -37,8 +40,10 @@ class Orchestrator:
         concurrency: int = 5,
         poll_seconds: float = 1.0,
         batch_id: UUID | None = None,
+        email_only: bool = False,
     ) -> None:
         self._db = db
+        self._email_only = email_only
         self._handlers = handlers
         self._concurrency = concurrency
         self._poll_seconds = poll_seconds
@@ -94,7 +99,7 @@ class Orchestrator:
 
     async def _run_one(self, thread_id: UUID, plan: str) -> None:
         try:
-            handler = self._handlers.get(handler_key(plan))
+            handler = self._handlers.get(handler_key(plan, email_only=self._email_only))
             if handler is None:
                 raise LookupError(f"No handler for channel plan {plan!r}")
             await handler(thread_id)

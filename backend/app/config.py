@@ -68,6 +68,22 @@ class Settings(BaseSettings):
     # Shows the seeded fictional creators (development only); production hides unregistered ones.
     demo_mode: bool = False
 
+    # M4 hackathon mode and money (spec §3, §7, §8).
+    hackathon_mode: bool = False
+    paypal_client_id: str = ""
+    paypal_client_secret: str = Field("", repr=False)
+    paypal_webhook_id: str = ""
+    paypal_base_url: str = "https://api-m.sandbox.paypal.com"
+    paypal_test_capture_id: str = ""
+    paypal_receiver_email: str = ""
+    anthropic_api_key: str = Field("", repr=False)
+    claude_settlement_model: str = "claude-sonnet-5-5"
+    claude_parser_model: str = "claude-haiku-5-5"
+    internal_secret: str = Field("", repr=False)
+    render_workflows_enabled: bool = False
+    render_api_key: str = Field("", repr=False)
+    render_workflow_slug: str = "collabio-settlement"
+
     @property
     def frontend_origins(self) -> list[str]:
         """CORS allowlist: `FRONTEND_ORIGIN` split on commas, trimmed, no empties."""

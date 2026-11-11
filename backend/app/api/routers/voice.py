@@ -4,6 +4,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.modules.money import usage
+
 logger = logging.getLogger(__name__)
 
 from app.adapters.db import Database
@@ -35,6 +37,8 @@ from app.schemas.voice_try import TryCallRequest, TryCallResponse, TryEmailReque
 router = APIRouter(prefix="/voice", tags=["voice"])
 
 VOICE_UNAVAILABLE = {status.HTTP_503_SERVICE_UNAVAILABLE: {"description": "`voice_unavailable`"}}
+
+
 def _placement_error_detail(exc: CallPlacementFailed) -> str:
     msg = str(exc).lower()
     if "unverified" in msg and "trial" in msg:
@@ -55,10 +59,13 @@ TRY_CALL_ERRORS = {
 
 @router.post("/scribe-token", responses=VOICE_UNAVAILABLE)
 async def scribe_token(
-    _user: Annotated[CurrentUser, Depends(onboarded_user)],
+    user: Annotated[CurrentUser, Depends(onboarded_user)],
     elevenlabs: Annotated[ElevenLabsPort, Depends(get_elevenlabs)],
+    db: Annotated[Database, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> ScribeToken:
     """A single-use token the browser exchanges for a realtime speech-to-text session."""
+    await usage.consume(db, user.id, "voice_session", settings)
     try:
         return await elevenlabs.mint_scribe_token()
     except ElevenLabsUnavailable as exc:
@@ -87,6 +94,8 @@ async def try_call(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> TryCallResponse:
     """Place a sample negotiation call to the given number. The phone is not stored."""
+    if settings.hackathon_mode:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "disabled_in_demo")
     me = await me_service.get_me(db, user.id, user.email)
     try:
         await place_try_call(

@@ -108,6 +108,7 @@ async def start_workers(app: FastAPI, settings: Settings) -> None:
             "email": _email_handler(db, gemini, settings, email),
             "call": _call_handler(db, elevenlabs, settings),
         },
+        email_only=settings.hackathon_mode,
     )
     try:
         await sweep_stuck(db)

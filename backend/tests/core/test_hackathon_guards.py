@@ -1,0 +1,52 @@
+"""Hackathon mode guards that need no database: caps, email-only launch and dispatch."""
+
+from uuid import uuid4
+
+import pytest
+
+from app.core.caps import LIMITS, cap_for
+from app.modules.briefs.launch import LaunchCandidate, plan_launch
+from app.workers.orchestrator import handler_key
+
+PHONE = "+15551234567"
+
+
+def test_cap_for_known_kinds():
+    assert LIMITS == {
+        "settlement": 30,
+        "agent_message": 40,
+        "bonus_preview": 30,
+        "voice_session": 15,
+    }
+    assert cap_for("settlement") == 30
+    with pytest.raises(KeyError):
+        cap_for("nope")
+
+
+def test_plan_launch_email_only_coerces_call_plans():
+    caller = LaunchCandidate(
+        creator_id=uuid4(),
+        package_id=uuid4(),
+        preferred_channel="phone_ok",
+        phone=PHONE,
+        phone_opt_in=True,
+        contact_opt_out=False,
+    )
+    chosen = LaunchCandidate(
+        creator_id=uuid4(),
+        package_id=uuid4(),
+        preferred_channel="phone_ok",
+        phone=PHONE,
+        phone_opt_in=True,
+        contact_opt_out=False,
+    )
+    planned, _ = plan_launch(
+        [caller, chosen], {chosen.creator_id: "email_then_call"}, email_only=True
+    )
+    assert [p.channel_plan for p in planned] == ["email", "email"]
+
+
+def test_handler_key_email_only_never_calls():
+    assert handler_key("call") == "call"
+    assert handler_key("call", email_only=True) == "email"
+    assert handler_key("email_then_call", email_only=True) == "email"

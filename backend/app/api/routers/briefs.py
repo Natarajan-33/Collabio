@@ -16,6 +16,7 @@ from app.modules.briefs import service
 from app.modules.briefs.launch import ChannelNotAllowed
 from app.modules.briefs.service import BriefService
 from app.modules.briefs.voice_session import brief_dynamic_variables
+from app.modules.money import usage
 from app.schemas.briefs import (
     BriefPatch,
     BriefPreview,
@@ -203,8 +204,11 @@ async def voice_session(
     briefs: Briefs,
     settings: Annotated[Settings, Depends(get_settings)],
     elevenlabs: Annotated[ElevenLabsPort, Depends(get_elevenlabs)],
+    user: Annotated[CurrentUser, Depends(require_role("brand"))],
+    db: Annotated[Database, Depends(get_db)],
 ) -> VoiceSessionResponse:
     """A token to talk the brief through with the brief agent, and what the agent should know."""
+    await usage.consume(db, user.id, "voice_session", settings)
     today = utc_today()
     with _http_errors():
         brief = await briefs.get(brief_id, today)

@@ -41,7 +41,10 @@ class PlannedThread:
 
 
 def plan_launch(
-    candidates: Sequence[LaunchCandidate], channels: Mapping[UUID, ChannelPlan]
+    candidates: Sequence[LaunchCandidate],
+    channels: Mapping[UUID, ChannelPlan],
+    *,
+    email_only: bool = False,
 ) -> tuple[list[PlannedThread], list[LaunchExclusion]]:
     """One thread per creator who may be contacted, and the creators left out.
 
@@ -63,5 +66,5 @@ def plan_launch(
         )
         if reason:
             raise ChannelNotAllowed(c.creator_id, reason)
-        planned.append(PlannedThread(c.creator_id, c.package_id, plan))
+        planned.append(PlannedThread(c.creator_id, c.package_id, "email" if email_only else plan))
     return planned, excluded
