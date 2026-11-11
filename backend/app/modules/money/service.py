@@ -5,6 +5,7 @@ Amounts always come from `app.core.settlement`; auto-pay is decided only by
 """
 
 import base64
+import json
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -471,6 +472,157 @@ class MoneyService:
                 conn, ctx["deal_id"], "payout_sent", p["amount_cents"], res["batch_id"]
             )
         return "sent"
+
+    # ---- approvals, status, close ----------------------------------------------------------
+
+    async def _brand_payout(self, conn, payout_id: UUID, brand_id: UUID) -> dict:
+        p = await repo.payout_with_deal(conn, payout_id, lock=True)
+        if p is None or p["brand_id"] != brand_id:
+            raise NotFound
+        if p["deal_status"] != "funded":
+            raise DealClosed
+        if p["status"] != "awaiting_approval":
+            raise NotAwaiting
+        return p
+
+    async def approve_payout(self, payout_id: UUID, brand_id: UUID) -> dict[str, Any]:
+        async with self._db.acquire() as conn, conn.transaction():
+            p = await self._brand_payout(conn, payout_id, brand_id)
+            await repo.update_payout(conn, payout_id, status="approved", decided_by=brand_id)
+        await self.send_payout(payout_id)
+        return await self.money_view(p["deal_id"], brand_id=brand_id, creator_id=None)
+
+    async def reject_payout(self, payout_id: UUID, brand_id: UUID, reason: str) -> dict[str, Any]:
+        async with self._db.acquire() as conn, conn.transaction():
+            p = await self._brand_payout(conn, payout_id, brand_id)
+            await repo.update_payout(
+                conn, payout_id, status="rejected", reject_reason=reason, decided_by=brand_id
+            )
+            await repo.add_event(
+                conn,
+                p["deal_id"],
+                "payout_rejected",
+                p["amount_cents"],
+                payload={"payout_id": str(payout_id), "reason": reason},
+            )
+            if p["submission_id"] is not None:
+                await repo.request_changes(conn, p["submission_id"], reason)
+            await repo.set_milestone_status(conn, p["milestone_id"], "needs_changes")
+        return await self.money_view(p["deal_id"], brand_id=brand_id, creator_id=None)
+
+    async def sync_payout(self, payout_id: UUID) -> str:
+        """Bring one `sent` payout up to date with PayPal; returns its status."""
+        assert self._paypal is not None
+        async with self._db.acquire() as conn:
+            p = await repo.payout_with_deal(conn, payout_id)
+        if p is None or p["status"] != "sent" or not p["paypal_batch_id"]:
+            return p["status"] if p else "missing"
+        batch = await self._paypal.get_payout_batch(p["paypal_batch_id"])
+        item = (batch.get("item_status") or "").upper()
+        if item == "SUCCESS":
+            new, kind = "success", "payout_succeeded"
+        elif item in PAYOUT_FAILED:
+            new, kind = "failed", "payout_failed"
+        else:
+            return "sent"
+        async with self._db.acquire() as conn, conn.transaction():
+            locked = await repo.payout_with_deal(conn, payout_id, lock=True)
+            if locked is None or locked["status"] != "sent":
+                return locked["status"] if locked else "missing"
+            fields: dict[str, Any] = {"status": new, "paypal_item_id": batch.get("item_id")}
+            if new == "failed":
+                fields["last_error"] = {"code": item, "errors": batch.get("errors")}
+            await repo.update_payout(conn, payout_id, **fields)
+            await repo.add_event(conn, p["deal_id"], kind, p["amount_cents"], batch.get("item_id"))
+            if new == "success":
+                await repo.set_milestone_status(conn, p["milestone_id"], "paid")
+        return new
+
+    async def sync_sent_payouts(self) -> int:
+        async with self._db.acquire() as conn:
+            ids = await repo.sent_payout_ids(conn)
+        changed = 0
+        for payout_id in ids:
+            try:
+                if await self.sync_payout(payout_id) != "sent":
+                    changed += 1
+            except PayPalError:
+                continue
+        return changed
+
+    async def close_deal(self, deal_id: UUID, brand_id: UUID) -> dict[str, Any]:
+        """Refund whatever the creator has not earned and complete the deal."""
+        assert self._paypal is not None
+        async with self._db.acquire() as conn, conn.transaction():
+            deal = await repo.brand_deal(conn, deal_id, brand_id)
+            if deal is None:
+                raise NotFound
+            fund = await repo.funding(conn, deal_id, lock=True)
+            milestones = await repo.milestones(conn, deal_id)
+            if fund is None or fund["status"] != "captured" or not can_close(deal, milestones):
+                raise NotClosable
+            await repo.reject_awaiting_for_deal(conn, deal_id, "Deal closed before approval")
+            refund = engine.refund_due(
+                fund["amount_cents"],
+                await repo.deal_committed(conn, deal_id),
+                fund["refunded_cents"],
+            )
+            if refund > 0:
+                res = await self._paypal.refund_capture(
+                    fund["capture_id"],
+                    refund,
+                    "Unspent Collabio deal budget",
+                    request_id=f"refund-{deal_id}-{fund['refunded_cents']}",
+                )
+                await repo.add_refund(conn, deal_id, refund)
+                await repo.add_event(conn, deal_id, "refunded", refund, res["id"])
+            await repo.set_deal_status(conn, deal_id, "completed")
+        return await self.money_view(deal_id, brand_id=brand_id, creator_id=None)
+
+    async def nightly(self, redispatch) -> dict[str, int]:
+        """Sync payouts and retry stuck settlement runs; also keeps the database active."""
+        synced = await self.sync_sent_payouts()
+        async with self._db.acquire() as conn:
+            stale = await repo.stale_error_runs(conn)
+        for submission_id in stale:
+            redispatch(submission_id)
+        return {"payouts_synced": synced, "runs_retried": len(stale)}
+
+    async def handle_webhook(self, headers: dict[str, str], body: bytes) -> bool:
+        """Verify a PayPal webhook and sync the payout it names. False when unverified."""
+        assert self._paypal is not None
+        if not self._settings.paypal_webhook_id:
+            return False
+        if not await self._paypal.verify_webhook(headers, body, self._settings.paypal_webhook_id):
+            return False
+        event = json.loads(body)
+        resource = event.get("resource") or {}
+        ref = (
+            resource.get("payout_item_id")
+            or resource.get("payout_batch_id")
+            or (resource.get("payout_item") or {}).get("sender_item_id")
+        )
+        if ref:
+            async with self._db.acquire() as conn:
+                payout_id = await repo.payout_by_paypal_ref(conn, ref)
+            if payout_id is not None:
+                await self.sync_payout(payout_id)
+        return True
+
+
+PAYOUT_FAILED = {"FAILED", "RETURNED", "BLOCKED", "DENIED", "REFUNDED", "REVERSED"}
+
+
+class DealClosed(Exception):
+    """The deal is completed: no more payouts."""
+
+
+class NotAwaiting(Exception):
+    """The payout is not waiting for the brand any more."""
+
+
+class NotClosable(Exception):
+    """The deal is not funded, or still has milestones to deliver."""
 
 
 DISCLOSURE_RULE = (

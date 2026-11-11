@@ -21,6 +21,7 @@ from app.workers.call_watcher import CallWatcher, CompleteCall, CompleteIntake
 from app.workers.expiry import expiry_loop
 from app.workers.orchestrator import Handler, Orchestrator
 from app.workers.outbox import outbox_loop
+from app.workers.payouts import run_payout_sync
 from app.workers.sweep import sweep_loop, sweep_stuck
 
 logger = logging.getLogger(__name__)
@@ -121,6 +122,7 @@ async def start_workers(app: FastAPI, settings: Settings) -> None:
             outbox_loop(db, email=email, gemini=gemini, settings=settings), name="outbox-sender"
         ),
         asyncio.create_task(expiry_loop(db), name="expiry-sweep"),
+        asyncio.create_task(run_payout_sync(db, settings), name="payout-sync"),
     ]
     if elevenlabs is not None:
         watcher = CallWatcher(

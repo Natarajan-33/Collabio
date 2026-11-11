@@ -213,3 +213,18 @@ def require_tool_secret(
         x_collabio_tool_secret.encode(), expected.encode()
     ):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_tool_secret")
+
+
+def require_internal_secret(
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_internal_secret: Annotated[str | None, Header()] = None,
+) -> None:
+    """Admit only the scheduler (Render cron / workflow). 503 while no secret is set, 401
+    when the header is missing or wrong."""
+    expected = settings.internal_secret
+    if not expected:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "internal_unconfigured")
+    if x_internal_secret is None or not hmac.compare_digest(
+        x_internal_secret.encode(), expected.encode()
+    ):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_internal_secret")

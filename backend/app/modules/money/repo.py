@@ -381,3 +381,65 @@ async def payouts_for_deal(conn: asyncpg.Connection, deal_id: UUID) -> list[dict
         deal_id,
     )
     return [_row(r) for r in rows]
+
+
+async def payout_with_deal(
+    conn: asyncpg.Connection, payout_id: UUID, *, lock: bool = False
+) -> dict | None:
+    """The payout with its milestone and deal ids, the deal's brand and status."""
+    sql = (
+        "select p.*, m.deal_id, d.brand_id, d.status as deal_status from public.payouts p"
+        " join public.deal_milestones m on m.id = p.milestone_id"
+        " join public.deals d on d.id = m.deal_id where p.id = $1"
+    ) + (" for update of p" if lock else "")
+    row = await conn.fetchrow(sql, payout_id)
+    return None if row is None else _row(row)
+
+
+async def payout_by_paypal_ref(conn: asyncpg.Connection, ref: str) -> UUID | None:
+    return await conn.fetchval(
+        "select id from public.payouts where paypal_item_id = $1 or paypal_batch_id = $1"
+        " or sender_batch_id = $1 limit 1",
+        ref,
+    )
+
+
+async def sent_payout_ids(conn: asyncpg.Connection, limit: int = 50) -> list[UUID]:
+    rows = await conn.fetch(
+        "select id from public.payouts where status = 'sent' order by updated_at limit $1", limit
+    )
+    return [r["id"] for r in rows]
+
+
+async def reject_awaiting_for_deal(conn: asyncpg.Connection, deal_id: UUID, reason: str) -> int:
+    rows = await conn.fetch(
+        "update public.payouts p set status = 'rejected', reject_reason = $2, updated_at = now()"
+        " from public.deal_milestones m where m.id = p.milestone_id and m.deal_id = $1"
+        " and p.status = 'awaiting_approval' returning p.id",
+        deal_id,
+        reason,
+    )
+    return len(rows)
+
+
+async def add_refund(conn: asyncpg.Connection, deal_id: UUID, cents: int) -> None:
+    await conn.execute(
+        "update public.deal_funding set refunded_cents = refunded_cents + $2 where deal_id = $1",
+        deal_id,
+        cents,
+    )
+
+
+async def set_deal_status(conn: asyncpg.Connection, deal_id: UUID, status: str) -> None:
+    await conn.execute("update public.deals set status = $2 where id = $1", deal_id, status)
+
+
+async def stale_error_runs(conn: asyncpg.Connection, older_than_minutes: int = 10) -> list[UUID]:
+    rows = await conn.fetch(
+        "select r.submission_id from public.settlement_runs r"
+        " join public.milestone_submissions s on s.id = r.submission_id"
+        " where r.status = 'error' and s.status = 'submitted'"
+        " and r.finished_at < now() - make_interval(mins => $1) limit 20",
+        older_than_minutes,
+    )
+    return [r["submission_id"] for r in rows]

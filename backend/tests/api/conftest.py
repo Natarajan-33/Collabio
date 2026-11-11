@@ -85,6 +85,8 @@ async def funded(brand_client, booked, fake_paypal, api_db):
     )
     assert r.status_code == 200, r.text
     async with api_db.acquire() as conn:
+        # The local .env may run hackathon mode: start every money test with fresh caps.
+        await conn.execute("delete from public.usage_counters")
         await conn.execute(
             "update public.creators set payout_email = 'priya-sandbox@example.com'"
             " where id = (select creator_id from public.deals where id = $1)",

@@ -5,7 +5,8 @@ from contextlib import contextmanager
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from pydantic import BaseModel, Field
 
 from app.adapters.claude import ClaudePort, ClaudeUnavailable
 from app.adapters.db import Database
@@ -18,6 +19,7 @@ from app.api.deps import (
     get_paypal,
     get_storage,
     onboarded_user,
+    require_internal_secret,
     require_role,
 )
 from app.config import Settings, get_settings
@@ -63,6 +65,12 @@ def http_errors() -> Iterator[None]:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "bad_screenshot") from exc
     except service.NotSubmittable as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "not_submittable") from exc
+    except service.DealClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "deal_closed") from exc
+    except service.NotAwaiting as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "not_awaiting") from exc
+    except service.NotClosable as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "not_closable") from exc
     except service.FundingOutdated as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "funding_outdated") from exc
     except service.FundingMismatch as exc:
@@ -256,3 +264,94 @@ async def retry_settlement(
     await usage.consume(db, user.id, "settlement", settings)
     runner.start(money.settle, submission_id)
     return {"submission_id": str(submission_id)}
+
+
+class RejectRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
+@router.post("/payouts/{payout_id}/approve")
+async def approve_payout(
+    payout_id: UUID,
+    user: BrandUser,
+    db: Annotated[Database, Depends(get_db)],
+    paypal: Annotated[PayPalPort, Depends(get_paypal)],
+    storage: Annotated[StoragePort, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> MoneyView:
+    """Send a payout that was waiting for the brand through PayPal Payouts."""
+    brand_id = await brand_id_of(user, db)
+    with http_errors():
+        return MoneyView(
+            **await MoneyService(db, paypal, None, settings, storage).approve_payout(
+                payout_id, brand_id
+            )
+        )
+
+
+@router.post("/payouts/{payout_id}/reject")
+async def reject_payout(
+    payout_id: UUID,
+    req: RejectRequest,
+    user: BrandUser,
+    db: Annotated[Database, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> MoneyView:
+    """Refuse a payout; the creator is asked to fix the post (the reason is shown to them)."""
+    brand_id = await brand_id_of(user, db)
+    with http_errors():
+        return MoneyView(
+            **await MoneyService(db, None, None, settings).reject_payout(
+                payout_id, brand_id, req.reason
+            )
+        )
+
+
+@router.post("/deals/{deal_id}/close")
+async def close_deal(
+    deal_id: UUID,
+    user: BrandUser,
+    db: Annotated[Database, Depends(get_db)],
+    paypal: Annotated[PayPalPort, Depends(get_paypal)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> MoneyView:
+    """Refund the unspent budget through PayPal and complete the deal."""
+    brand_id = await brand_id_of(user, db)
+    with http_errors():
+        return MoneyView(
+            **await MoneyService(db, paypal, None, settings).close_deal(deal_id, brand_id)
+        )
+
+
+@router.post("/internal/nightly", dependencies=[Depends(require_internal_secret)])
+async def nightly(
+    db: Annotated[Database, Depends(get_db)],
+    paypal: Annotated[PayPalPort, Depends(get_paypal)],
+    claude: Annotated[ClaudePort, Depends(get_claude)],
+    storage: Annotated[StoragePort, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, int]:
+    """Scheduler entry point: sync payouts, retry stuck runs, keep the database awake."""
+    money = MoneyService(db, paypal, claude, settings, storage)
+    return await money.nightly(lambda sid: runner.start(money.settle, sid))
+
+
+@router.post("/webhooks/paypal", status_code=status.HTTP_202_ACCEPTED)
+async def paypal_webhook(
+    request: Request,
+    db: Annotated[Database, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, bool]:
+    """PayPal payout and refund events. Ignored (202) until PAYPAL_WEBHOOK_ID is set."""
+    if not settings.paypal_webhook_id:
+        return {"processed": False}
+    from app.api.deps import get_paypal as paypal_dep
+
+    body = await request.body()
+    try:
+        ok = await MoneyService(db, paypal_dep(), None, settings).handle_webhook(
+            dict(request.headers), body
+        )
+    except PayPalError:
+        ok = False
+    return {"processed": ok}
