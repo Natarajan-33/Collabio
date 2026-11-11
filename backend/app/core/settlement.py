@@ -52,9 +52,9 @@ def validate_terms(t: BonusTerms) -> list[str]:
         t.cpm.rate_cents_per_1k < 1 or t.cpm.cap_cents < 1 or t.cpm.starts_after_views < 0
     ):
         errors.append("non_positive")
-    if any(tier.views < 1 or tier.bonus_cents < 1 for tier in t.tiers):
-        if "non_positive" not in errors:
-            errors.append("non_positive")
+    bad_tier = any(tier.views < 1 or tier.bonus_cents < 1 for tier in t.tiers)
+    if bad_tier and "non_positive" not in errors:
+        errors.append("non_positive")
     views = [tier.views for tier in t.tiers]
     if len(set(views)) != len(views):
         errors.append("tiers_duplicate")

@@ -16,6 +16,7 @@ from app.adapters.db import Database
 from app.adapters.elevenlabs import ElevenLabsClient, ElevenLabsPort
 from app.adapters.email import EmailPort, ResendClient
 from app.adapters.gemini import GeminiClient, GeminiPort
+from app.adapters.paypal import PayPalClient, PayPalPort
 from app.config import Settings, get_settings
 from app.modules.me import service as me_service
 from app.schemas.me import Role
@@ -89,6 +90,18 @@ def get_email() -> EmailPort:
         return ResendClient(get_settings())
     except ValueError as exc:  # no RESEND_API_KEY
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "email_unavailable") from exc
+
+
+@lru_cache
+def get_paypal() -> PayPalPort:
+    """The process-wide PayPal sandbox client, built on first use."""
+    settings = get_settings()
+    try:
+        return PayPalClient(
+            settings.paypal_client_id, settings.paypal_client_secret, settings.paypal_base_url
+        )
+    except ValueError as exc:  # no PayPal credentials
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "paypal_unavailable") from exc
 
 
 @lru_cache

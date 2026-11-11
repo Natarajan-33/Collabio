@@ -4,15 +4,15 @@ from app.core.payout_policy import decide
 
 
 def call(**overrides):
-    args = dict(
-        payable=20_000,
-        limit=30_000,
-        view_confidence="high",
-        views_read=400_000,
-        claimed_views=400_000,
-        brief_ok=True,
-        disclosure_ok=True,
-    )
+    args = {
+        "payable": 20_000,
+        "limit": 30_000,
+        "view_confidence": "high",
+        "views_read": 400_000,
+        "claimed_views": 400_000,
+        "brief_ok": True,
+        "disclosure_ok": True,
+    }
     args.update(overrides)
     return decide(**args)
 

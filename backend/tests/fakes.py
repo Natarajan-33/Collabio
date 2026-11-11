@@ -201,3 +201,73 @@ class FakeEmail:
     def email_id(self, n: int) -> str:
         """The id this fake gives its n-th distinct send (random prefix per fake)."""
         return f"email_{self._run}_{n}"
+
+
+class FakePayPal:
+    """In-memory PayPal: orders approve themselves, captures complete, payouts start PENDING.
+
+    Set `payout_error` to a `PayPalError` to make the next `create_payout` raise it, and
+    `payout_status` to the item status `get_payout_batch` reports."""
+
+    def __init__(self) -> None:
+        self.orders: dict[str, dict] = {}
+        self.payouts: list[dict] = []
+        self.refunds: list[dict] = []
+        self.captures = 0
+        self.payout_error: Exception | None = None
+        self.payout_status = "SUCCESS"
+        self.webhook_ok = True
+
+    async def create_order(
+        self, *, amount_cents, custom_id, invoice_id, description, return_url, cancel_url
+    ):
+        order_id = f"ORDER{len(self.orders) + 1}"
+        self.orders[order_id] = {"amount_cents": amount_cents, "custom_id": custom_id}
+        return {
+            "id": order_id,
+            "status": "PAYER_ACTION_REQUIRED",
+            "approve_url": f"https://sandbox.paypal.test/checkoutnow?token={order_id}",
+        }
+
+    async def get_order(self, order_id):
+        return {"id": order_id, "status": "APPROVED"}
+
+    async def capture_order(self, order_id):
+        self.captures += 1
+        order = self.orders[order_id]
+        return {
+            "status": "COMPLETED",
+            "capture_id": f"CAP-{order_id}",
+            "amount_cents": order["amount_cents"],
+            "custom_id": order["custom_id"],
+        }
+
+    async def refund_capture(self, capture_id, amount_cents, note):
+        self.refunds.append({"capture_id": capture_id, "amount_cents": amount_cents})
+        return {"id": f"REF{len(self.refunds)}", "status": "COMPLETED"}
+
+    async def create_payout(self, sender_batch_id, receiver_email, amount_cents, note):
+        if self.payout_error is not None:
+            error, self.payout_error = self.payout_error, None
+            raise error
+        self.payouts.append(
+            {
+                "sender_batch_id": sender_batch_id,
+                "receiver_email": receiver_email,
+                "amount_cents": amount_cents,
+            }
+        )
+        n = len(self.payouts)
+        return {"batch_id": f"BATCH{n}", "item_id": f"ITEM{n}", "batch_status": "PENDING"}
+
+    async def get_payout_batch(self, batch_id):
+        n = batch_id.removeprefix("BATCH")
+        return {
+            "batch_status": "SUCCESS",
+            "item_id": f"ITEM{n}",
+            "item_status": self.payout_status,
+            "errors": None,
+        }
+
+    async def verify_webhook(self, headers, body, webhook_id):
+        return self.webhook_ok
