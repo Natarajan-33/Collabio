@@ -108,7 +108,9 @@ repeated.
 - **AG Grid**: AG Studio renders the brand's money dashboard (KPIs, charts, the deals grid), and the
   AG Studio agent framework runs the Claude assistant that edits it.
 - **Render**: the API, the web app and a nightly settlement cron run on Render from `render.yaml`
-  (see `docs/deploy.md`).
+  (see `docs/deploy.md`). Settlement runs are also packaged as a **Render Workflows** service
+  (`backend/workflows/settlement.py`: `settle_submission`, `nightly_settlement`); the API starts
+  them there when `RENDER_WORKFLOWS_ENABLED=1` and falls back to running in-process otherwise.
 - **APIMatic**: the PayPal Server SDK Context Plugin (APIMatic-generated skills) was installed in the
   coding agent while building and used to review the PayPal integration's retry and error-handling
   design against the generated SDK's documented semantics. The backend itself calls the PayPal REST

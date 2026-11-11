@@ -246,7 +246,7 @@ async def submit_proof(
             claimed_views=claimed_views,
             screenshot=data,
         )
-    runner.start(money.settle, submission_id)
+    runner.start(money.settle, submission_id, settings)
     return {"submission_id": str(submission_id)}
 
 
@@ -266,7 +266,7 @@ async def retry_settlement(
     await usage.consume(db, user.id, "settlement", settings)
     with http_errors():
         await money.retry(submission_id, creator_id)
-    runner.start(money.settle, submission_id)
+    runner.start(money.settle, submission_id, settings)
     return {"submission_id": str(submission_id)}
 
 
@@ -337,7 +337,7 @@ async def nightly(
 ) -> dict[str, int]:
     """Scheduler entry point: sync payouts, retry stuck runs, keep the database awake."""
     money = MoneyService(db, paypal, claude, settings, storage)
-    return await money.nightly(lambda sid: runner.start(money.settle, sid))
+    return await money.nightly(lambda sid: runner.start(money.settle, sid, settings))
 
 
 @router.post("/webhooks/paypal", status_code=status.HTTP_202_ACCEPTED)

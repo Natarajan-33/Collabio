@@ -30,7 +30,7 @@ Values never live in git. `render.yaml` declares every key; secrets are `sync: f
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_RECEIVER_EMAIL` | `backend/.env` (sandbox app) |
 | `PAYPAL_WEBHOOK_ID` | printed by `scripts.register_paypal_webhook` after the first deploy |
 | `ANTHROPIC_API_KEY` | `backend/.env` (settlement agent, terms parser) |
-| `RENDER_API_KEY` | only for Render Workflows (Task 16) |
+| `RENDER_API_KEY`, `RENDER_WORKFLOWS_ENABLED` (`0` until the workflow is deployed), `RENDER_WORKFLOW_SLUG` | Render Workflows (see below) |
 
 ElevenLabs and Resend keys are not needed: hackathon mode turns calls and outbound email off.
 
@@ -74,6 +74,29 @@ ElevenLabs and Resend keys are not needed: hackathon mode turns calls and outbou
 7. **Verify in an incognito window** on the web URL: Brand persona → Deals → Lumen Pods
    launch → Fund with PayPal (sandbox buyer) → creator submits proof (sample screenshot) →
    Claude settles → payout → close deal → refund; then `/brand/money` and the agent.
+
+## Render Workflows (settlement runs)
+
+Workflows cannot be declared in a Blueprint yet, so the workflow service is created by hand:
+
+1. Render dashboard → New → **Workflow** → repo `Collabio`, branch `hackathon/paypal-money`,
+   name **`collabio-settlement`**, region Singapore.
+   - Root directory: `backend`
+   - Build command: `pip install uv && uv sync --frozen --no-dev`
+   - Start command: `uv run --no-sync python -m workflows.settlement`
+   - Environment: the same database, PayPal, Anthropic and Supabase keys as `collabio-api`
+     (`SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL`, `PAYPAL_CLIENT_ID`,
+     `PAYPAL_CLIENT_SECRET`, `PAYPAL_RECEIVER_EMAIL`, `ANTHROPIC_API_KEY`, `HACKATHON_MODE=1`,
+     `PYTHON_VERSION=3.12.8`). An environment group shared with `collabio-api` is easiest.
+2. After it deploys, its **Tasks** page lists `settle_submission` and `nightly_settlement`;
+   the slugs are `collabio-settlement/settle_submission` and `collabio-settlement/nightly_settlement`.
+3. On `collabio-api` set `RENDER_API_KEY` and `RENDER_WORKFLOWS_ENABLED=1`:
+   ```bash
+   uv run python -m scripts.render_env set RENDER_WORKFLOWS_ENABLED=1 --deploy
+   ```
+4. Submit a proof on the hosted app; a `settle_submission` run appears on the workflow's Tasks
+   page. If triggering ever fails, the API logs a warning and settles in-process instead, and a
+   run is idempotent per submission, so it can never pay twice.
 
 ## Cost
 

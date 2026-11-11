@@ -26,6 +26,12 @@ services:
         value: https://api-m.sandbox.paypal.com
       - key: INTERNAL_SECRET
         generateValue: true
+      # Render Workflows (Task 16): flip to 1 once the collabio-settlement workflow is deployed
+      # (Workflows cannot be declared in a Blueprint yet; see docs/deploy.md).
+      - key: RENDER_WORKFLOWS_ENABLED
+        value: "0"
+      - key: RENDER_WORKFLOW_SLUG
+        value: collabio-settlement
       # Render URLs (the web service's public URL; fix after the first deploy if Render adds a suffix).
       - key: FRONTEND_ORIGIN
         value: https://collabio-web.onrender.com
@@ -61,6 +67,8 @@ services:
       - key: PAYPAL_WEBHOOK_ID
         sync: false
       - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RENDER_API_KEY
         sync: false
 
   - type: web
