@@ -568,14 +568,19 @@ class MoneyService:
                 fund["refunded_cents"],
             )
             if refund > 0:
-                res = await self._paypal.refund_capture(
-                    fund["capture_id"],
-                    refund,
-                    "Unspent Collabio deal budget",
-                    request_id=f"refund-{deal_id}-{fund['refunded_cents']}",
-                )
+                if str(fund["capture_id"]).startswith("SEED-"):
+                    # Seeded demo history has no real capture to refund.
+                    ref, payload = "SEED-REFUND", {"seed": True}
+                else:
+                    res = await self._paypal.refund_capture(
+                        fund["capture_id"],
+                        refund,
+                        "Unspent Collabio deal budget",
+                        request_id=f"refund-{deal_id}-{fund['refunded_cents']}",
+                    )
+                    ref, payload = res["id"], None
                 await repo.add_refund(conn, deal_id, refund)
-                await repo.add_event(conn, deal_id, "refunded", refund, res["id"])
+                await repo.add_event(conn, deal_id, "refunded", refund, ref, payload)
             await repo.set_deal_status(conn, deal_id, "completed")
         return await self.money_view(deal_id, brand_id=brand_id, creator_id=None)
 

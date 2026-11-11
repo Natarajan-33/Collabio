@@ -51,3 +51,12 @@ async def test_consume_is_noop_outside_hackathon_mode(api_db, auth_user):
             )
             == 0
         )
+
+
+async def test_reset_requires_hackathon_mode(brand_client):
+    settings = get_settings().model_copy(update={"hackathon_mode": False})
+    from app.main import create_app  # noqa: F401  (app fixture already built)
+
+    brand_client._transport.app.dependency_overrides[get_settings] = lambda: settings
+    r = await brand_client.post("/api/v1/demo/reset")
+    assert r.status_code == 404
