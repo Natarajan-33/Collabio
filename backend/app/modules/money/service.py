@@ -293,7 +293,9 @@ class MoneyService:
             if not await repo.claim_run(conn, submission_id):
                 return "skipped"
             ctx = await repo.submission_context(conn, submission_id)
-        assert ctx is not None and self._claude is not None
+        if ctx is None:  # the deal was reset or deleted meanwhile
+            return "skipped"
+        assert self._claude is not None
         try:
             image = await self._storage.download(ctx["screenshot_path"])
             content = settlement_prompt(ctx, image)
@@ -307,8 +309,9 @@ class MoneyService:
             async with self._db.acquire() as conn:
                 await repo.finish_run(conn, submission_id, "error", [], str(exc)[:500])
             return "error"
-        async with self._db.acquire() as conn:
+        async with self._db.acquire() as conn, conn.transaction():
             await repo.finish_run(conn, submission_id, "done", transcript)
+            await self._settle_milestone_status(conn, ctx["milestone_id"])
         return "done"
 
     def _handlers(self, submission_id: UUID, ctx: dict) -> dict:
@@ -408,7 +411,9 @@ class MoneyService:
         async with self._db.acquire() as conn, conn.transaction():
             ctx = await repo.submission_context(conn, submission_id)
             assert ctx is not None
-            if ctx["deal_status"] != "funded":
+            # Lock the funding row first, as close_deal does, so a close cannot race a payout.
+            await repo.funding(conn, ctx["deal_id"], lock=True)
+            if await repo.deal_status(conn, ctx["deal_id"]) != "funded":
                 return {"outcome": "none", "reason": "deal_closed"}
             await repo.lock_milestone(conn, ctx["milestone_id"])
             quote = await self._quote(conn, submission_id)
@@ -439,25 +444,42 @@ class MoneyService:
         return {"outcome": "awaiting_approval", "amount_cents": quote["payable_cents"]}
 
     async def send_payout(self, payout_id: UUID) -> str:
-        """Send an approved payout through PayPal Payouts: `sent` or `failed`."""
+        """Send an approved payout through PayPal Payouts: `sent`, `failed`, or still
+        `approved` when PayPal's answer is unknown (timeout, 5xx). A resend reuses the same
+        `sender_batch_id` as its PayPal-Request-Id, so PayPal never pays twice."""
         assert self._paypal is not None
         async with self._db.acquire() as conn:
-            p = await repo.payout(conn, payout_id)
-            ctx = await repo.submission_context(conn, p["submission_id"])
-        receiver = ctx["payout_email"] or self._settings.paypal_receiver_email
-        note = f"Collabio: {ctx['title']} for {ctx['product_name'] or 'your sponsor'}"
+            p = await repo.payout_with_deal(conn, payout_id)
+            ctx = (
+                await repo.submission_context(conn, p["submission_id"])
+                if p["submission_id"]
+                else None
+            )
+            fund = await repo.funding(conn, p["deal_id"])
+        if p["status"] != "approved":
+            return p["status"]
+        if fund and str(fund["capture_id"] or "").startswith("SEED-"):
+            return await self._simulate_seed_payout(p)
+        ctx = ctx or {}
+        receiver = ctx.get("payout_email") or self._settings.paypal_receiver_email
+        title = ctx.get("title") or "your deliverable"
+        note = f"Collabio: {title} for {ctx.get('product_name') or 'your sponsor'}"
         try:
             if not receiver:
-                raise PayPalError("NO_PAYOUT_EMAIL", "creator has no PayPal email", http_status=0)
+                raise PayPalError("NO_PAYOUT_EMAIL", "creator has no PayPal email", http_status=422)
             res = await self._paypal.create_payout(
                 p["sender_batch_id"], receiver, p["amount_cents"], note
             )
         except PayPalError as exc:
             error = {"code": exc.code, "message": exc.message, "debug_id": exc.debug_id}
             async with self._db.acquire() as conn, conn.transaction():
+                if exc.http_status == 0 or exc.http_status >= 500:
+                    # Unknown outcome: keep it committed and resend later with the same id.
+                    await repo.update_payout(conn, payout_id, last_error=error)
+                    return "approved"
                 await repo.update_payout(conn, payout_id, status="failed", last_error=error)
                 await repo.add_event(
-                    conn, ctx["deal_id"], "payout_failed", p["amount_cents"], payload=error
+                    conn, p["deal_id"], "payout_failed", p["amount_cents"], payload=error
                 )
             return "failed"
         async with self._db.acquire() as conn, conn.transaction():
@@ -469,9 +491,46 @@ class MoneyService:
                 paypal_item_id=res["item_id"],
             )
             await repo.add_event(
-                conn, ctx["deal_id"], "payout_sent", p["amount_cents"], res["batch_id"]
+                conn, p["deal_id"], "payout_sent", p["amount_cents"], res["batch_id"]
             )
         return "sent"
+
+    async def _simulate_seed_payout(self, p: dict) -> str:
+        """Seeded demo deals hold no real PayPal money: complete the payout as seed data."""
+        ref = f"SEED-SIM-{str(p['id'])[:8]}"
+        async with self._db.acquire() as conn, conn.transaction():
+            await repo.update_payout(
+                conn, p["id"], status="success", paypal_batch_id=ref, paypal_item_id=ref
+            )
+            for kind in ("payout_sent", "payout_succeeded"):
+                await repo.add_event(
+                    conn, p["deal_id"], kind, p["amount_cents"], ref, {"seed": True}
+                )
+            await self._settle_milestone_status(conn, p["milestone_id"])
+        return "success"
+
+    async def _settle_milestone_status(self, conn, milestone_id: UUID) -> None:
+        """`paid` once nothing for the milestone is still pending or being checked, else
+        `verified` when a verified proof exists."""
+        pays = await repo.milestone_payouts(conn, milestone_id)
+        subs = await repo.milestone_submissions(conn, milestone_id)
+        pending = any(x["status"] in ("awaiting_approval", "approved", "sent") for x in pays)
+        checking = any(s["status"] == "submitted" for s in subs)
+        succeeded = any(x["status"] == "success" for x in pays)
+        if succeeded and not pending and not checking:
+            await repo.set_milestone_status(conn, milestone_id, "paid")
+        elif any(s["status"] == "verified" for s in subs) and not checking:
+            await repo.set_milestone_status(conn, milestone_id, "verified")
+
+    async def resend_approved_payouts(self, min_age_seconds: int = 60) -> int:
+        """Resend payouts left `approved` (PayPal timed out, or the process died)."""
+        async with self._db.acquire() as conn:
+            ids = await repo.stale_approved_payout_ids(conn, min_age_seconds)
+        changed = 0
+        for payout_id in ids:
+            if await self.send_payout(payout_id) != "approved":
+                changed += 1
+        return changed
 
     # ---- approvals, status, close ----------------------------------------------------------
 
@@ -519,6 +578,8 @@ class MoneyService:
             return p["status"] if p else "missing"
         batch = await self._paypal.get_payout_batch(p["paypal_batch_id"])
         item = (batch.get("item_status") or "").upper()
+        if not item and (batch.get("batch_status") or "").upper() in ("DENIED", "CANCELED"):
+            item = "DENIED"
         if item == "SUCCESS":
             new, kind = "success", "payout_succeeded"
         elif item in PAYOUT_FAILED:
@@ -534,8 +595,7 @@ class MoneyService:
                 fields["last_error"] = {"code": item, "errors": batch.get("errors")}
             await repo.update_payout(conn, payout_id, **fields)
             await repo.add_event(conn, p["deal_id"], kind, p["amount_cents"], batch.get("item_id"))
-            if new == "success":
-                await repo.set_milestone_status(conn, p["milestone_id"], "paid")
+            await self._settle_milestone_status(conn, p["milestone_id"])
         return new
 
     async def sync_sent_payouts(self) -> int:
@@ -576,7 +636,7 @@ class MoneyService:
                         fund["capture_id"],
                         refund,
                         "Unspent Collabio deal budget",
-                        request_id=f"refund-{deal_id}-{fund['refunded_cents']}",
+                        request_id=f"refund-{deal_id}-{fund['refunded_cents']}-{refund}",
                     )
                     ref, payload = res["id"], None
                 await repo.add_refund(conn, deal_id, refund)
@@ -586,7 +646,7 @@ class MoneyService:
 
     async def nightly(self, redispatch) -> dict[str, int]:
         """Sync payouts and retry stuck settlement runs; also keeps the database active."""
-        synced = await self.sync_sent_payouts()
+        synced = await self.resend_approved_payouts() + await self.sync_sent_payouts()
         async with self._db.acquire() as conn:
             stale = await repo.stale_error_runs(conn)
         for submission_id in stale:

@@ -107,15 +107,15 @@ async def run_agent(
     for _ in range(MAX_STEPS):
         message = await claude.create(
             model=model,
-            max_tokens=4096,
+            max_tokens=16000,
             system=SYSTEM,
             tools=TOOLS,
             tool_choice={"type": "auto"},
             output_config={"effort": "medium"},
             messages=messages,
         )
-        if message.get("stop_reason") == "refusal":
-            raise AgentFailed("refusal")
+        if message.get("stop_reason") in ("refusal", "max_tokens"):
+            raise AgentFailed(message["stop_reason"])
         content = message.get("content", [])
         messages.append({"role": "assistant", "content": content})
         uses = [b for b in content if b.get("type") == "tool_use"]

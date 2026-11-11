@@ -66,7 +66,12 @@ function ApprovalActions({
     )
     setBusy(false)
     if (data) {
-      toast.success("Approved. The payout is on its way through PayPal.")
+      const sent = data.milestones
+        .flatMap((m) => m.payouts)
+        .find((p) => p.id === payoutId)
+      if (sent?.status === "failed")
+        toast.error("PayPal refused the payout. See the details below.")
+      else toast.success("Approved. The payout is on its way through PayPal.")
       onDone(data)
     } else toast.error(errorText(error))
   }
@@ -182,13 +187,11 @@ function MilestoneRow({
           )}
       </div>
       {latest && <VerdictCard submission={latest} payout={latestPayout} />}
-      {latest?.run_status === "error" &&
-        latest.status === "submitted" &&
-        viewer === "creator" && (
-          <Button type="button" size="sm" variant="outline" onClick={retry}>
-            Retry verification
-          </Button>
-        )}
+      {latest?.run_status === "error" && viewer === "creator" && (
+        <Button type="button" size="sm" variant="outline" onClick={retry}>
+          Retry verification
+        </Button>
+      )}
       {viewer === "brand" &&
         dealOpen &&
         latestPayout?.status === "awaiting_approval" && (

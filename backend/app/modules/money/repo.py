@@ -242,7 +242,8 @@ async def claim_run(conn: asyncpg.Connection, submission_id: UUID) -> bool:
     restarted = await conn.fetchval(
         "update public.settlement_runs set status = 'running', error = null,"
         " started_at = now(), finished_at = null"
-        " where submission_id = $1 and status = 'error' returning id",
+        " where submission_id = $1 and (status = 'error'"
+        " or (status = 'running' and started_at < now() - interval '5 minutes')) returning id",
         submission_id,
     )
     return restarted is not None
@@ -406,7 +407,7 @@ async def payout_by_paypal_ref(conn: asyncpg.Connection, ref: str) -> UUID | Non
 
 async def sent_payout_ids(conn: asyncpg.Connection, limit: int = 50) -> list[UUID]:
     rows = await conn.fetch(
-        "select id from public.payouts where status = 'sent' order by updated_at limit $1", limit
+        "select id from public.payouts where status = 'sent' order by random() limit $1", limit
     )
     return [r["id"] for r in rows]
 
@@ -438,8 +439,22 @@ async def stale_error_runs(conn: asyncpg.Connection, older_than_minutes: int = 1
     rows = await conn.fetch(
         "select r.submission_id from public.settlement_runs r"
         " join public.milestone_submissions s on s.id = r.submission_id"
-        " where r.status = 'error' and s.status = 'submitted'"
-        " and r.finished_at < now() - make_interval(mins => $1) limit 20",
+        " where s.status = 'submitted' and ((r.status = 'error'"
+        " and r.finished_at < now() - make_interval(mins => $1))"
+        " or (r.status = 'running' and r.started_at < now() - interval '5 minutes')) limit 20",
         older_than_minutes,
     )
     return [r["submission_id"] for r in rows]
+
+
+async def deal_status(conn: asyncpg.Connection, deal_id: UUID) -> str:
+    return await conn.fetchval("select status from public.deals where id = $1", deal_id)
+
+
+async def stale_approved_payout_ids(conn: asyncpg.Connection, min_age_seconds: int) -> list[UUID]:
+    rows = await conn.fetch(
+        "select id from public.payouts where status = 'approved'"
+        " and updated_at <= now() - make_interval(secs => $1) order by updated_at limit 20",
+        float(min_age_seconds),
+    )
+    return [r["id"] for r in rows]

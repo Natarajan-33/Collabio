@@ -23,6 +23,7 @@ async def run_payout_sync(db: Database, settings: Settings) -> None:
     service = MoneyService(db, paypal, None, settings)
     while True:
         try:
+            await service.resend_approved_payouts()
             await service.sync_sent_payouts()
         except Exception:
             logger.exception("payout sync failed")

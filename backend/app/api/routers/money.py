@@ -1,5 +1,6 @@
 """M4 money endpoints: bonus terms, the auto-approve limit, funding, proof and payouts."""
 
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Annotated
@@ -11,7 +12,7 @@ from pydantic import BaseModel, Field
 from app.adapters.claude import ClaudePort, ClaudeUnavailable
 from app.adapters.db import Database
 from app.adapters.paypal import PayPalError, PayPalPort
-from app.adapters.storage import StoragePort
+from app.adapters.storage import StorageError, StoragePort
 from app.api.deps import (
     CurrentUser,
     get_claude,
@@ -77,6 +78,8 @@ def http_errors() -> Iterator[None]:
         raise HTTPException(status.HTTP_409_CONFLICT, "funding_mismatch") from exc
     except service.FundingTooLarge as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "funding_too_large") from exc
+    except StorageError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "storage_unavailable") from exc
     except ClaudeUnavailable as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "claude_unavailable") from exc
     except PayPalError as exc:
@@ -230,6 +233,7 @@ async def submit_proof(
     """Proof for one milestone: post link, caption, claimed views and an analytics
     screenshot. Starts the Claude settlement run."""
     creator_id = await creator_id_of(user, db)
+    await usage.consume(db, user.id, "settlement", settings)
     data = await screenshot.read(service.MAX_SCREENSHOT_BYTES + 1)
     money = MoneyService(db, paypal, claude, settings, storage)
     with http_errors():
@@ -241,7 +245,6 @@ async def submit_proof(
             claimed_views=claimed_views,
             screenshot=data,
         )
-    await usage.consume(db, user.id, "settlement", settings)
     runner.start(money.settle, submission_id)
     return {"submission_id": str(submission_id)}
 
@@ -259,9 +262,9 @@ async def retry_settlement(
     """Run verification again after a failed run (model down, unreadable reply)."""
     creator_id = await creator_id_of(user, db)
     money = MoneyService(db, paypal, claude, settings, storage)
+    await usage.consume(db, user.id, "settlement", settings)
     with http_errors():
         await money.retry(submission_id, creator_id)
-    await usage.consume(db, user.id, "settlement", settings)
     runner.start(money.settle, submission_id)
     return {"submission_id": str(submission_id)}
 
@@ -348,6 +351,10 @@ async def paypal_webhook(
     from app.api.deps import get_paypal as paypal_dep
 
     body = await request.body()
+    try:
+        json.loads(body)
+    except ValueError:
+        return {"processed": False}
     try:
         ok = await MoneyService(db, paypal_dep(), None, settings).handle_webhook(
             dict(request.headers), body

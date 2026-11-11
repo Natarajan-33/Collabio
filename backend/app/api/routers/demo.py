@@ -25,6 +25,9 @@ async def reset_demo(
     """Recreate the three demo deals (hackathon mode only, at most once a minute)."""
     if not settings.hackathon_mode:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not_found")
+    personas = {settings.demo_brand_email.lower(), settings.demo_helper_email.lower()}
+    if (_user.email or "").lower() not in personas:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "demo_personas_only")
     now = time.monotonic()
     if now - _last_reset["at"] < RESET_EVERY_S:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "reset_too_soon")
