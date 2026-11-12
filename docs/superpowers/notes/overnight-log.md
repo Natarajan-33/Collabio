@@ -53,13 +53,23 @@ Branch `hackathon/paypal-money`, pushed to the private `origin`. The ledger has 
 6. One visitor could exhaust the shared demo caps. Caps are now charged after validation, there are per-IP
    sub-caps, and the persona caps are raised.
 
+### Afternoon (Nov 12): deployed and demo polished
+- **Live:** https://collabio-web.onrender.com (API https://collabio-api.onrender.com). Every env var was set by
+  `scripts/render_env.py`. PayPal webhook `5F132631K8389983T` is registered. The persona redirect bug
+  (redirects pointed at `localhost:10000`) is fixed. The hosted judge path passes 7/7 in a fresh browser.
+- **Demo data:** test leftovers removed with `scripts/clean_demo.py` (63 briefs, 59 batches, 67 threads,
+  and a stray "Lumen Pods" deal). There are now four demo deals: Priya has Lumen Pods (the live path) and Studio Monitors;
+  the second creator **Arjun Mehta** has Desk Speaker (refunded) and Soundbar review (1.5M views), so the
+  dashboard compares two creators. I kept 2 offers to Priya and Arjun from the brand "Fusion 3d" (a gmail account, probably
+  yours); `clean_demo.py --apply --include-other-brands` removes them if you want.
+- **Two deferred minors fixed:** the dashboard bonus/base split ("Bonus paid" now counts each payout's own
+  share, successful payouts only), and the capture-failure toast (it now names the bonus-changed case and shows PayPal's debug id).
+
 ### Deferred minors (not fixed; your call)
 - A PENDING capture is marked failed with no refund, and a true mismatch leaves captured money unrefunded.
 - A payout 429 that survives retries is marked failed (safe; the creator resubmits).
 - The `PAYMENT.CAPTURE.REFUNDED` webhook is ignored (refunds are synchronous anyway).
 - A run killed mid-flight shows "checking" until the 5-minute reclaim.
-- The dashboard's bonus/base split double-counts after a resubmission.
-- The capture-failure toast doesn't show the PayPal debug id.
 - There's no approval badge in the nav, and the Playwright money spec was cut (spec §11).
 
 ## Tests run tonight
