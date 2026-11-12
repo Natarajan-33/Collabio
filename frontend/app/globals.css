@@ -223,3 +223,11 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Native option lists take the theme's popover colours: a transparent select left Chrome's
+   light default list under light text in dark mode (unreadable). */
+select option,
+select optgroup {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+}

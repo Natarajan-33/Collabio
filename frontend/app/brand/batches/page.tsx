@@ -94,7 +94,14 @@ export default function BatchesPage() {
                 <td className="num px-4 py-3 tabular-nums">{row.thread_count}</td>
                 <td className="num px-4 py-3 tabular-nums">{row.contacted}</td>
                 <td className="num px-4 py-3 tabular-nums">{row.replied}</td>
-                <td className="num px-4 py-3 tabular-nums">{row.countered}</td>
+                <td className="num px-4 py-3 tabular-nums">
+                  {row.countered}
+                  {row.countered > 0 && (
+                    <span className="ml-2 rounded-full bg-voice/15 px-2 py-0.5 font-sans text-xs text-voice">
+                      Countered: review
+                    </span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

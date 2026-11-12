@@ -91,6 +91,20 @@ export function useThreadEventsDoorbell(
     const poll = setInterval(() => latest.current(), pollMs)
     return () => clearInterval(poll)
   }, [live, pollMs])
+
+  // Coming back to the tab (e.g. after replying as the other persona) always refetches:
+  // a realtime message missed while away must not leave the page stale.
+  React.useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") latest.current()
+    }
+    window.addEventListener("focus", onVisible)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      window.removeEventListener("focus", onVisible)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [])
 }
 
 /** The doorbell for one batch: the brand's board. */

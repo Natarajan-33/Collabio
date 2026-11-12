@@ -259,7 +259,7 @@ export default function BatchBoardPage() {
   useBatchDoorbell(batchId, () => {
     setRefreshKey((k) => k + 1)
     void reload()
-  }, { live })
+  }, { live: true, pollMs: live ? 5_000 : 15_000 })
 
   const onSortChange = (value: BoardSortKey) => {
     captureFlip()
