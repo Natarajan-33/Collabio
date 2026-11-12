@@ -1,5 +1,7 @@
 # Collabio: creator deals that pay themselves, on PayPal
 
+[![Collabio: deals that pay themselves. Watch the 2:30 demo](assets/collabio-banner.jpg)](https://youtu.be/0tdhkWARSKc)
+
 **A brand funds a creator deal once with PayPal. A Claude agent checks each post, reads the views off the
 creator's analytics screenshot, and pays the creator through PayPal Payouts: base pay plus a performance bonus,
 within limits the brand sets. Unspent budget is refunded through PayPal when the deal closes. The model decides
@@ -35,6 +37,17 @@ agreed terms, and every movement is a real PayPal sandbox transaction in an appe
 | 4. **Close it** | Brand | Closes the deal; whatever the creator did not earn goes back. | **Refunds** against the capture | |
 | + **Ask it** | Brand | The AG Studio money dashboard answers questions and builds charts ("Which creator gives me the cheapest 1,000 views? Add a chart."). | Every row carries its PayPal ID | Claude Sonnet inside **AG Studio** |
 
+<table>
+  <tr>
+    <td width="50%"><img src="assets/funded-paypal.jpg" alt="Deal funded through PayPal Checkout, with the PayPal capture ID in the ledger"><br><sub><b>Fund once:</b> $1,800 captured through PayPal Checkout; the ledger keeps the PayPal capture ID.</sub></td>
+    <td width="50%"><img src="assets/paid-by-claude.jpg" alt="Claude verified the post and the creator was paid through PayPal Payouts"><br><sub><b>Prove it, get paid:</b> Claude checks the brief and disclosure, reads 312K views off the screenshot; $624 paid via PayPal Payouts in under a minute.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="assets/changes-requested.jpg" alt="Claude requests changes for a post about the wrong product; nothing is paid"><br><sub><b>Refuses safely:</b> a caption about the wrong product gets "changes requested" and a reason; $0 is paid.</sub></td>
+    <td width="50%"><img src="assets/ag-studio-agent.jpg" alt="AG Studio dashboard chart of cost per 1,000 views by creator, built by the Claude agent"><br><sub><b>Ask the dashboard:</b> the Claude agent in AG Studio builds a cost-per-1K-views chart on request.</sub></td>
+  </tr>
+</table>
+
 ## How money moves
 
 ```mermaid
@@ -55,7 +68,7 @@ sequenceDiagram
     API->>Claude: Settlement run (tools only, no amounts)
     Claude->>API: record_verification(brief, disclosure, views read from the image)
     Claude->>API: quote_payout() / pay_creator(reason) / request_changes(message)
-    API->>Engine: owed − already committed, clamped to what is available; auto-pay or approval?
+    API->>Engine: owed − already committed, clamped to what is available, auto-pay or approval?
     alt within the brand's limit and all checks pass
         API->>PayPal: Payouts: base + bonus (sender_batch_id unique)
     else above the limit, low confidence, or read ≠ claim
