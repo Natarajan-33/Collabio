@@ -37,3 +37,17 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Working notes and coding-agent files (kept locally, not part of the submission)
+docs/
+.claude/
+.agents/
+.codex/
+.mcp.json
+skills-lock.json
+AGENTS.md
+CLAUDE.md
+BUSINESS_USE_CASE.md
+/components.json
+frontend/AGENTS.md
+frontend/CLAUDE.md
