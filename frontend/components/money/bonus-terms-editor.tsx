@@ -19,6 +19,13 @@ type Preview = components["schemas"]["BonusPreview"]
 const PLACEHOLDER =
   "e.g. $2 per 1K views after 200K, up to $500 per video, plus $300 if a video hits 1M"
 
+/** What the engine can pay (bonuses come from each video's verified views). */
+const EXAMPLES = [
+  "$2 per 1K views after 200K, up to $500 per video",
+  "$100 if a video passes 500K views",
+  "$1 per 1K views after 100K, up to $300 per video, plus $200 at 1M views",
+]
+
 function detailText(detail: unknown): string | null {
   if (detail && typeof detail === "object" && "question" in detail) {
     return String((detail as { question: string }).question)
@@ -135,10 +142,37 @@ export function BonusTermsEditor({
           {busy === "preview" ? "Reading…" : "Preview with Claude"}
         </Button>
       </div>
-      {question && (
-        <p role="status" className="text-sm text-voice-ink">
-          Claude asks: {question}
+      <div className="space-y-1.5">
+        <p className="text-xs text-muted-foreground">
+          Bonuses are paid per video from its views: an amount per 1,000 views
+          (with a cap), and/or a flat amount when a video passes a view count.
+          Try one:
         </p>
+        <div className="flex flex-wrap gap-1.5">
+          {EXAMPLES.map((example) => (
+            <button
+              key={example}
+              type="button"
+              onClick={() => {
+                setText(example)
+                setQuestion(null)
+              }}
+              className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+      </div>
+      {question && (
+        <div role="status" className="rounded-lg border border-voice/40 bg-voice/5 p-3 text-sm">
+          <p className="font-medium text-voice-ink">Claude needs a change</p>
+          <p className="mt-1">{question}</p>
+          <p className="mt-2 text-muted-foreground">
+            To answer, edit the description above and press Preview with Claude
+            again, or pick an example.
+          </p>
+        </div>
       )}
 
       {terms && (
