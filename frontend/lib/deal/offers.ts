@@ -8,6 +8,7 @@ export type OfferDesk = components["schemas"]["OfferDesk"]
 export type OfferTab = keyof OfferCounts
 export type OfferSort = "fit" | "revenue" | "timeline"
 
+// Booked offers are not a tab here: they live under Booked (the deals page).
 export const OFFER_TABS: { key: OfferTab; label: string; empty: string }[] = [
   {
     key: "needs_you",
@@ -19,7 +20,6 @@ export const OFFER_TABS: { key: OfferTab; label: string; empty: string }[] = [
     label: "Waiting",
     empty: "No offers are waiting on a brand.",
   },
-  { key: "booked", label: "Booked", empty: "No booked deals yet." },
   { key: "closed", label: "Closed", empty: "No closed offers." },
 ]
 

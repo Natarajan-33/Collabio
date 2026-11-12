@@ -82,7 +82,7 @@ describe("AppShell", () => {
     expect(within(nav).queryByText("Offers")).toBeNull()
   })
 
-  it("brand rail links Board to /brand/batches", () => {
+  it("brand rail links Outreach to /brand/batches", () => {
     pathname.current = "/brand/batches/abc"
     render(
       <AppShell role="brand">
@@ -90,7 +90,7 @@ describe("AppShell", () => {
       </AppShell>
     )
 
-    const board = within(primaryNav()).getByRole("link", { name: "Board" })
+    const board = within(primaryNav()).getByRole("link", { name: "Outreach" })
     expect(board.getAttribute("href")).toBe("/brand/batches")
     expect(board.getAttribute("aria-current")).toBe("page")
     expect(
@@ -104,7 +104,7 @@ describe("AppShell", () => {
     ).toBe("/brand/money")
   })
 
-  it("creator shell links Packages, Offers and Deals; only Analytics is still to come", () => {
+  it("creator shell links Packages, Offers and Booked", () => {
     pathname.current = "/creator/packages"
     render(
       <AppShell role="creator" creatorId="creator-1">
@@ -123,29 +123,17 @@ describe("AppShell", () => {
     expect(offers.getAttribute("aria-disabled")).toBeNull()
     expect(offers.textContent).not.toContain("Soon")
     expect(
-      within(nav).getByRole("link", { name: "Deals" }).getAttribute("href")
+      within(nav).getByRole("link", { name: "Booked" }).getAttribute("href")
     ).toBe("/creator/deals")
+    expect(within(nav).queryByText("Analytics")).toBeNull()
 
-    const analytics = within(nav).getByText("Analytics")
-    expect(analytics.getAttribute("aria-disabled")).toBe("true")
-    // Not navigable, and the reason is announced with the name.
-    expect(analytics.getAttribute("href")).toBeNull()
-    expect(analytics.getAttribute("aria-current")).toBeNull()
-    expect(analytics.textContent).toContain("Soon")
-    // The accessible name is the label alone; "Coming soon" is its description.
-    const link = within(nav).getByRole("link", { name: "Analytics" })
-    expect(link).toBe(analytics)
-    const note = document.getElementById(
-      link.getAttribute("aria-describedby") ?? ""
-    )
-    expect(note?.textContent).toBe("Coming soon")
   })
 
-  it("brand shell links Deals to /brand/deals and never asks for offer counts", () => {
+  it("brand shell links Booked to /brand/deals and never asks for offer counts", () => {
     render(<AppShell role="brand">x</AppShell>)
     expect(
       within(primaryNav())
-        .getByRole("link", { name: "Deals" })
+        .getByRole("link", { name: "Booked" })
         .getAttribute("href")
     ).toBe("/brand/deals")
     expect(api.GET).not.toHaveBeenCalled()

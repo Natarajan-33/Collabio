@@ -345,7 +345,7 @@ export default function BatchBoardPage() {
           href="/brand/batches"
           className="text-muted-foreground text-sm hover:text-foreground"
         >
-          All launches
+          All outreach
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">
           {view.brief.product_name}

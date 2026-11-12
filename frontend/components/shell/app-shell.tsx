@@ -4,7 +4,6 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  ChartColumn,
   CircleDollarSign,
   Compass,
   FileSignature,
@@ -21,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { CreatorIdProvider } from "@/components/shell/creator-context"
+import { FlowSteps } from "@/components/shell/flow-steps"
 import { PersonaSwitcher } from "@/components/shell/persona-switcher"
 import { WelcomeNoteToast } from "@/components/auth/welcome-note-toast"
 import { TryYourselfTrigger } from "@/components/voice/try-yourself-dialog"
@@ -55,14 +55,14 @@ const NAV: Record<ShellRole, NavItem[]> = {
       href: "/brand/discover",
     },
     {
-      label: "Board",
-      hint: "Live negotiations",
+      label: "Outreach",
+      hint: "Offers you sent and their replies",
       icon: LayoutGrid,
       href: "/brand/batches",
     },
     {
-      label: "Deals",
-      hint: "Booked deals",
+      label: "Booked",
+      hint: "Creators you booked: fund and pay",
       icon: FileSignature,
       href: "/brand/deals",
     },
@@ -88,12 +88,11 @@ const NAV: Record<ShellRole, NavItem[]> = {
       badge: "offers",
     },
     {
-      label: "Deals",
-      hint: "Your booked deals",
+      label: "Booked",
+      hint: "Deals you agreed: submit proof, get paid",
       icon: FileSignature,
       href: "/creator/deals",
     },
-    { label: "Analytics", hint: "How your deals perform", icon: ChartColumn },
   ],
 }
 
@@ -377,6 +376,7 @@ export function AppShell({ role, creatorId = null, children }: AppShellProps) {
               id="main"
               className="mx-auto min-h-svh w-full max-w-[96rem] px-6 pt-6 pb-32"
             >
+              <FlowSteps role={role} />
               {children}
             </main>
           </div>

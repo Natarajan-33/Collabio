@@ -217,7 +217,6 @@ describe("creator offers page", { timeout: TEST_TIMEOUT }, () => {
       expect(tabLabels()).toEqual([
         "Needs you2",
         "Waiting1",
-        "Booked0",
         "Closed4",
       ])
     )
@@ -267,8 +266,10 @@ describe("creator offers page", { timeout: TEST_TIMEOUT }, () => {
       await screen.findByText("Nothing needs your reply right now.")
     ).toBeTruthy()
 
-    await user.click(screen.getByRole("tab", { name: /Booked/ }))
-    expect(await screen.findByText("No booked deals yet.")).toBeTruthy()
+    await user.click(screen.getByRole("tab", { name: /Closed/ }))
+    expect(await screen.findByText("No closed offers.")).toBeTruthy()
+    // Booked offers live under Booked (the deals page), not as an Offers tab.
+    expect(screen.queryByRole("tab", { name: /Booked/ })).toBeNull()
   })
 
   it("opens the offer desk when a row is clicked", async () => {

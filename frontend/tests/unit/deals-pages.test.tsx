@@ -107,7 +107,7 @@ describe("brand deals", () => {
   it("says so when nothing is booked yet", async () => {
     h.api.GET.mockResolvedValue({ data: [] })
     render(<BrandDealsPage />)
-    expect(await screen.findByText(/No booked deals yet/)).toBeTruthy()
+    expect(await screen.findByText(/No booked creators yet. In Outreach, book a creator/)).toBeTruthy()
   })
 
   it("says so when the deals cannot be loaded", async () => {

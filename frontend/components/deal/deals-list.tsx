@@ -17,7 +17,7 @@ const COPY: Record<Viewer, { counterpart: string; empty: string }> = {
   brand: {
     counterpart: "Creator",
     empty:
-      "No booked deals yet. Award a creator from a launch board to book one.",
+      "No booked creators yet. In Outreach, book a creator who agreed to your offer and the deal appears here.",
   },
   creator: {
     counterpart: "Brand",
@@ -54,7 +54,7 @@ export function DealsList({ viewer }: { viewer: Viewer }) {
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Deals</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Booked</h1>
         <p className="text-sm text-muted-foreground">
           {viewer === "brand"
             ? "Creators you have booked, and what you agreed."

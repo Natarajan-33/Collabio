@@ -64,7 +64,7 @@ export default function BatchesPage() {
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Board</h1>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Outreach</h1>
       <div className="overflow-x-auto rounded-xl border">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
