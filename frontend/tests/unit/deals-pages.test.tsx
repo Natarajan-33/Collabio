@@ -17,7 +17,12 @@ const h = vi.hoisted(() => ({
 vi.mock("@/hooks/use-api", () => ({ useApi: () => h.api }))
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "deal-1" }),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }))
+
+// The money panel (PayPal funding, realtime) has its own tests; here it would need Supabase env.
+vi.mock("@/components/money/money-panel", () => ({ MoneyPanel: () => null }))
 
 const LIST = "/api/v1/deals"
 const ONE = "/api/v1/deals/{deal_id}"

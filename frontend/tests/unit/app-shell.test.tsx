@@ -98,10 +98,10 @@ describe("AppShell", () => {
         .getByRole("link", { name: "Discover" })
         .getAttribute("aria-current")
     ).toBeNull()
-    // Analytics is planned, not built.
+    // Money (the PayPal dashboard) replaced the planned Analytics item.
     expect(
-      within(primaryNav()).getByText("Analytics").getAttribute("aria-disabled")
-    ).toBe("true")
+      within(primaryNav()).getByRole("link", { name: "Money" }).getAttribute("href")
+    ).toBe("/brand/money")
   })
 
   it("creator shell links Packages, Offers and Deals; only Analytics is still to come", () => {
