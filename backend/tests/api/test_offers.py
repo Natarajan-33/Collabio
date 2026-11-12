@@ -35,10 +35,16 @@ async def priya_floor(api_db, thread_id):
         )
 
 
+def _ours(offers, launched_batch):
+    """Only this test's threads: the shared demo creator also holds the money demo's deals."""
+    ids = {str(t) for t in launched_batch.threads.values()}
+    return [o for o in offers if o["thread_id"] in ids]
+
+
 async def test_unsent_offers_hidden(creator_client, launched_batch):
     r = await creator_client.get(OFFERS)
     assert r.status_code == 200, r.text
-    assert r.json() == []
+    assert _ours(r.json(), launched_batch) == []
 
 
 async def test_sent_offer_listed_for_priya(creator_client, launched_batch, api_db):
@@ -46,7 +52,7 @@ async def test_sent_offer_listed_for_priya(creator_client, launched_batch, api_d
     await send_held(api_db, thread_id)
     r = await creator_client.get(OFFERS)
     assert r.status_code == 200, r.text
-    (offer,) = r.json()
+    (offer,) = _ours(r.json(), launched_batch)
     assert offer["thread_id"] == str(thread_id)
     assert offer["brand"]["name"] == "Lumen Audio"
     assert offer["status"] == "awaiting_reply"
@@ -59,17 +65,19 @@ async def test_sent_offer_listed_for_priya(creator_client, launched_batch, api_d
 
 
 async def test_tabs_and_counts(creator_client, launched_batch, api_db):
+    before = (await creator_client.get(f"{OFFERS}/counts")).json()
     await send_held(api_db, launched_batch.threads["priyareviews"])
     counts = await creator_client.get(f"{OFFERS}/counts")
     assert counts.status_code == 200, counts.text
-    assert counts.json() == {"needs_you": 1, "waiting": 0, "booked": 0, "closed": 0}
+    delta = {k: counts.json()[k] - before[k] for k in before}
+    assert delta == {"needs_you": 1, "waiting": 0, "booked": 0, "closed": 0}
 
     needs_you = await creator_client.get(OFFERS, params={"tab": "needs_you"})
-    assert len(needs_you.json()) == 1
+    assert len(_ours(needs_you.json(), launched_batch)) == 1
     for tab in ("waiting", "booked", "closed"):
         r = await creator_client.get(OFFERS, params={"tab": tab})
         assert r.status_code == 200
-        assert r.json() == []
+        assert _ours(r.json(), launched_batch) == []
 
 
 async def test_desk_columns(creator_client, launched_batch, api_db):
@@ -159,7 +167,7 @@ async def test_unconfirmed_brand_latest_terms_do_not_drive_value_or_delta(
     async with api_db.acquire() as conn:
         await repo.update_latest_terms(conn, thread_id, spoken, "brand")
 
-    (item,) = (await creator_client.get(OFFERS)).json()
+    (item,) = _ours((await creator_client.get(OFFERS)).json(), launched_batch)
     assert item["total_value_cents"] == 100000
     desk = (await creator_client.get(f"{OFFERS}/{thread_id}")).json()
     assert desk["their_ask"]["price_cents"] == 100000
