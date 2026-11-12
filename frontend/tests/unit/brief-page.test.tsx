@@ -297,7 +297,7 @@ describe("Brief page", () => {
     expect(h.api.POST).not.toHaveBeenCalled()
   })
 
-  it("Launch posts channels and the follow-up policy, then opens the board", async () => {
+  it("Launch posts channels (follow-ups off), then opens the board", async () => {
     const user = userEvent.setup()
     await renderPage()
     h.api.POST.mockResolvedValue({
@@ -314,7 +314,7 @@ describe("Brief page", () => {
       ...PARAMS,
       body: {
         channels: { arjun: "call", priya: "email" },
-        follow_up_policy: "suggest",
+        follow_up_policy: "off",
       },
     })
   })
