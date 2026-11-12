@@ -1,12 +1,15 @@
-"""Money demo seed (spec §9): three fictional deals between Lumen Audio and Priya.
+"""Money demo seed (spec §9): four fictional deals between Lumen Audio and two creators.
 
+Priya Raman (the creator persona):
 1. "Lumen Pods launch": booked and unfunded. The live judge path funds it, submits proof
    and gets paid, so only this deal moves real sandbox money.
 2. "Studio Monitors": funded, one video paid, one payout waiting for approval.
+Arjun Mehta (a second creator, so the dashboard compares cost per 1K views):
 3. "Desk Speaker": completed, with the unspent budget refunded.
+4. "Soundbar review": funded, one video paid on 1.5M views, one still to come.
 
-Historic rows of deals 2 and 3 carry `SEED-` PayPal references and `{"seed": true}`
-payloads. Re-running deletes the three deals (through their briefs) and recreates them.
+Historic rows of deals 2-4 carry `SEED-` PayPal references and `{"seed": true}` payloads.
+Re-running deletes the demo deals (through their briefs) and recreates them.
 
     uv run python -m scripts.seed_money
 """
@@ -20,12 +23,17 @@ from uuid import UUID
 import asyncpg
 
 from app.config import get_settings
+from scripts.seed import ARJUN_HANDLE
 
 MARKER = "collabio-demo-money"
-DEMO_TITLES = ("Lumen Pods launch", "Studio Monitors", "Desk Speaker")
+DEMO_TITLES = ("Lumen Pods launch", "Studio Monitors", "Desk Speaker", "Soundbar review")
 STUDIO_TERMS = {
     "cpm": {"rate_cents_per_1k": 200, "starts_after_views": 200_000, "cap_cents": 50_000},
     "tiers": [{"views": 1_000_000, "bonus_cents": 30_000}],
+}
+SOUNDBAR_TERMS = {
+    "cpm": {"rate_cents_per_1k": 100, "starts_after_views": 300_000, "cap_cents": 60_000},
+    "tiers": [],
 }
 SEED = {"seed": True}
 
@@ -37,6 +45,7 @@ DEALS = [
         "conditions": ["Show the charging case on camera", "Mention the 30-hour battery"],
         "amounts": [40_000, 40_000],
         "go_live_days": 21,
+        "creator": "priya",
     },
     {
         "title": "Studio Monitors",
@@ -45,6 +54,7 @@ DEALS = [
         "conditions": ["Play a short track through them", "Link the product page"],
         "amounts": [60_000, 60_000],
         "go_live_days": 14,
+        "creator": "priya",
     },
     {
         "title": "Desk Speaker",
@@ -53,29 +63,44 @@ DEALS = [
         "conditions": ["Show it in a desk setup"],
         "amounts": [70_000],
         "go_live_days": -20,
+        "creator": "arjun",
+    },
+    {
+        "title": "Soundbar review",
+        "product": "Lumen Soundbar",
+        "summary": "A slim TV soundbar with a wireless subwoofer.",
+        "conditions": ["Compare TV speakers with the soundbar", "Show the setup in under a minute"],
+        "amounts": [50_000, 50_000],
+        "go_live_days": 10,
+        "creator": "arjun",
     },
 ]
 
 
-async def _party_ids(conn: asyncpg.Connection) -> tuple[UUID, UUID, UUID]:
+async def _party_ids(conn: asyncpg.Connection) -> tuple[UUID, dict[str, tuple[UUID, UUID]]]:
+    """The demo brand, and each demo creator's id and first package (Priya, Arjun)."""
     settings = get_settings()
     brand_id = await conn.fetchval(
         "select b.id from public.brands b join auth.users u on u.id = b.profile_id"
         " where u.email = $1",
         settings.demo_brand_email,
     )
-    creator_id = await conn.fetchval(
+    priya = await conn.fetchval(
         "select c.id from public.creators c join auth.users u on u.id = c.profile_id"
         " where u.email = $1",
         settings.demo_helper_email,
     )
-    if brand_id is None or creator_id is None:
-        raise RuntimeError("Run scripts.seed first: the demo brand or creator is missing")
-    package_id = await conn.fetchval(
-        "select id from public.packages where creator_id = $1 order by updated_at limit 1",
-        creator_id,
-    )
-    return brand_id, creator_id, package_id
+    arjun = await conn.fetchval("select id from public.creators where handle = $1", ARJUN_HANDLE)
+    if brand_id is None or priya is None or arjun is None:
+        raise RuntimeError("Run scripts.seed first: the demo brand or creators are missing")
+    creators = {}
+    for key, creator_id in (("priya", priya), ("arjun", arjun)):
+        package_id = await conn.fetchval(
+            "select id from public.packages where creator_id = $1 order by updated_at limit 1",
+            creator_id,
+        )
+        creators[key] = (creator_id, package_id)
+    return brand_id, creators
 
 
 async def _event(conn, deal_id, kind, cents, ref=None, payload=None) -> None:
@@ -205,8 +230,8 @@ async def _fund(conn, deal_id, amount, milestone_ids) -> None:
 
 
 async def seed_money(conn: asyncpg.Connection) -> dict[str, UUID]:
-    """(Re)create the three demo deals; returns their ids by title."""
-    brand_id, creator_id, package_id = await _party_ids(conn)
+    """(Re)create the demo deals; returns their ids by title."""
+    brand_id, creators = await _party_ids(conn)
     settings = get_settings()
     async with conn.transaction():
         await conn.execute("set local collabio.demo_reset = 'on'")
@@ -221,12 +246,13 @@ async def seed_money(conn: asyncpg.Connection) -> dict[str, UUID]:
         )
         if settings.paypal_receiver_email:
             await conn.execute(
-                "update public.creators set payout_email = $2 where id = $1",
-                creator_id,
+                "update public.creators set payout_email = $2 where id = any($1::uuid[])",
+                [c for c, _ in creators.values()],
                 settings.paypal_receiver_email,
             )
         ids: dict[str, UUID] = {}
         for spec in DEALS:
+            creator_id, package_id = creators[spec["creator"]]
             deal_id, milestones = await _create_deal(conn, brand_id, creator_id, package_id, spec)
             ids[spec["title"]] = deal_id
 
@@ -291,6 +317,41 @@ async def seed_money(conn: asyncpg.Connection) -> dict[str, UUID]:
                     None,
                     {"payout_id": str(p2), "decision": "approval"},
                 )
+
+            if spec["title"] == "Soundbar review":
+                await conn.execute(
+                    "insert into public.deal_bonus_terms (deal_id, source_text, terms,"
+                    " max_bonus_per_video_cents) values ($1, $2, $3::jsonb, 60000)",
+                    deal_id,
+                    "$1 per 1K views after 300K, up to $600 per video",
+                    json.dumps(SOUNDBAR_TERMS),
+                )
+                await _fund(conn, deal_id, 100_000 + 2 * 60_000, milestones)
+                s1 = await _submission(
+                    conn, milestones[0], 1_500_000, "On brief; 1.5M views read from analytics."
+                )
+                p1 = await _payout(
+                    conn,
+                    milestones[0],
+                    s1,
+                    110_000,
+                    "success",
+                    {
+                        "base": 50_000,
+                        "cpm": 60_000,
+                        "tiers": 0,
+                        "already_committed": 0,
+                        "delta": 110_000,
+                    },
+                )
+                await conn.execute(
+                    "update public.deal_milestones set status = 'paid' where id = $1",
+                    milestones[0],
+                )
+                for kind in ("payout_queued", "payout_sent", "payout_succeeded"):
+                    await _event(
+                        conn, deal_id, kind, 110_000, f"SEED-{kind.upper()}", {"payout_id": str(p1)}
+                    )
 
             if spec["title"] == "Desk Speaker":
                 await _fund(conn, deal_id, 100_000, milestones)

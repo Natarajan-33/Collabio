@@ -38,8 +38,10 @@ No sign-up and no keys. The landing page has two buttons:
 5. Open **Money** in the brand rail: an AG Studio dashboard over all of it. Click **Edit dashboard**
    and ask the assistant, for example, "Add a chart of effective cost per 1,000 views by creator".
 
-"Studio Monitors" (a payout waiting for approval) and "Desk Speaker" (closed and refunded) are
-pre-seeded so the dashboard has history. **Reset demo** in the app menu restores everything.
+Pre-seeded history, so the dashboard has something to compare: "Studio Monitors" (Priya; a
+payout waiting for your approval), and two deals with a second creator, Arjun Mehta: "Desk
+Speaker" (closed and refunded) and "Soundbar review" (one video paid on 1.5M views). **Reset
+demo** in the app menu restores everything.
 
 ## How money moves
 

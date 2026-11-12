@@ -31,7 +31,17 @@ async def test_seed_money_idempotent(db_conn):
         "select d.brand_id from public.deals d where d.id = $1", second["Lumen Pods launch"]
     )
     row = await counts(db_conn, brand_id)
-    assert (row["deals"], row["booked"], row["funded"], row["completed"]) == (3, 1, 1, 1)
+    assert (row["deals"], row["booked"], row["funded"], row["completed"]) == (4, 1, 2, 1)
+    # Two creators, so the dashboard compares cost per 1K views between them.
+    owners = await db_conn.fetch(
+        "select d.id, c.handle from public.deals d join public.creators c on c.id = d.creator_id"
+        " where d.id = any($1::uuid[])",
+        list(second.values()),
+    )
+    by_id = {r["id"]: r["handle"] for r in owners}
+    assert by_id[second["Lumen Pods launch"]] == by_id[second["Studio Monitors"]]
+    assert by_id[second["Desk Speaker"]] == by_id[second["Soundbar review"]] == "arjuntech"
+    assert by_id[second["Lumen Pods launch"]] != "arjuntech"
     # Studio Monitors: one payout paid, one waiting for approval; seed rows are labelled.
     payouts = await db_conn.fetch(
         "select p.status from public.payouts p join public.deal_milestones m"
