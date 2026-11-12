@@ -70,7 +70,12 @@ class GeminiClient:
     def __init__(self, settings: Settings) -> None:
         self._client = genai.Client(
             api_key=settings.gemini_api_key,
-            http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MS),
+            http_options=types.HttpOptions(
+                timeout=REQUEST_TIMEOUT_MS,
+                # Pin httpx: google-genai switches to aiohttp whenever it is importable (the
+                # Render SDK brings it in), which would bypass `_is_transient` and respx.
+                httpx_async_client=httpx.AsyncClient(timeout=REQUEST_TIMEOUT_MS / 1000),
+            ),
         )
         self._text_model = settings.gemini_text_model
         self._embed_model = settings.gemini_embed_model
