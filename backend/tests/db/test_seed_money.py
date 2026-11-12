@@ -65,3 +65,23 @@ async def test_seeded_briefs_have_an_asking_price(db_conn):
         "select ask_price_cents from public.briefs where flexibility_note = 'collabio-demo-money'"
     )
     assert rows and all(r["ask_price_cents"] for r in rows)
+
+
+async def test_seeded_briefs_satisfy_the_board(db_conn):
+    """The batch board validates every brief field (BriefSummary): a null budget ceiling 500'd
+    the board of every demo deal ("Loading board..." forever)."""
+    if not get_settings().demo_brand_email:
+        pytest.skip("demo accounts are not configured")
+    from app.schemas.board import BriefSummary
+
+    await seed_money(db_conn)
+    rows = await db_conn.fetch(
+        "select br.id as brief_id, br.product_name, br.deliverables_count,"
+        " br.deliverables_format, br.ask_price_cents, br.budget_ceiling_cents, br.go_live_by,"
+        " b.follow_up_policy, b.hires_target"
+        " from public.briefs br join public.batches b on b.brief_id = br.id"
+        " where br.flexibility_note = 'collabio-demo-money'"
+    )
+    assert rows
+    for r in rows:
+        BriefSummary.model_validate(dict(r))

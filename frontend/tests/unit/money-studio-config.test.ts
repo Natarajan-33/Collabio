@@ -95,3 +95,37 @@ describe("bonus KPI", () => {
     expect(fields).toEqual(expect.arrayContaining(["paid_base", "paid_bonus"]))
   })
 })
+
+describe("buildMoneyTheme", () => {
+  it("gives AG Studio concrete colours (charts draw on canvas and cannot read var())", async () => {
+    const { buildMoneyTheme, moneyThemeParams } = await import(
+      "@/components/money-dashboard/studio-config"
+    )
+    const seen: string[] = []
+    const params = moneyThemeParams((token) => {
+      seen.push(token)
+      return "#123456"
+    })
+    expect(buildMoneyTheme(() => "#000000")).toBeTruthy()
+    const json = JSON.stringify(params)
+    expect(json).not.toContain("var(")
+    expect(seen).toEqual(expect.arrayContaining(["foreground", "card", "background", "border"]))
+  })
+})
+
+describe("PayPal activity", () => {
+  it("shows every money movement with its PayPal id on the default dashboard", () => {
+    const widget = moneyReport.pages[0].widgets!["paypal-activity"] as {
+      type: string
+      dataMapping: { cols: { id: string }[] }
+    }
+    expect(widget.type).toBe("grid")
+    expect(widget.dataMapping.cols.map((c) => c.id)).toEqual(
+      expect.arrayContaining(["ledger.date", "ledger.kind", "ledger.amount", "ledger.paypal_ref"])
+    )
+    const ledger = (buildMoneyData(rows).sources as unknown as Source[]).find(
+      (s) => s.id === "ledger"
+    )!
+    expect(ledger.fields!.map((f) => f.id)).toContain("paypal_ref")
+  })
+})

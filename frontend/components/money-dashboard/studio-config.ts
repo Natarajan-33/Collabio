@@ -172,6 +172,7 @@ export function buildMoneyData(rows: MoneyRows): AgDataSourcesDefinition {
           ["kind", "Movement", "textFormat"],
           ["amount", "Amount", "currencyFormat"],
           ["date", "Date", "dateFormat"],
+          ["paypal_ref", "PayPal ID", "textFormat"],
         ]),
       },
       {
@@ -271,6 +272,19 @@ const overview: AgPageState = {
       },
       format: title("Effective cost per 1K views, by deal"),
     },
+    "paypal-activity": {
+      type: "grid",
+      dataMapping: {
+        cols: [
+          { id: "ledger.date" },
+          { id: "deals.title" },
+          { id: "ledger.kind" },
+          sum("ledger.amount"),
+          { id: "ledger.paypal_ref" },
+        ],
+      },
+      format: title("PayPal activity (every movement, with its PayPal ID)"),
+    },
     deals: {
       type: "grid",
       dataMapping: {
@@ -295,6 +309,7 @@ const overview: AgPageState = {
     "by-status": at(14, 7, 10, 20),
     "cost-per-1k": at(0, 27, 10, 20),
     deals: at(10, 27, 14, 20),
+    "paypal-activity": at(0, 47, 24, 22),
   },
 }
 
@@ -334,20 +349,28 @@ export function resolveCssToken(token: string, fallback = "#ffffff"): string {
   return `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`
 }
 
-const v = (name: string) => `var(--${name})`
+/**
+ * The Studio theme in the app's colours, resolved to concrete values: AG Studio draws charts and
+ * titles on canvas, which cannot read `var(--token)` (dark mode showed dark text on dark cards).
+ */
+export function moneyThemeParams(resolve: (token: string) => string) {
+  return {
+    fontFamily: "inherit",
+    fontSize: 14,
+    textColor: resolve("foreground"),
+    foregroundColor: resolve("foreground"),
+    subtleTextColor: resolve("muted-foreground"),
+    backgroundColor: resolve("card"),
+    borderColor: resolve("border"),
+    accentColor: resolve("voice"),
+    studioWrapperBorder: false,
+    studioWrapperBackgroundColor: resolve("background"),
+    studioCanvasBorder: false,
+    studioCanvasShadow: false,
+    studioCanvasBackgroundColor: resolve("background"),
+  } as const
+}
 
-export const moneyTheme = studioTheme.withParams({
-  fontFamily: "inherit",
-  fontSize: 14,
-  textColor: v("foreground"),
-  foregroundColor: v("foreground"),
-  subtleTextColor: v("muted-foreground"),
-  backgroundColor: v("card"),
-  borderColor: v("border"),
-  accentColor: v("voice"),
-  studioWrapperBorder: false,
-  studioWrapperBackgroundColor: v("background"),
-  studioCanvasBorder: false,
-  studioCanvasShadow: false,
-  studioCanvasBackgroundColor: v("background"),
-})
+export function buildMoneyTheme(resolve: (token: string) => string) {
+  return studioTheme.withParams(moneyThemeParams(resolve))
+}

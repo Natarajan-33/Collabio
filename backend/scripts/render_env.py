@@ -19,36 +19,20 @@ import httpx
 ROOT = Path(__file__).resolve().parents[2]
 API = "https://api.render.com/v1"
 
-# Keys pushed from each local file (render.yaml declares them; values live only in env).
-API_KEYS = [
-    "SUPABASE_URL",
-    "SUPABASE_JWKS_URL",
-    "SUPABASE_SECRET_KEY",
-    "SUPABASE_DB_URL",
-    "GEMINI_API_KEY",
-    "DEMO_BRAND_EMAIL",
-    "DEMO_HELPER_EMAIL",
-    "DEMO_HELPER_PHONE",
-    "DEMO_PASSWORD",
-    "PAYPAL_CLIENT_ID",
-    "PAYPAL_CLIENT_SECRET",
-    "PAYPAL_RECEIVER_EMAIL",
-    "PAYPAL_WEBHOOK_ID",
-    "ANTHROPIC_API_KEY",
-    "RENDER_API_KEY",
-]
-WEB_KEYS = [
-    "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    "NEXT_PUBLIC_PAYPAL_CLIENT_ID",
-    "NEXT_PUBLIC_JUDGE_BUYER_EMAIL",
-    "NEXT_PUBLIC_JUDGE_BUYER_PASSWORD",
-    "AG_STUDIO",
-    "ANTHROPIC_API_KEY",
-    "DEMO_BRAND_EMAIL",
-    "DEMO_HELPER_EMAIL",
-    "DEMO_PASSWORD",
-]
+# Everything in the local .env files is pushed, except what Render itself owns or must differ
+# from local development (public URLs, the generated internal secret, mode flags, test-only ids).
+API_SKIP = {
+    "PUBLIC_BACKEND_URL",
+    "PUBLIC_FRONTEND_URL",
+    "FRONTEND_ORIGIN",
+    "FRONTEND_ORIGIN_REGEX",
+    "WORKERS_ENABLED",
+    "HACKATHON_MODE",
+    "INTERNAL_SECRET",
+    "PAYPAL_TEST_CAPTURE_ID",
+    "RENDER_WORKFLOWS_ENABLED",
+}
+WEB_SKIP = {"NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_HACKATHON_MODE"}
 
 
 def read_env(path: Path) -> dict[str, str]:
@@ -117,13 +101,13 @@ def push(do_deploy: bool) -> None:
             sys.exit(f"missing services; found: {sorted(svc)}")
         api_url, web_url = url_of(api), url_of(web)
         plan = {
-            api["id"]: {k: backend[k] for k in API_KEYS if backend.get(k)}
+            api["id"]: {k: v for k, v in backend.items() if v and k not in API_SKIP}
             | {
                 "FRONTEND_ORIGIN": web_url,
                 "PUBLIC_FRONTEND_URL": web_url,
                 "PUBLIC_BACKEND_URL": api_url,
             },
-            web["id"]: {k: frontend[k] for k in WEB_KEYS if frontend.get(k)}
+            web["id"]: {k: v for k, v in frontend.items() if v and k not in WEB_SKIP}
             | {"NEXT_PUBLIC_API_URL": api_url},
         }
         cron = svc.get("collabio-nightly")
@@ -134,13 +118,6 @@ def push(do_deploy: bool) -> None:
             for k, v in values.items():
                 put(c, sid, k, v)
             print(f"{names[sid]}: set {', '.join(sorted(values))}")
-            missing = [
-                k
-                for k in (API_KEYS if sid == api["id"] else WEB_KEYS if sid == web["id"] else [])
-                if k not in values
-            ]
-            if missing:
-                print(f"  (not in local env, left unset: {', '.join(missing)})")
         if do_deploy:
             for sid in (api["id"], web["id"]):
                 print(f"deploy {names[sid]}: {deploy(c, sid)}")

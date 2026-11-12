@@ -110,6 +110,8 @@
 }
 
 .dark {
+  /* Native controls (select menus, scrollbars) follow the theme: light option lists were unreadable. */
+  color-scheme: dark;
   --background: oklch(0.17 0.008 60);
   --foreground: oklch(0.95 0.006 85);
   --card: oklch(0.205 0.009 60);

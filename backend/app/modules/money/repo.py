@@ -522,7 +522,7 @@ async def dashboard_rows(conn: asyncpg.Connection, brand_id: UUID) -> dict[str, 
         )
     events = await conn.fetch(
         "select e.id::text, e.deal_id::text, e.kind, e.amount_cents / 100.0 as amount,"
-        " e.created_at::date::text as date"
+        " e.created_at::date::text as date, e.paypal_ref"
         " from public.money_events e join public.deals d on d.id = e.deal_id"
         " where d.brand_id = $1",
         brand_id,

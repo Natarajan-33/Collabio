@@ -7,7 +7,7 @@ import { AgStudio, AgStudioProvider } from "ag-studio-react"
 import {
   buildMoneyData,
   moneyReport,
-  moneyTheme,
+  buildMoneyTheme,
   resolveCssToken,
   studioLayout,
   type MoneyRows,
@@ -54,6 +54,12 @@ export function MoneyStudio({ licenseKey }: { licenseKey?: string }) {
   }, [api])
 
   const { resolvedTheme } = useTheme()
+  const theme = React.useMemo(
+    () => buildMoneyTheme((token) => resolveCssToken(token)),
+    // Re-resolve the colours when the app switches light/dark.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resolvedTheme, rows]
+  )
   const layout = React.useMemo(
     () => studioLayout((token) => resolveCssToken(token)),
     // Re-resolve the tokens when the app switches light/dark.
@@ -108,7 +114,7 @@ export function MoneyStudio({ licenseKey }: { licenseKey?: string }) {
         <AgStudioProvider licenseKey={licenseKey} modules={[AgStudioAiModule]}>
           <AgStudio
             style={{ height: "100%", width: "100%" }}
-            theme={moneyTheme}
+            theme={theme}
             layout={layout}
             data={studioData}
             ai={ai}

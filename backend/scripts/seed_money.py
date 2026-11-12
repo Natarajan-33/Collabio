@@ -149,8 +149,9 @@ async def _create_deal(conn, brand_id, creator_id, package_id, spec) -> tuple[UU
     go_live = today + timedelta(days=spec["go_live_days"])
     brief_id = await conn.fetchval(
         "insert into public.briefs (brand_id, status, brand_name, product_name, product_summary,"
-        " deliverables_count, deliverables_format, go_live_by, flexibility_note, ask_price_cents)"
-        " values ($1, 'launched', 'Lumen Audio', $2, $3, $4, 'short_video', $5, $6, $7)"
+        " deliverables_count, deliverables_format, go_live_by, flexibility_note, ask_price_cents,"
+        " budget_ceiling_cents)"
+        " values ($1, 'launched', 'Lumen Audio', $2, $3, $4, 'short_video', $5, $6, $7, $8)"
         " returning id",
         brand_id,
         spec["product"],
@@ -159,6 +160,8 @@ async def _create_deal(conn, brand_id, creator_id, package_id, spec) -> tuple[UU
         go_live,
         MARKER,
         sum(spec["amounts"]),
+        # The brand's private ceiling: the agreed price plus room to negotiate (the board needs it).
+        sum(spec["amounts"]) * 3 // 2,
     )
     batch_id = await conn.fetchval(
         "insert into public.batches (brief_id, brand_id) values ($1, $2) returning id",

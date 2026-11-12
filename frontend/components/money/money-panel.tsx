@@ -82,6 +82,9 @@ function AutoApproveLimit({ initial }: { initial: number }) {
     <div className="flex flex-wrap items-end gap-2">
       <div className="space-y-1">
         <Label htmlFor="auto-limit">Auto-approve payouts up to</Label>
+        <p className="text-xs text-muted-foreground">
+          Set $0 to review every payout yourself.
+        </p>
         <MoneyInput
           id="auto-limit"
           value={cents}
