@@ -41,17 +41,17 @@ async def test_agent_usage_cap(brand_client, api_db, app):
         # A new user turn charges one message and one call; a tool-loop call only a call.
         assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=true")).status_code == 204
         assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=false")).status_code == 204
-        assert await _counts(api_db) == {"agent_message": 1, "agent_call": 2}
+        assert await _counts(api_db) == {"agent_message": 1, "agent_call": 2, "agent_ktokens": 2}
         async with api_db.acquire() as conn:
             await conn.execute(
-                "update public.usage_counters set count = 40 where kind = 'agent_message'"
+                "update public.usage_counters set count = 80 where kind = 'agent_message'"
             )
         assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=true")).status_code == 429
         # The tool loop of a turn already under way still finishes.
         assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=false")).status_code == 204
         async with api_db.acquire() as conn:
             await conn.execute(
-                "update public.usage_counters set count = 400 where kind = 'agent_call'"
+                "update public.usage_counters set count = 800 where kind = 'agent_call'"
             )
         assert (await brand_client.post("/api/v1/money/agent-usage?new_turn=false")).status_code == 429
     finally:

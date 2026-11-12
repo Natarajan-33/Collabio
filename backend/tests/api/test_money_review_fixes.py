@@ -5,6 +5,7 @@ import pytest
 
 from app.adapters.paypal import PayPalError
 from app.config import get_settings
+from app.core.caps import cap_for
 from app.modules.money import runner
 from app.modules.money.service import MoneyService
 from tests.fakes import claude_text, claude_tool_use
@@ -127,9 +128,10 @@ async def test_cap_is_checked_before_the_proof_is_saved(
         )
         await conn.execute(
             "insert into public.usage_counters (user_id, day, kind, count) values"
-            " ($1, current_date, 'settlement', 30) on conflict (user_id, day, kind)"
-            " do update set count = 30",
+            " ($1, current_date, 'settlement', $2) on conflict (user_id, day, kind)"
+            " do update set count = excluded.count",
             user_id,
+            cap_for("settlement"),
         )
     r = await submit(creator_client, milestones[0])
     assert r.status_code == 429

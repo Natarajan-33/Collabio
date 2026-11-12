@@ -32,6 +32,12 @@ export function FundWithPayPal({
         window.location.assign(data.approve_url)
         return
       }
+      if (data) {
+        // An earlier approved PayPal order was captured instead of opening a new checkout.
+        toast.success("Your earlier PayPal payment was completed. The deal is funded.")
+        window.location.reload()
+        return
+      }
       toast.error("PayPal could not start the checkout. Try again.")
     } catch {
       toast.error("PayPal could not start the checkout. Try again.")

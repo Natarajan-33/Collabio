@@ -25,6 +25,8 @@ def decide(
     close_to_claim = abs(views_read - claimed_views) <= CLAIM_TOLERANCE * max(claimed_views, 1)
     if (
         payable <= limit
+        and views_read > 0  # no readable views is never auto-paid, not even the base
+        and claimed_views > 0
         and view_confidence != "low"
         and close_to_claim
         and brief_ok

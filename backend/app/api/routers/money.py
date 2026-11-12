@@ -6,7 +6,17 @@ from contextlib import contextmanager
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel, Field
 
 from app.adapters.claude import ClaudePort, ClaudeUnavailable
@@ -101,6 +111,7 @@ async def brand_id_of(user: CurrentUser, db: Database) -> UUID:
 async def preview_bonus_terms(
     deal_id: UUID,
     req: BonusPreviewRequest,
+    request: Request,
     user: BrandUser,
     db: Annotated[Database, Depends(get_db)],
     claude: Annotated[ClaudePort, Depends(get_claude)],
@@ -108,7 +119,7 @@ async def preview_bonus_terms(
 ) -> BonusPreview:
     """Claude reads the plain-English bonus; the engine prices it and the funding total."""
     brand_id = await brand_id_of(user, db)
-    await usage.consume(db, user.id, "bonus_preview", settings)
+    await usage.consume(db, user.id, "bonus_preview", settings, ip=usage.client_ip(request))
     with http_errors():
         return BonusPreview(
             **await MoneyService(db, None, claude, settings).preview_bonus(
@@ -220,6 +231,7 @@ async def creator_id_of(user: CurrentUser, db: Database) -> UUID:
 @router.post("/milestones/{milestone_id}/submissions")
 async def submit_proof(
     milestone_id: UUID,
+    request: Request,
     user: CreatorUser,
     db: Annotated[Database, Depends(get_db)],
     paypal: Annotated[PayPalPort, Depends(get_paypal)],
@@ -234,8 +246,12 @@ async def submit_proof(
     """Proof for one milestone: post link, caption, claimed views and an analytics
     screenshot. Starts the Claude settlement run."""
     creator_id = await creator_id_of(user, db)
-    await usage.consume(db, user.id, "settlement", settings)
     data = await screenshot.read(service.MAX_SCREENSHOT_BYTES + 1)
+    # Junk uploads are refused before the (shared) cap is charged; the cap is still charged
+    # before anything is saved.
+    if service.image_kind(data) is None or len(data) > service.MAX_SCREENSHOT_BYTES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "bad_screenshot")
+    await usage.consume(db, user.id, "settlement", settings, ip=usage.client_ip(request))
     money = MoneyService(db, paypal, claude, settings, storage)
     with http_errors():
         submission_id = await money.submit_proof(
@@ -253,6 +269,7 @@ async def submit_proof(
 @router.post("/submissions/{submission_id}/retry")
 async def retry_settlement(
     submission_id: UUID,
+    request: Request,
     user: CreatorUser,
     db: Annotated[Database, Depends(get_db)],
     paypal: Annotated[PayPalPort, Depends(get_paypal)],
@@ -263,7 +280,7 @@ async def retry_settlement(
     """Run verification again after a failed run (model down, unreadable reply)."""
     creator_id = await creator_id_of(user, db)
     money = MoneyService(db, paypal, claude, settings, storage)
-    await usage.consume(db, user.id, "settlement", settings)
+    await usage.consume(db, user.id, "settlement", settings, ip=usage.client_ip(request))
     with http_errors():
         await money.retry(submission_id, creator_id)
     runner.start(money.settle, submission_id, settings)
@@ -382,11 +399,15 @@ async def agent_usage(
     db: Annotated[Database, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
     new_turn: bool = True,
+    tokens_k: Annotated[int, Query(ge=0, le=2000)] = 0,
 ) -> None:
     """Charges one dashboard-agent model call to the demo caps (429 `demo_cap`).
 
     A call that starts a new user turn also counts as a message; the tool-loop calls that
-    follow only count against the (much larger) call cap, so a turn under way can finish."""
+    follow only count against the (much larger) call cap, so a turn under way can finish.
+    `tokens_k` (the route's estimate of the input size, in thousands of tokens) is charged
+    to a daily token ceiling, since `new_turn` is only the caller's word."""
     if new_turn:
         await usage.consume(db, user.id, "agent_message", settings)
     await usage.consume(db, user.id, "agent_call", settings)
+    await usage.consume(db, user.id, "agent_ktokens", settings, amount=max(1, tokens_k))

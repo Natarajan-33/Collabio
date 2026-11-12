@@ -48,3 +48,9 @@ def test_exactly_5pct_is_auto():
 def test_disclosure_or_brief_missing_is_approval():
     assert call(disclosure_ok=False) == "approval"
     assert call(brief_ok=False) == "approval"
+
+
+def test_no_readable_views_is_approval():
+    """Final review #4: a zero read (or a zero claim) never auto-pays, even the base."""
+    assert call(views_read=0, claimed_views=0) == "approval"
+    assert call(views_read=0, claimed_views=400_000) == "approval"

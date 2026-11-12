@@ -13,13 +13,16 @@ PHONE = "+15551234567"
 
 def test_cap_for_known_kinds():
     assert LIMITS == {
-        "settlement": 30,
-        "agent_message": 40,
-        "agent_call": 400,
-        "bonus_preview": 30,
+        "settlement": 60,
+        "agent_message": 80,
+        "agent_call": 800,
+        "agent_ktokens": 2000,
+        "bonus_preview": 60,
         "voice_session": 15,
+        "settlement_ip": 10,
+        "bonus_preview_ip": 20,
     }
-    assert cap_for("settlement") == 30
+    assert cap_for("settlement") == 60
     with pytest.raises(KeyError):
         cap_for("nope")
 

@@ -143,10 +143,24 @@ class MoneyService:
             raise FundingTooLarge from exc
 
     async def create_order(self, deal_id: UUID, brand_id: UUID) -> dict[str, Any]:
+        """A new PayPal order for the deal's budget. If an earlier order was already approved
+        (or captured at PayPal while our capture call failed), it is captured or recovered
+        instead and `approve_url` is None: clicking Fund again never orphans a payment."""
         assert self._paypal is not None
         async with self._db.acquire() as conn:
             deal = await self._unfunded_brand_deal(conn, deal_id, brand_id)
             total = await self._funding_total(conn, deal)
+            existing = await repo.funding(conn, deal_id)
+        if existing and existing["status"] == "created" and existing["paypal_order_id"]:
+            prior = existing["paypal_order_id"]
+            status_ = (await self._paypal.get_order(prior)).get("status")
+            if status_ in ("APPROVED", "COMPLETED"):
+                try:
+                    await self.capture(deal_id, brand_id, prior)
+                    return {"order_id": prior, "approve_url": None}
+                except FundingOutdated:
+                    if status_ == "COMPLETED":
+                        raise  # money already taken for the old budget: never create another
         base = self._settings.public_frontend_url.rstrip("/")
         order = await self._paypal.create_order(
             amount_cents=total,
@@ -389,15 +403,7 @@ class MoneyService:
         )
         sub = next(s for s in subs if s["id"] == submission_id)
         payable = engine.payable(state, terms, avail)
-        decision = decide(
-            payable,
-            ctx["auto_approve_limit_cents"],
-            sub["view_confidence"] or "low",
-            sub["views"] or 0,
-            sub["claimed_views"],
-            bool(sub["brief_ok"]),
-            bool(sub["disclosure_ok"]),
-        )
+        decision = settle_decision(payable, ctx["auto_approve_limit_cents"], sub, subs)
         return {
             "payable_cents": payable,
             "breakdown": engine.breakdown(state, terms),
@@ -446,43 +452,60 @@ class MoneyService:
     async def send_payout(self, payout_id: UUID) -> str:
         """Send an approved payout through PayPal Payouts: `sent`, `failed`, or still
         `approved` when PayPal's answer is unknown (timeout, 5xx). A resend reuses the same
-        `sender_batch_id` as its PayPal-Request-Id, so PayPal never pays twice."""
+        `sender_batch_id` as its PayPal-Request-Id, so PayPal never pays twice.
+
+        The payout row is claimed (`for update skip locked`) and held through the PayPal call,
+        so the API, the payout worker, the nightly cron and a workflow can never send the same
+        payout at the same time; a sender that finds it claimed leaves it `approved`. A 4xx
+        that follows an unknown outcome (an earlier timeout on this payout, or within this
+        call's retries) may be PayPal refusing a duplicate of a payout it is making, so it
+        never marks the payout `failed`: it stays committed and is flagged for review."""
         assert self._paypal is not None
-        async with self._db.acquire() as conn:
+        async with self._db.acquire() as conn, conn.transaction():
+            claimed = await conn.fetchval(
+                "select id from public.payouts where id = $1 for update skip locked", payout_id
+            )
+            if claimed is None:
+                return "approved"  # another sender holds it (or it does not exist)
             p = await repo.payout_with_deal(conn, payout_id)
+            if p["status"] != "approved":
+                return p["status"]
             ctx = (
                 await repo.submission_context(conn, p["submission_id"])
                 if p["submission_id"]
                 else None
             )
             fund = await repo.funding(conn, p["deal_id"])
-        if p["status"] != "approved":
-            return p["status"]
-        if fund and str(fund["capture_id"] or "").startswith("SEED-"):
-            return await self._simulate_seed_payout(p)
-        ctx = ctx or {}
-        receiver = ctx.get("payout_email") or self._settings.paypal_receiver_email
-        title = ctx.get("title") or "your deliverable"
-        note = f"Collabio: {title} for {ctx.get('product_name') or 'your sponsor'}"
-        try:
-            if not receiver:
-                raise PayPalError("NO_PAYOUT_EMAIL", "creator has no PayPal email", http_status=422)
-            res = await self._paypal.create_payout(
-                p["sender_batch_id"], receiver, p["amount_cents"], note
-            )
-        except PayPalError as exc:
-            error = {"code": exc.code, "message": exc.message, "debug_id": exc.debug_id}
-            async with self._db.acquire() as conn, conn.transaction():
-                if exc.http_status == 0 or exc.http_status >= 500:
-                    # Unknown outcome: keep it committed and resend later with the same id.
+            if fund and str(fund["capture_id"] or "").startswith("SEED-"):
+                return await self._simulate_seed_payout(conn, p)
+            ctx = ctx or {}
+            receiver = ctx.get("payout_email") or self._settings.paypal_receiver_email
+            title = ctx.get("title") or "your deliverable"
+            note = f"Collabio: {title} for {ctx.get('product_name') or 'your sponsor'}"
+            try:
+                if not receiver:
+                    raise PayPalError(
+                        "NO_PAYOUT_EMAIL", "creator has no PayPal email", http_status=422
+                    )
+                res = await self._paypal.create_payout(
+                    p["sender_batch_id"], receiver, p["amount_cents"], note
+                )
+            except PayPalError as exc:
+                error = {"code": exc.code, "message": exc.message, "debug_id": exc.debug_id}
+                unknown = exc.http_status == 0 or exc.http_status >= 500
+                after_unknown = getattr(exc, "after_unknown", False) or bool(p.get("last_error"))
+                if unknown or after_unknown:
+                    # Keep it committed and resend later with the same id; a 4xx after an
+                    # unknown outcome needs a person to check PayPal before anything else.
+                    if not unknown:
+                        error["needs_review"] = True
                     await repo.update_payout(conn, payout_id, last_error=error)
                     return "approved"
                 await repo.update_payout(conn, payout_id, status="failed", last_error=error)
                 await repo.add_event(
                     conn, p["deal_id"], "payout_failed", p["amount_cents"], payload=error
                 )
-            return "failed"
-        async with self._db.acquire() as conn, conn.transaction():
+                return "failed"
             await repo.update_payout(
                 conn,
                 payout_id,
@@ -495,19 +518,27 @@ class MoneyService:
             )
         return "sent"
 
-    async def _simulate_seed_payout(self, p: dict) -> str:
+    async def _simulate_seed_payout(self, conn, p: dict) -> str:
         """Seeded demo deals hold no real PayPal money: complete the payout as seed data."""
         ref = f"SEED-SIM-{str(p['id'])[:8]}"
-        async with self._db.acquire() as conn, conn.transaction():
-            await repo.update_payout(
-                conn, p["id"], status="success", paypal_batch_id=ref, paypal_item_id=ref
-            )
-            for kind in ("payout_sent", "payout_succeeded"):
-                await repo.add_event(
-                    conn, p["deal_id"], kind, p["amount_cents"], ref, {"seed": True}
-                )
-            await self._settle_milestone_status(conn, p["milestone_id"])
+        await repo.update_payout(
+            conn, p["id"], status="success", paypal_batch_id=ref, paypal_item_id=ref
+        )
+        for kind in ("payout_sent", "payout_succeeded"):
+            await repo.add_event(conn, p["deal_id"], kind, p["amount_cents"], ref, {"seed": True})
+        await self._settle_milestone_status(conn, p["milestone_id"])
         return "success"
+
+    async def resend_approved_payouts(self, min_age_seconds: int = 150) -> int:
+        """Resend payouts left `approved` (PayPal timed out, or the process died). The age is
+        above the adapter's worst case (3 × 30 s plus backoff) for one PayPal call."""
+        async with self._db.acquire() as conn:
+            ids = await repo.stale_approved_payout_ids(conn, min_age_seconds)
+        changed = 0
+        for payout_id in ids:
+            if await self.send_payout(payout_id) != "approved":
+                changed += 1
+        return changed
 
     async def _settle_milestone_status(self, conn, milestone_id: UUID) -> None:
         """`paid` once nothing for the milestone is still pending or being checked, else
@@ -521,16 +552,6 @@ class MoneyService:
             await repo.set_milestone_status(conn, milestone_id, "paid")
         elif any(s["status"] == "verified" for s in subs) and not checking:
             await repo.set_milestone_status(conn, milestone_id, "verified")
-
-    async def resend_approved_payouts(self, min_age_seconds: int = 60) -> int:
-        """Resend payouts left `approved` (PayPal timed out, or the process died)."""
-        async with self._db.acquire() as conn:
-            ids = await repo.stale_approved_payout_ids(conn, min_age_seconds)
-        changed = 0
-        for payout_id in ids:
-            if await self.send_payout(payout_id) != "approved":
-                changed += 1
-        return changed
 
     # ---- approvals, status, close ----------------------------------------------------------
 
@@ -733,6 +754,32 @@ def settlement_prompt(ctx: dict, image: bytes) -> list[dict[str, Any]]:
             ),
         },
     ]
+
+
+def _decide_one(payable: int, limit: int, sub: dict) -> str:
+    return decide(
+        payable,
+        limit,
+        sub["view_confidence"] or "low",
+        sub["views"] or 0,
+        sub["claimed_views"],
+        bool(sub["brief_ok"]),
+        bool(sub["disclosure_ok"]),
+    )
+
+
+def settle_decision(payable: int, limit: int, sub: dict, subs: list[dict]) -> str:
+    """Auto-pay only when this submission passes the policy AND so does the verified submission
+    whose views the amount is computed from (`best_verified_views` may come from an earlier one,
+    e.g. a low-confidence read whose run then errored)."""
+    decision = _decide_one(payable, limit, sub)
+    if decision != "auto":
+        return decision
+    verified = [s for s in subs if s["status"] == "verified" and s["views"] is not None]
+    best = max(verified, key=lambda s: s["views"], default=None)
+    if best is not None and best["id"] != sub["id"] and _decide_one(payable, limit, best) != "auto":
+        return "approval"
+    return decision
 
 
 def milestone_state(m: dict, subs: list[dict], pays: list[dict]) -> engine.MilestoneState:

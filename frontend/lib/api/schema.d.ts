@@ -1110,6 +1110,8 @@ export interface paths {
          *
          *     A call that starts a new user turn also counts as a message; the tool-loop calls that
          *     follow only count against the (much larger) call cap, so a turn under way can finish.
+         *     `tokens_k` (the route's estimate of the input size, in thousands of tokens) is charged
+         *     to a daily token ceiling, since `new_turn` is only the caller's word.
          */
         post: operations["agent_usage_api_v1_money_agent_usage_post"];
         delete?: never;
@@ -5338,6 +5340,7 @@ export interface operations {
         parameters: {
             query?: {
                 new_turn?: boolean;
+                tokens_k?: number;
             };
             header?: never;
             path?: never;

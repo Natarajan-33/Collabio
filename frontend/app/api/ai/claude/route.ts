@@ -1,12 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { type NextRequest, NextResponse } from "next/server"
 
-import { isNewUserTurn, type ClaudeRequestBody } from "@/lib/ai/claude-adapter"
+import { isNewUserTurn, sanitizeClaudeBody } from "@/lib/ai/claude-adapter"
 import { createSupabaseServer } from "@/lib/supabase/server"
 
 /** The dashboard agent's model; pinned here so the browser cannot choose another. */
 const MODEL = "claude-sonnet-5-5"
-const MAX_TOKENS = 8000
+const MAX_TOKENS = 4096
 
 let client: Anthropic | null = null
 
@@ -29,9 +29,21 @@ export async function POST(request: NextRequest) {
   if (!token)
     return NextResponse.json({ error: "Sign in first." }, { status: 401 })
 
-  const body = (await request.json()) as ClaudeRequestBody
+  const text = await request.text()
+  if (text.length > 2_000_000)
+    return NextResponse.json({ error: "Request too large." }, { status: 413 })
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return NextResponse.json({ error: "Bad request." }, { status: 400 })
+  }
+  const clean = sanitizeClaudeBody(parsed)
+  if (!clean.ok)
+    return NextResponse.json({ error: `Bad request (${clean.reason}).` }, { status: 400 })
+  const body = clean.body
   const usage = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/v1/money/agent-usage?new_turn=${isNewUserTurn(body)}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/v1/money/agent-usage?new_turn=${isNewUserTurn(body)}&tokens_k=${Math.min(clean.tokensK, 2000)}`,
     {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },

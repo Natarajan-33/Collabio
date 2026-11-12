@@ -32,6 +32,9 @@ class PayPalError(Exception):
         self.message = message
         self.http_status = http_status
         self.debug_id = debug_id
+        # True when an earlier attempt of the same call had an unknown outcome (timeout, 5xx):
+        # a later 4xx may then be PayPal refusing a duplicate of a request it is processing.
+        self.after_unknown = False
 
 
 class _Retryable(Exception):
@@ -137,6 +140,7 @@ class PayPalClient:
             headers["PayPal-Request-Id"] = request_id or str(uuid.uuid4())
         if prefer_representation:
             headers["Prefer"] = "return=representation"
+        attempts = 0
         try:
             async for attempt in AsyncRetrying(
                 retry=retry_if_exception(
@@ -147,13 +151,16 @@ class PayPalClient:
                 reraise=True,
             ):
                 with attempt:
+                    attempts += 1
                     r = await self._send(method, path, json, headers)
         except _Retryable as exc:
             raise _error(exc.response) from None
         except httpx.HTTPError as exc:
             raise PayPalError("PAYPAL_UNREACHABLE", str(exc) or "network error", http_status=0)
         if r.status_code >= 300:
-            raise _error(r)
+            error = _error(r)
+            error.after_unknown = attempts > 1
+            raise error
         return r.json() if r.content else {}
 
     async def create_order(

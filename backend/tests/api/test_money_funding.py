@@ -40,7 +40,11 @@ async def test_order_then_capture_marks_funded_and_ledger(
     order_id, r = await order_and_capture(brand_client, deal_id)
     assert r.status_code == 200, r.text
     view = r.json()
-    assert fake_paypal.orders[order_id] == {"amount_cents": 360000, "custom_id": deal_id}
+    assert fake_paypal.orders[order_id] | {"status": None} == {
+        "amount_cents": 360000,
+        "custom_id": deal_id,
+        "status": None,
+    }
     assert view["deal_status"] == "funded"
     assert view["funding"]["status"] == "captured"
     assert view["funding"]["amount_cents"] == 360000

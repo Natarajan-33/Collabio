@@ -325,3 +325,30 @@ async def test_network_error_maps_to_paypalerror():
     with pytest.raises(PayPalError) as exc:
         await make_client().get_order("O1")
     assert exc.value.code == "PAYPAL_UNREACHABLE"
+
+
+@respx.mock
+async def test_4xx_after_a_timed_out_attempt_is_flagged_after_unknown():
+    """Final review #1: a duplicate/in-progress 4xx after a read timeout must not look definite."""
+    token_route(respx)
+    respx.post(f"{BASE}/v1/payments/payouts").mock(
+        side_effect=[
+            httpx.ReadTimeout("slow"),
+            httpx.Response(422, json={"name": "DUPLICATE_REQUEST", "message": "dup"}),
+        ]
+    )
+    with pytest.raises(PayPalError) as exc:
+        await make_client().create_payout("SB1", "r@example.com", 40_000, "note")
+    assert exc.value.http_status == 422
+    assert exc.value.after_unknown is True
+
+
+@respx.mock
+async def test_first_attempt_4xx_is_definite():
+    token_route(respx)
+    respx.post(f"{BASE}/v1/payments/payouts").mock(
+        return_value=httpx.Response(422, json={"name": "RECEIVER_UNREGISTERED", "message": "no"})
+    )
+    with pytest.raises(PayPalError) as exc:
+        await make_client().create_payout("SB1", "r@example.com", 40_000, "note")
+    assert exc.value.after_unknown is False

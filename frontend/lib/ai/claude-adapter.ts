@@ -38,6 +38,61 @@ export type ClaudeReply = {
   usage?: { input_tokens?: number; output_tokens?: number }
 }
 
+// Limits for the public demo route: generous for AG Studio's own turns, tight for abuse.
+const MAX_SYSTEM_CHARS = 300_000
+const MAX_MESSAGES = 200
+const MAX_TOOLS = 64
+const MAX_BODY_CHARS = 1_500_000
+const ALLOWED_BLOCKS = new Set(["text", "tool_use", "tool_result"])
+
+export type SanitizedClaudeBody =
+  | { ok: true; body: ClaudeRequestBody; tokensK: number }
+  | { ok: false; reason: string }
+
+/**
+ * Server-side guard for `/api/ai/claude`: the body comes from the browser, so keep only what
+ * AG Studio sends (text, tool calls and results; plain client tools) and bound its size.
+ * `tokensK` estimates the input in thousands of tokens (~4 characters per token).
+ */
+export function sanitizeClaudeBody(raw: unknown): SanitizedClaudeBody {
+  if (!raw || typeof raw !== "object") return { ok: false, reason: "body" }
+  const b = raw as Record<string, unknown>
+  const system = typeof b.system === "string" ? b.system : ""
+  if (system.length > MAX_SYSTEM_CHARS) return { ok: false, reason: "system" }
+  if (!Array.isArray(b.messages) || b.messages.length === 0 || b.messages.length > MAX_MESSAGES)
+    return { ok: false, reason: "messages" }
+  const messages: ClaudeMessage[] = []
+  for (const m of b.messages as Record<string, unknown>[]) {
+    if (!m || (m.role !== "user" && m.role !== "assistant") || !Array.isArray(m.content))
+      return { ok: false, reason: "message" }
+    const content = (m.content as ClaudeBlock[]).filter(
+      (block) => block && ALLOWED_BLOCKS.has(block.type)
+    )
+    if (content.length) messages.push({ role: m.role, content })
+  }
+  const tools = (Array.isArray(b.tools) ? b.tools : [])
+    .filter(
+      (t): t is ClaudeRequestBody["tools"][number] =>
+        !!t &&
+        typeof t === "object" &&
+        !("type" in t) &&
+        typeof (t as { name?: unknown }).name === "string" &&
+        typeof (t as { input_schema?: unknown }).input_schema === "object"
+    )
+    .map(({ name, description, input_schema }) => ({ name, description, input_schema }))
+  if (tools.length > MAX_TOOLS) return { ok: false, reason: "tools" }
+  const tc = b.tool_choice as { type?: string } | undefined
+  const body: ClaudeRequestBody = {
+    system,
+    messages,
+    tools,
+    ...(tc && (tc.type === "auto" || tc.type === "none") ? { tool_choice: { type: tc.type } } : {}),
+  }
+  const chars = JSON.stringify(body).length
+  if (chars > MAX_BODY_CHARS) return { ok: false, reason: "size" }
+  return { ok: true, body, tokensK: Math.max(1, Math.ceil(chars / 4 / 1000)) }
+}
+
 /** Whether this request starts a new turn from the person (not a tool-result follow-up). */
 export function isNewUserTurn(body: ClaudeRequestBody): boolean {
   const last = body.messages.at(-1)

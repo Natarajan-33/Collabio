@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.config import get_settings
+from app.core.caps import cap_for
 from app.modules.money import usage
 
 pytestmark = pytest.mark.db
@@ -29,7 +30,7 @@ async def test_try_call_forbidden_in_hackathon_mode(
 
 async def test_consume_raises_429_after_cap(api_db, auth_user, hackathon_settings):
     try:
-        for _ in range(30):
+        for _ in range(cap_for("settlement")):
             await usage.consume(api_db, auth_user, "settlement", hackathon_settings)
         with pytest.raises(HTTPException) as exc:
             await usage.consume(api_db, auth_user, "settlement", hackathon_settings)

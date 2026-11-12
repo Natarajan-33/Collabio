@@ -182,3 +182,52 @@ describe("isNewUserTurn", () => {
     expect(isNewUserTurn({ ...base, messages: [] })).toBe(false)
   })
 })
+
+describe("sanitizeClaudeBody (public demo guard)", () => {
+  const ok = {
+    system: "You build dashboards.",
+    messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+    tools: [{ name: "add_widget", description: "x", input_schema: { type: "object" } }],
+  }
+
+  it("passes a normal AG Studio turn and estimates its size", async () => {
+    const { sanitizeClaudeBody } = await import("@/lib/ai/claude-adapter")
+    const r = sanitizeClaudeBody(ok)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.tokensK).toBeGreaterThanOrEqual(1)
+  })
+
+  it("drops images, documents and server tools", async () => {
+    const { sanitizeClaudeBody } = await import("@/lib/ai/claude-adapter")
+    const r = sanitizeClaudeBody({
+      ...ok,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "hi" },
+            { type: "image", source: { type: "base64", data: "AAAA" } },
+            { type: "document", source: {} },
+          ],
+        },
+      ],
+      tools: [...ok.tools, { type: "web_search_20250305", name: "web_search" }],
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.body.messages[0].content.map((b) => b.type)).toEqual(["text"])
+    expect(r.body.tools.map((t) => t.name)).toEqual(["add_widget"])
+  })
+
+  it("refuses oversized or malformed requests", async () => {
+    const { sanitizeClaudeBody } = await import("@/lib/ai/claude-adapter")
+    expect(sanitizeClaudeBody({ ...ok, system: "x".repeat(300_001) }).ok).toBe(false)
+    const many = Array.from({ length: 201 }, (_, i) => ({
+      role: i % 2 ? "assistant" : "user",
+      content: [{ type: "text", text: "a" }],
+    }))
+    expect(sanitizeClaudeBody({ ...ok, messages: many }).ok).toBe(false)
+    expect(sanitizeClaudeBody({ ...ok, messages: "nope" }).ok).toBe(false)
+    expect(sanitizeClaudeBody(null).ok).toBe(false)
+  })
+})

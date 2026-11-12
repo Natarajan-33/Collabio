@@ -230,11 +230,13 @@ class FakePayPal:
         }
 
     async def get_order(self, order_id):
-        return {"id": order_id, "status": "APPROVED"}
+        order = self.orders.get(order_id, {})
+        return {"id": order_id, "status": order.get("status", "PAYER_ACTION_REQUIRED")}
 
     async def capture_order(self, order_id):
         self.captures += 1
         order = self.orders[order_id]
+        order["status"] = "COMPLETED"
         return {
             "status": "COMPLETED",
             "capture_status": "COMPLETED",
