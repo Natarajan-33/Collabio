@@ -200,7 +200,8 @@ describe("Brief page", () => {
     expect(screen.getByRole("listitem", { name: "Arjun Rao" })).toBeTruthy()
     expect(screen.getByRole("listitem", { name: "Priya Shah" })).toBeTruthy()
     expect(screen.getByRole("button", { name: "Launch to 2" })).toBeTruthy()
-    expect(screen.getByText("Follow-ups start in M4.")).toBeTruthy()
+    // Follow-ups were never built, so the launch bar does not offer them.
+    expect(screen.queryByText(/Follow-up/)).toBeNull()
   })
 
   it("offers a way back when the brief cannot be loaded", async () => {
@@ -318,7 +319,7 @@ describe("Brief page", () => {
     })
   })
 
-  it("launches with the channel and policy the brand chose", async () => {
+  it("launches with the channels the brand chose and follow-ups off", async () => {
     const user = userEvent.setup()
     await renderPage()
     h.api.POST.mockResolvedValue({
@@ -328,7 +329,6 @@ describe("Brief page", () => {
 
     const priya = screen.getByRole("listitem", { name: "Priya Shah" })
     await user.click(within(priya).getByRole("button", { name: "Call" }))
-    await user.click(screen.getByRole("button", { name: "Off" }))
     await user.click(screen.getByRole("button", { name: "Launch to 2" }))
 
     await waitFor(() => expect(h.api.POST).toHaveBeenCalled())

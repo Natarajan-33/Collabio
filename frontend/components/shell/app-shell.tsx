@@ -318,7 +318,7 @@ export function AppShell({ role, creatorId = null, children }: AppShellProps) {
   return (
     <VoiceScreenProvider>
       <CreatorIdProvider creatorId={creatorId}>
-        <WelcomeNoteToast />
+        {!isHackathon && <WelcomeNoteToast />}
         <div className="min-h-svh bg-background text-foreground">
           <aside
             data-slot="app-rail"

@@ -9,19 +9,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { components } from "@/lib/api/schema"
 import { launchLabel, missingLabels } from "@/lib/brief/state"
 import { cn } from "@/lib/utils"
 
 type Policy = components["schemas"]["LaunchRequest"]["follow_up_policy"]
 type RuleViolation = components["schemas"]["RuleViolation"]
-
-const POLICIES: readonly { value: Policy; label: string }[] = [
-  { value: "off", label: "Off" },
-  { value: "suggest", label: "Suggest" },
-  { value: "auto", label: "Auto" },
-]
 
 type LaunchBarProps = {
   /** How many creators the launch reaches. */
@@ -30,8 +23,9 @@ type LaunchBarProps = {
   missing: readonly string[]
   /** Rules the filled-in fields break. */
   violations: readonly RuleViolation[]
-  policy: Policy
-  onPolicy: (policy: Policy) => void
+  /** Kept for the caller; follow-ups were never built, so the policy is not shown. */
+  policy?: Policy
+  onPolicy?: (policy: Policy) => void
   onLaunch: () => void
   /** The launch request is in flight. */
   launching: boolean
@@ -55,20 +49,18 @@ function lockReasons(
 }
 
 /**
- * The follow-up policy and the Launch button. Launch stays locked until the brief is
+ * The Launch button (follow-ups were never built, so no follow-up policy is offered; launches
+ * keep the default, "off"). Launch stays locked until the brief is
  * complete and breaks no rule, and says what is in the way when it is hovered or focused.
  */
 export function LaunchBar({
   count,
   missing,
   violations,
-  policy,
-  onPolicy,
   onLaunch,
   launching,
   pulse = false,
 }: LaunchBarProps) {
-  const labelId = React.useId()
   const reasons = lockReasons(count, missing, violations)
   const locked = reasons.length > 0
 
@@ -89,35 +81,10 @@ export function LaunchBar({
       data-slot="launch-bar"
       className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-background/95 p-4 shadow-sm backdrop-blur"
     >
-      <div className="flex flex-col gap-1.5">
-        <span
-          id={labelId}
-          className="text-xs tracking-wide text-muted-foreground uppercase"
-        >
-          Follow-up policy
-        </span>
-        <ToggleGroup
-          aria-labelledby={labelId}
-          variant="outline"
-          value={[policy]}
-          onValueChange={(next) => {
-            // Pressing the chosen one again would clear it; a policy is always set.
-            const chosen = next[0] as Policy | undefined
-            if (chosen) onPolicy(chosen)
-          }}
-        >
-          {POLICIES.map((option) => (
-            <ToggleGroupItem
-              key={option.value}
-              value={option.value}
-              className="aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background aria-pressed:hover:bg-foreground/90 aria-pressed:hover:text-background"
-            >
-              {option.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <p className="text-xs text-muted-foreground">Follow-ups start in M4.</p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Collabio emails each creator your offer; their replies and counters
+        appear in Outreach.
+      </p>
 
       <Tooltip>
         <TooltipTrigger

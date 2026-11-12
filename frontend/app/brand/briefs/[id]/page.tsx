@@ -63,7 +63,7 @@ export default function BriefPage() {
   // The creator the agent just named, and whether it has said the brief is complete.
   const [highlighted, setHighlighted] = React.useState<string | null>(null)
   const [ready, setReady] = React.useState(false)
-  const [policy, setPolicy] = React.useState<Policy>("suggest")
+  const [policy, setPolicy] = React.useState<Policy>("off")
   const [launching, setLaunching] = React.useState(false)
   // Set at once, unlike state, so a double click cannot launch twice.
   const launchingRef = React.useRef(false)
