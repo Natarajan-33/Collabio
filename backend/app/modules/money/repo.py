@@ -460,6 +460,14 @@ async def stale_approved_payout_ids(conn: asyncpg.Connection, min_age_seconds: i
     return [r["id"] for r in rows]
 
 
+def payout_split(amount_cents: int, breakdown: dict) -> tuple[int, int]:
+    """(base, bonus) cents of one payout. Breakdowns are cumulative per video, so the base
+    part is what base was still unpaid when this payout was made, capped at its amount."""
+    unpaid_base = int(breakdown.get("base") or 0) - int(breakdown.get("already_committed") or 0)
+    base = max(0, min(amount_cents, unpaid_base))
+    return base, amount_cents - base
+
+
 async def dashboard_rows(conn: asyncpg.Connection, brand_id: UUID) -> dict[str, list[dict]]:
     """Flat tables of the brand's money for AG Studio: dollars as numbers, ISO dates."""
     deals = await conn.fetch(
@@ -483,17 +491,35 @@ async def dashboard_rows(conn: asyncpg.Connection, brand_id: UUID) -> dict[str, 
         " where d.brand_id = $1",
         brand_id,
     )
-    payouts = await conn.fetch(
+    payout_rows = await conn.fetch(
         "select p.id::text, m.deal_id::text, p.milestone_id::text, d.creator_id::text,"
-        " p.status, p.amount_cents / 100.0 as amount,"
-        " coalesce((p.breakdown->>'base')::int, 0) / 100.0 as base,"
-        " (coalesce((p.breakdown->>'cpm')::int, 0)"
-        "  + coalesce((p.breakdown->>'tiers')::int, 0)) / 100.0 as bonus,"
-        " p.created_at::date::text as date"
+        " p.status, p.amount_cents, p.breakdown, p.created_at::date::text as date"
         " from public.payouts p join public.deal_milestones m on m.id = p.milestone_id"
         " join public.deals d on d.id = m.deal_id where d.brand_id = $1",
         brand_id,
     )
+    payouts = []
+    for r in payout_rows:
+        breakdown = r["breakdown"]
+        if isinstance(breakdown, str):
+            breakdown = json.loads(breakdown)
+        base, bonus = payout_split(r["amount_cents"], breakdown or {})
+        paid = r["status"] == "success"
+        payouts.append(
+            {
+                "id": r["id"],
+                "deal_id": r["deal_id"],
+                "milestone_id": r["milestone_id"],
+                "creator_id": r["creator_id"],
+                "status": r["status"],
+                "amount": r["amount_cents"] / 100,
+                "base": base / 100,
+                "bonus": bonus / 100,
+                "paid_base": base / 100 if paid else 0.0,
+                "paid_bonus": bonus / 100 if paid else 0.0,
+                "date": r["date"],
+            }
+        )
     events = await conn.fetch(
         "select e.id::text, e.deal_id::text, e.kind, e.amount_cents / 100.0 as amount,"
         " e.created_at::date::text as date"
@@ -516,7 +542,7 @@ async def dashboard_rows(conn: asyncpg.Connection, brand_id: UUID) -> dict[str, 
     return {
         "deals": rows(deals),
         "milestones": rows(milestones),
-        "payouts": rows(payouts),
+        "payouts": payouts,
         "money_events": rows(events),
         "creators": rows(creators),
     }

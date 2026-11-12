@@ -80,3 +80,18 @@ describe("studioLayout", () => {
     })
   })
 })
+
+describe("bonus KPI", () => {
+  it("counts bonus actually paid (success payouts), not every payout's cumulative figures", () => {
+    const widget = moneyReport.pages[0].widgets!["kpi-bonus"] as {
+      dataMapping: { value: { id: string }[] }
+      format: { title: { text: string } }
+    }
+    expect(widget.dataMapping.value[0].id).toBe("payouts.paid_bonus")
+    expect(widget.format.title.text).toBe("Bonus paid")
+    const fields = (buildMoneyData(rows).sources as unknown as Source[])
+      .find((s) => s.id === "payouts")!
+      .fields!.map((f) => f.id)
+    expect(fields).toEqual(expect.arrayContaining(["paid_base", "paid_bonus"]))
+  })
+})

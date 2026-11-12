@@ -15,6 +15,7 @@ import { useApi } from "@/hooks/use-api"
 import { useMoneyDoorbell } from "@/hooks/use-money-doorbell"
 import type { components } from "@/lib/api/schema"
 import { formatCents } from "@/lib/money"
+import { captureErrorText } from "@/lib/money/format"
 
 export type MoneyView = components["schemas"]["MoneyView"]
 type Viewer = "brand" | "creator"
@@ -167,12 +168,7 @@ export function MoneyPanel({
         setMoney(data)
         toast.success("Deal funded through PayPal.")
       } else {
-        const detail = (error as { detail?: unknown })?.detail
-        toast.error(
-          detail === "funding_mismatch"
-            ? "PayPal returned a different payment. Nothing was charged to this deal."
-            : "Could not capture the PayPal payment."
-        )
+        toast.error(captureErrorText(error))
       }
       router.replace(`/brand/deals/${dealId}`)
     })()

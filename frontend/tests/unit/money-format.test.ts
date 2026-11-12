@@ -26,3 +26,15 @@ describe("money formatting", () => {
     expect(ledgerLabel("refunded")).toBe("Unspent budget refunded")
   })
 })
+
+describe("captureErrorText", () => {
+  it("names the case and shows PayPal's debug id", async () => {
+    const { captureErrorText } = await import("@/lib/money/format")
+    expect(captureErrorText({ detail: "funding_mismatch" })).toMatch(/different payment/)
+    expect(captureErrorText({ detail: "funding_outdated" })).toMatch(/bonus changed/)
+    expect(
+      captureErrorText({ detail: { code: "INSTRUMENT_DECLINED", debug_id: "f1a2" } })
+    ).toBe("Could not capture the PayPal payment. PayPal said: INSTRUMENT_DECLINED (debug f1a2)")
+    expect(captureErrorText(undefined)).toBe("Could not capture the PayPal payment.")
+  })
+})

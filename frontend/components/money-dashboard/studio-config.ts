@@ -143,7 +143,8 @@ export function buildMoneyData(rows: MoneyRows): AgDataSourcesDefinition {
       {
         id: "payouts",
         description:
-          "PayPal payouts to creators: base pay plus performance bonus.",
+          "PayPal payouts to creators: base pay plus performance bonus (this payout's own share)." +
+          " Base Paid and Bonus Paid count only payouts with status 'success'.",
         data: rows.payouts,
         fields: fields([
           ["id", "Payout ID", "textFormat", true],
@@ -154,6 +155,8 @@ export function buildMoneyData(rows: MoneyRows): AgDataSourcesDefinition {
           ["amount", "Payout", "currencyFormat"],
           ["base", "Base Pay", "currencyFormat"],
           ["bonus", "Bonus Pay", "currencyFormat"],
+          ["paid_base", "Base Paid", "currencyFormat"],
+          ["paid_bonus", "Bonus Paid", "currencyFormat"],
           ["date", "Payout Date", "dateFormat"],
         ]),
       },
@@ -238,7 +241,7 @@ const overview: AgPageState = {
   widgets: {
     "kpi-funded": kpi("Funded through PayPal", sum("deals.funded")),
     "kpi-paid": kpi("Paid to creators", sum("milestones.paid")),
-    "kpi-bonus": kpi("Bonus pay (all payouts)", sum("payouts.bonus")),
+    "kpi-bonus": kpi("Bonus paid", sum("payouts.paid_bonus")),
     "kpi-refunded": kpi("Refunded to you", sum("deals.refunded")),
     "paid-by-creator": {
       type: "column-chart-stacked",

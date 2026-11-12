@@ -70,3 +70,19 @@ const PAYOUT_STATUS: Record<string, string> = {
 export function payoutStatusLabel(status: string): string {
   return PAYOUT_STATUS[status] ?? status
 }
+
+/** The brand's toast when a PayPal capture fails on the return page: the case, and PayPal's
+ *  error code and debug id when PayPal gave one (support needs the debug id). */
+export function captureErrorText(error: unknown): string {
+  const detail = (error as { detail?: unknown } | undefined)?.detail
+  if (detail === "funding_mismatch")
+    return "PayPal returned a different payment. Nothing was charged to this deal."
+  if (detail === "funding_outdated")
+    return "The bonus changed after this PayPal order was made. Fund the deal again."
+  const base = "Could not capture the PayPal payment."
+  if (detail && typeof detail === "object" && "code" in detail) {
+    const d = detail as { code: string; debug_id?: string }
+    return `${base} PayPal said: ${d.code}${d.debug_id ? ` (debug ${d.debug_id})` : ""}`
+  }
+  return base
+}
