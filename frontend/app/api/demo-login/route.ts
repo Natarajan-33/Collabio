@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 
 import { isHackathon, isPersona, personaPath } from "@/lib/hackathon"
 import { createSupabaseServer } from "@/lib/supabase/server"
+import { publicUrl } from "@/lib/http/public-url"
 
 /**
  * `GET /api/demo-login?as=brand|creator` signs in as a seeded demo persona on the server
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
   await supabase.auth.signOut()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) {
-    return NextResponse.redirect(new URL("/?demo=unavailable", request.url))
+    return NextResponse.redirect(publicUrl("/?demo=unavailable", request))
   }
-  return NextResponse.redirect(new URL(personaPath(persona), request.url))
+  return NextResponse.redirect(publicUrl(personaPath(persona), request))
 }
