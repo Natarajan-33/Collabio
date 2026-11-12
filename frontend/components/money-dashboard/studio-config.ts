@@ -342,6 +342,10 @@ export function resolveCssToken(token: string, fallback = "#ffffff"): string {
     .trim()
   const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })
   if (!raw || !ctx) return fallback
+  // Paint the page background first so translucent tokens (dark mode's borders are white at
+  // ~10% alpha) blend to the colour they really show, instead of reading as opaque white.
+  ctx.fillStyle = getComputedStyle(document.body).backgroundColor || fallback
+  ctx.fillRect(0, 0, 1, 1)
   ctx.fillStyle = fallback
   ctx.fillStyle = raw
   ctx.fillRect(0, 0, 1, 1)
